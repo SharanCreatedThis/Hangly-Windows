@@ -71,6 +71,46 @@ jobs:
       - name: Publish
         run: dotnet publish src/Hangly.App/Hangly.App.csproj -c Release -r ${{ matrix.rid }} -p:Platform=${{ matrix.platform }} -o artifacts/${{ matrix.rid }}
 
+      # A build that compiles can still publish a payload that cannot start: a missing
+      # native Skia binary or a missing WinUI runtime shows up as a silent exit on the
+      # user's machine, not as a build error. CI cannot launch the app — there is no
+      # display — but it can assert that everything the app needs to launch is present.
+      - name: Verify published payload
+        shell: pwsh
+        run: |
+          $root = "artifacts/${{ matrix.rid }}"
+          $required = @(
+            "Hangly.exe",                              # the app itself
+            "Hangly.Core.dll",                         # the solver
+            "Microsoft.ui.xaml.dll",                   # WinUI, self-contained
+            "Microsoft.WindowsAppRuntime.Bootstrap.dll" # unpackaged bootstrap
+          )
+          $missing = @()
+          foreach ($name in $required) {
+            if (-not (Get-ChildItem -Path $root -Filter $name -Recurse -File -ErrorAction SilentlyContinue)) {
+              $missing += $name
+            }
+          }
+
+          # Skia and Win2D are matched loosely because their file names carry an
+          # architecture or a version that differs between the two RIDs.
+          if (-not (Get-ChildItem -Path $root -Filter "*SkiaSharp*.dll" -Recurse -File -ErrorAction SilentlyContinue)) {
+            $missing += "libSkiaSharp (native)"
+          }
+          if (-not (Get-ChildItem -Path $root -Filter "*Win2D*" -Recurse -ErrorAction SilentlyContinue)) {
+            $missing += "Win2D native"
+          }
+
+          $svg = (Get-ChildItem -Path $root -Filter "*.svg" -Recurse -File -ErrorAction SilentlyContinue).Count
+          Write-Host "charm artwork: $svg SVG files"
+          if ($svg -lt 82) { $missing += "charm artwork (found $svg, expected 82)" }
+
+          if ($missing.Count -gt 0) {
+            Write-Host "::error::Published payload is incomplete: $($missing -join ', ')"
+            exit 1
+          }
+          Write-Host "Payload complete for ${{ matrix.rid }}."
+
       - name: Upload build
         if: success()
         uses: actions/upload-artifact@v4
