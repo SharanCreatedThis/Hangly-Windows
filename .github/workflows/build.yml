@@ -97,8 +97,10 @@ jobs:
           if (-not (Get-ChildItem -Path $root -Filter "*SkiaSharp*.dll" -Recurse -File -ErrorAction SilentlyContinue)) {
             $missing += "libSkiaSharp (native)"
           }
-          if (-not (Get-ChildItem -Path $root -Filter "*Win2D*" -Recurse -ErrorAction SilentlyContinue)) {
-            $missing += "Win2D native"
+          # Win2D's binary is named for its namespace, not for the product: there is no
+          # file with "Win2D" in it anywhere in the payload.
+          if (-not (Get-ChildItem -Path $root -Filter "Microsoft.Graphics.Canvas*" -Recurse -File -ErrorAction SilentlyContinue)) {
+            $missing += "Win2D (Microsoft.Graphics.Canvas)"
           }
 
           $svg = (Get-ChildItem -Path $root -Filter "*.svg" -Recurse -File -ErrorAction SilentlyContinue).Count
@@ -107,6 +109,11 @@ jobs:
 
           if ($missing.Count -gt 0) {
             Write-Host "::error::Published payload is incomplete: $($missing -join ', ')"
+
+            # Print what IS there, so the next person debugging this reads an inventory
+            # rather than guessing at a file name the way this check first did.
+            Write-Host "--- payload root ---"
+            Get-ChildItem -Path $root -File | Select-Object -ExpandProperty Name | Sort-Object
             exit 1
           }
           Write-Host "Payload complete for ${{ matrix.rid }}."
