@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The portable half of Hangly: the solver, the models and the settings document.
+
+    Deliberately `net9.0` and not `net9.0-windows`. Nothing here may touch WinUI,
+    Win2D or Win32, for the same reason the macOS original keeps AppKit out of its
+    model layer: "the rope never stretches" is a claim about arithmetic, and it is
+    checked by a test that runs on any machine with no display attached.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>Hangly.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      The solver's internals are its node array and its bead array. The tests assert
+      on node positions and inverse masses directly, exactly as the Swift suite does
+      through `@testable import`, because that is the only way "the anchor never
+      moves" is a number rather than a screenshot.
+    -->
+    <InternalsVisibleTo Include="Hangly.Core.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,79 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Windows 10 1809 (17763) is the floor because that is the oldest build the Windows
+      App SDK supports. 22621 is the SDK compiled against, which is how APIs newer than
+      the floor can be called at all — every one of them is guarded at runtime by
+      ApiInformation rather than assumed.
+    -->
+    <TargetFramework>net9.0-windows10.0.22621.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+
+    <RootNamespace>Hangly.App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- Both architectures Windows ships on. ARM64 is a first-class target, not a
+         compatibility mode: an x64 build under emulation would run the 240 Hz solver
+         through a translator on exactly the machines with the least power budget. -->
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <Platforms>x64;ARM64</Platforms>
+
+    <UseWinUI>true</UseWinUI>
+    <OutputType>WinExe</OutputType>
+
+    <!-- Unpackaged by default: Hangly is a small ornament people download as an .exe,
+         the way the macOS build is a disk image rather than a Mac App Store listing. -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+
+    <ApplicationIcon>Assets/hangly.ico</ApplicationIcon>
+    <AssemblyName>Hangly</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!--
+      Warnings are errors everywhere in this solution except here. The WinUI XAML compiler
+      generates C# that does not satisfy the analyzers this repository turns on — nullable
+      annotations and unused parameters in particular — and that generated code cannot be
+      edited. Failing the build on it would mean the rule could never be satisfied, so the
+      rule is switched off for this one project rather than suppressed case by case.
+    -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2705" />
+
+    <!-- Win2D is the port of the original's CoreGraphics drawing: immediate-mode 2D
+         with the same primitives — paths, strokes, dashes, gradients and layers — so
+         the renderer transcribes rather than reinvents. -->
+    <PackageReference Include="Microsoft.Graphics.Win2D" Version="1.4.0" />
+
+    <!-- SVG is the charm artwork's source format on both platforms. Svg.Skia rasterises
+         it at the exact size each frame needs, which is what the macOS VectorImage does
+         and why neither build ships baked bitmaps. -->
+    <PackageReference Include="Svg.Skia" Version="5.2.3" />
+
+    <!-- Named explicitly rather than left to Svg.Skia's transitive reference, because the
+         native Skia binary has to be restored for both architectures and an implicit
+         reference resolves only the one the build happens to be running on. -->
+    <PackageReference Include="SkiaSharp" Version="4.152.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.152.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Hangly.Core/Hangly.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Copied whole, exactly as the macOS bundle copies Assets/Charms. -->
+    <Content Include="Assets/Charms/**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets/hangly.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

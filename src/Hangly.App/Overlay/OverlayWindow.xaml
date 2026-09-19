@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Hangly.App.Overlay.OverlayWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:canvas="using:Microsoft.Graphics.Canvas.UI.Xaml">
+
+    <!--
+        Transparent all the way down. Every layer between the swapchain and the rope has
+        to be transparent or the window composites as a grey rectangle over the desktop:
+        the Window has no SystemBackdrop (set in code — there is no XAML "none"), the
+        Grid has no Background, and the canvas clears to transparent.
+    -->
+    <Grid x:Name="Root" Background="Transparent">
+        <canvas:CanvasControl
+            x:Name="Canvas"
+            ClearColor="Transparent"
+            Draw="OnDraw" />
+    </Grid>
+
+</Window>

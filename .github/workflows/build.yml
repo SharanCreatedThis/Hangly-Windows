@@ -1,0 +1,79 @@
+name: Build
+
+# The Windows build is the point of this workflow. The port was written on a Mac, where
+# WinUI cannot be compiled at all, so CI is not a safety net here — it is the first
+# machine that has ever tried to build the app half of this repository.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+
+jobs:
+  core:
+    name: Solver and models
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      # Hangly.Core has no Windows types in it, so this job proves the same thing the
+      # macOS run proves. It runs on Windows anyway because "the rope behaves identically"
+      # is a claim about floating-point arithmetic, and that is exactly the kind of claim
+      # that deserves to be checked on the platform it will ship on.
+      - name: Test
+        run: dotnet test tests/Hangly.Core.Tests/Hangly.Core.Tests.csproj -c Release --logger "trx;LogFileName=core.trx" --results-directory artifacts/tests
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: artifacts/tests
+
+  app:
+    name: App (${{ matrix.rid }})
+    runs-on: windows-latest
+    needs: core
+    strategy:
+      # Both architectures are built even when one fails, because a failure that appears
+      # on only one of them is a different and more interesting bug than one that appears
+      # on both.
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            platform: x64
+          - rid: win-arm64
+            platform: ARM64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore
+        run: dotnet restore src/Hangly.App/Hangly.App.csproj -r ${{ matrix.rid }}
+
+      - name: Build
+        run: dotnet build src/Hangly.App/Hangly.App.csproj -c Release -r ${{ matrix.rid }} --no-restore -p:Platform=${{ matrix.platform }}
+
+      - name: Publish
+        run: dotnet publish src/Hangly.App/Hangly.App.csproj -c Release -r ${{ matrix.rid }} -p:Platform=${{ matrix.platform }} -o artifacts/${{ matrix.rid }}
+
+      - name: Upload build
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hangly-${{ matrix.rid }}
+          path: artifacts/${{ matrix.rid }}

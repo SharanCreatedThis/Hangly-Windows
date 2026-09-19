@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 86 150">
+  <defs><linearGradient id="gold" x1="0.12" y1="0.05" x2="0.88" y2="0.95"><stop offset="0" stop-color="#ffeeb4"/><stop offset="0.42" stop-color="#e0b845"/><stop offset="1" stop-color="#7a5a12"/></linearGradient><radialGradient id="goldBead" cx="0.33" cy="0.28" r="0.8"><stop offset="0" stop-color="#fff6d6"/><stop offset="0.42" stop-color="#e3bb4f"/><stop offset="1" stop-color="#6b4d0e"/></radialGradient><linearGradient id="clay" x1="0.12" y1="0.05" x2="0.88" y2="0.95"><stop offset="0" stop-color="#e8a45f"/><stop offset="0.42" stop-color="#b4571c"/><stop offset="1" stop-color="#5c2205"/></linearGradient><radialGradient id="clayBead" cx="0.33" cy="0.28" r="0.8"><stop offset="0" stop-color="#f0b878"/><stop offset="0.42" stop-color="#b4571c"/><stop offset="1" stop-color="#5c2205"/></radialGradient><radialGradient id="flame" cx="0.33" cy="0.28" r="0.8"><stop offset="0" stop-color="#fff7cd"/><stop offset="0.38" stop-color="#ffce3d"/><stop offset="0.72" stop-color="#ff8a12"/><stop offset="1" stop-color="#e0400c"/></radialGradient><radialGradient id="halo" cx="0.33" cy="0.28" r="0.8"><stop offset="0" stop-color="#ffd46a"/><stop offset="0.55" stop-color="#ff9c2a"/><stop offset="1" stop-color="#ff8a1e"/></radialGradient></defs>
+  <path d="M43,0L43,66" fill="none" stroke="#5a4109" stroke-width="3.4"/>
+  <path d="M43,0L43,66" fill="none" stroke="url(#gold)" stroke-width="2.2"/>
+  <circle cx="43" cy="24" r="7.4" fill="#4a3408"/>
+  <circle cx="43" cy="24" r="6.5" fill="url(#goldBead)"/>
+  <circle cx="43" cy="43" r="9.4" fill="#4d1d05"/>
+  <circle cx="43" cy="43" r="8.4" fill="url(#clayBead)"/>
+  <ellipse cx="40.1" cy="39.6" rx="2.9" ry="2" fill="#ffffff" opacity="0.8"/>
+  <ellipse cx="43" cy="98" rx="26" ry="26" fill="url(#halo)" opacity="0.3"/>
+  <path d="M43,74C54,88 56,102 49,111C45,116 41,116 37,111C30,102 32,88 43,74Z" fill="#c8480d" stroke="#c8480d" stroke-width="1.6" stroke-linejoin="round"/><path d="M43,74C54,88 56,102 49,111C45,116 41,116 37,111C30,102 32,88 43,74Z" fill="url(#flame)"/>
+  <ellipse cx="43" cy="104" rx="3.6" ry="7" fill="#fffbe4" opacity="0.85"/>
+  <path d="M9,120C11,140 25,146 43,146C61,146 75,140 77,120Z" fill="#4d1d05" stroke="#4d1d05" stroke-width="3.2" stroke-linejoin="round"/><path d="M9,120C11,140 25,146 43,146C61,146 75,140 77,120Z" fill="url(#clay)"/>
+  <path d="M9,120L77,120" stroke="#4d1d05" stroke-width="5.4"
+        stroke-linecap="round"/>
+  <path d="M11,120L75,120" stroke="url(#gold)" stroke-width="3"
+        stroke-linecap="round"/>
+  <path d="M19,129C23,141 31,144 37,144"
+        stroke="#ffffff" stroke-width="3.2" fill="none" opacity="0.3" stroke-linecap="round"/>
+</svg>

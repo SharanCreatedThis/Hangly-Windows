@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 86 156">
+  <defs><linearGradient id="gold" x1="0.12" y1="0.05" x2="0.88" y2="0.95"><stop offset="0" stop-color="#ffeeb4"/><stop offset="0.42" stop-color="#e0b845"/><stop offset="1" stop-color="#7a5a12"/></linearGradient><radialGradient id="goldBead" cx="0.33" cy="0.28" r="0.8"><stop offset="0" stop-color="#fff6d6"/><stop offset="0.42" stop-color="#e3bb4f"/><stop offset="1" stop-color="#6b4d0e"/></radialGradient><linearGradient id="linen" x1="0.12" y1="0.05" x2="0.88" y2="0.95"><stop offset="0" stop-color="#ffffff"/><stop offset="0.42" stop-color="#dfe4f4"/><stop offset="1" stop-color="#8f9ac4"/></linearGradient><radialGradient id="linenBead" cx="0.33" cy="0.28" r="0.8"><stop offset="0" stop-color="#ffffff"/><stop offset="0.42" stop-color="#dfe4f4"/><stop offset="1" stop-color="#8f9ac4"/></radialGradient></defs>
+  <path d="M43,0L43,66" fill="none" stroke="#5a4109" stroke-width="3.4"/>
+  <path d="M43,0L43,66" fill="none" stroke="url(#gold)" stroke-width="2.2"/>
+  <circle cx="43" cy="24" r="7.4" fill="#4a3408"/>
+  <circle cx="43" cy="24" r="6.5" fill="url(#goldBead)"/>
+  <circle cx="43" cy="43" r="9.4" fill="#3b4468"/>
+  <circle cx="43" cy="43" r="8.4" fill="url(#linenBead)"/>
+  <ellipse cx="40.1" cy="39.6" rx="2.9" ry="2" fill="#ffffff" opacity="0.8"/>
+  <path d="M15,139C13,90 23,74 43,74C63,74 73,90 71,139C67,151 63,137 57,148C52,156 48,139 43,149C38,157 34,139 29,148C23,156 19,151 15,139Z" fill="#3b4468" stroke="#3b4468" stroke-width="3.2" stroke-linejoin="round"/><path d="M15,139C13,90 23,74 43,74C63,74 73,90 71,139C67,151 63,137 57,148C52,156 48,139 43,149C38,157 34,139 29,148C23,156 19,151 15,139Z" fill="url(#linen)"/>
+  <ellipse cx="34" cy="98" rx="4.6" ry="6" fill="#3b4468"/>
+  <ellipse cx="52" cy="98" rx="4.6" ry="6" fill="#3b4468"/>
+  <ellipse cx="43" cy="114" rx="5.4" ry="6.6" fill="#3b4468" opacity="0.85"/>
+  <ellipse cx="32.6" cy="95.6" rx="1.5" ry="1.9" fill="#ffffff" opacity="0.85"/>
+  <ellipse cx="50.6" cy="95.6" rx="1.5" ry="1.9" fill="#ffffff" opacity="0.85"/>
+  <path d="M22,88C18,108 19,117 22,131"
+        stroke="#ffffff" stroke-width="4" fill="none" opacity="0.6" stroke-linecap="round"/>
+</svg>

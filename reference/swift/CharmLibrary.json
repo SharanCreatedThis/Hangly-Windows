@@ -1,0 +1,1232 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "id": "protection",
+      "name": "Protection"
+    },
+    {
+      "id": "luck",
+      "name": "Luck & Fortune"
+    },
+    {
+      "id": "ritual",
+      "name": "Ritual & Home"
+    },
+    {
+      "id": "classic",
+      "name": "Classic"
+    },
+    {
+      "id": "seasonal",
+      "name": "Seasonal"
+    },
+    {
+      "id": "marvel",
+      "name": "Marvel"
+    },
+    {
+      "id": "dc",
+      "name": "DC"
+    },
+    {
+      "id": "tamilSpiritual",
+      "name": "Tamil Spiritual"
+    },
+    {
+      "id": "bts",
+      "name": "BTS"
+    },
+    {
+      "id": "footballLegends",
+      "name": "Football Legends"
+    },
+    {
+      "id": "musicLegends",
+      "name": "Music Legends"
+    },
+    {
+      "id": "friends",
+      "name": "Friends"
+    },
+    {
+      "id": "breakingBad",
+      "name": "Breaking Bad"
+    },
+    {
+      "id": "strangerThings",
+      "name": "Stranger Things"
+    }
+  ],
+  "charms": [
+    {
+      "id": "nazar",
+      "name": "Nazar boncuğu",
+      "region": "Turkey and the Mediterranean",
+      "category": "protection",
+      "description": "A glass eye bead hung to deflect the evil eye, the envious glance believed to bring misfortune. Found across Turkey, Greece and the wider Mediterranean, on doorways, cradles and dashboards alike.",
+      "tags": [
+        "evil eye",
+        "glass",
+        "blue",
+        "amulet",
+        "Turkey",
+        "Greece"
+      ],
+      "previewImage": "charm-preview-nazar"
+    },
+    {
+      "id": "hamsa",
+      "name": "Hamsa",
+      "region": "Middle East and North Africa",
+      "category": "protection",
+      "description": "An open right hand, often with an eye in the palm, carried as protection against harm. Shared by Jewish, Muslim and Christian communities from Morocco to the Levant.",
+      "tags": [
+        "hand",
+        "eye",
+        "amulet",
+        "Fatima",
+        "Miriam"
+      ],
+      "previewImage": "charm-preview-hamsa"
+    },
+    {
+      "id": "nimbuMirchi",
+      "name": "Nimbu-mirchi",
+      "region": "India",
+      "category": "protection",
+      "description": "A lemon and green chillies strung together and hung at shop doors and on vehicles across India to ward off the evil eye, and to give bad luck something sour to chew on instead.",
+      "tags": [
+        "lemon",
+        "chilli",
+        "evil eye",
+        "doorway",
+        "totka"
+      ],
+      "previewImage": "charm-preview-nimbuMirchi"
+    },
+    {
+      "id": "ghanta",
+      "name": "Ghanta",
+      "region": "India",
+      "category": "ritual",
+      "description": "The temple bell of Hindu and Buddhist worship. Its ring is said to clear the mind of the person who strikes it and to announce their arrival to the divine.",
+      "tags": [
+        "bell",
+        "temple",
+        "copper",
+        "puja",
+        "sound"
+      ],
+      "previewImage": "charm-preview-ghanta"
+    },
+    {
+      "id": "drishtiBommai",
+      "name": "Drishti bommai",
+      "region": "South India",
+      "category": "protection",
+      "description": "A fierce painted face hung outside homes and building sites in Tamil Nadu. Its job is to draw the evil eye onto itself and away from whatever it guards.",
+      "tags": [
+        "mask",
+        "demon",
+        "evil eye",
+        "Tamil Nadu",
+        "guardian"
+      ],
+      "previewImage": "charm-preview-drishtiBommai"
+    },
+    {
+      "id": "panchangJie",
+      "name": "Pánchángjié",
+      "region": "China",
+      "category": "luck",
+      "description": "The endless knot, tied from a single red cord with no beginning and no end. A symbol of longevity, unity and good fortune, hung at Lunar New Year.",
+      "tags": [
+        "knot",
+        "red",
+        "tassel",
+        "New Year",
+        "longevity",
+        "Chinese knot"
+      ],
+      "previewImage": "charm-preview-panchangJie"
+    },
+    {
+      "id": "daruma",
+      "name": "Daruma",
+      "region": "Japan",
+      "category": "luck",
+      "description": "A round, weighted doll modelled on the monk Bodhidharma. You paint one eye while making a wish and the other when it comes true, and it always rights itself when knocked over.",
+      "tags": [
+        "doll",
+        "wish",
+        "perseverance",
+        "red",
+        "Bodhidharma"
+      ],
+      "previewImage": "charm-preview-daruma"
+    },
+    {
+      "id": "manekiNeko",
+      "name": "Maneki-neko",
+      "region": "Japan",
+      "category": "luck",
+      "description": "The beckoning cat, raised paw inviting good fortune through the door. A raised right paw is said to bring money; a raised left paw brings customers.",
+      "tags": [
+        "cat",
+        "beckoning",
+        "calico",
+        "shop",
+        "fortune"
+      ],
+      "previewImage": "charm-preview-manekiNeko"
+    },
+    {
+      "id": "horseshoe",
+      "name": "Horseshoe",
+      "region": "Europe and the Americas",
+      "category": "luck",
+      "description": "Iron shaped by fire, nailed above a door for luck. Hung open end up it holds the luck in; open end down it pours the luck over those who pass beneath.",
+      "tags": [
+        "iron",
+        "door",
+        "luck",
+        "seven nails",
+        "blacksmith"
+      ],
+      "previewImage": "charm-preview-horseshoe"
+    },
+    {
+      "id": "scarab",
+      "name": "Scarab",
+      "region": "Ancient Egypt",
+      "category": "protection",
+      "description": "The dung beetle, sacred to the sun's rebirth each morning as it rolls its ball across the sky. Worn as an amulet in ancient Egypt for protection and renewal.",
+      "tags": [
+        "beetle",
+        "Egypt",
+        "turquoise",
+        "rebirth",
+        "amulet",
+        "sun"
+      ],
+      "previewImage": "charm-preview-scarab"
+    },
+    {
+      "id": "himmeli",
+      "name": "Himmeli",
+      "region": "Finland",
+      "category": "ritual",
+      "description": "A geometric mobile of rye straw hung above the table at midwinter in Finland to bless the coming harvest. The name comes from the Swedish word for sky.",
+      "tags": [
+        "straw",
+        "geometric",
+        "mobile",
+        "midwinter",
+        "harvest",
+        "gold"
+      ],
+      "previewImage": "charm-preview-himmeli"
+    },
+    {
+      "id": "dreamCatcher",
+      "name": "Dream Catcher",
+      "region": "North America",
+      "category": "protection",
+      "description": "An Ojibwe hoop webbed like a spider's, hung over a sleeping child so the bad dreams catch in the net and the good ones slip through the middle and down the feathers.",
+      "tags": [
+        "dream catcher",
+        "Ojibwe",
+        "feathers",
+        "web",
+        "sleep",
+        "protection"
+      ],
+      "previewImage": "charm-preview-dreamCatcher"
+    },
+    {
+      "id": "circle",
+      "name": "Bead",
+      "region": "Universal",
+      "category": "classic",
+      "description": "A plain glass bead, the charm Hangly ships with. Simple, weighty and never out of place.",
+      "tags": [
+        "bead",
+        "simple",
+        "default",
+        "violet"
+      ],
+      "previewImage": "charm-preview-circle"
+    },
+    {
+      "id": "star",
+      "name": "Star",
+      "region": "Universal",
+      "category": "classic",
+      "description": "Everyone's first lucky charm. The lightest in the set, so it swings the fastest.",
+      "tags": [
+        "star",
+        "gold",
+        "light",
+        "wish"
+      ],
+      "previewImage": "charm-preview-star"
+    },
+    {
+      "id": "heart",
+      "name": "Heart",
+      "region": "Universal",
+      "category": "classic",
+      "description": "Worn on the sleeve, or in this case at the top of the screen.",
+      "tags": [
+        "heart",
+        "red",
+        "love"
+      ],
+      "previewImage": "charm-preview-heart"
+    },
+    {
+      "id": "diamond",
+      "name": "Diamond",
+      "region": "Universal",
+      "category": "classic",
+      "description": "Cut, faceted and indestructible. Heavy enough to hang the rope nearly straight.",
+      "tags": [
+        "gem",
+        "ice",
+        "faceted",
+        "blue"
+      ],
+      "previewImage": "charm-preview-diamond"
+    },
+    {
+      "id": "camera",
+      "name": "Camera",
+      "region": "Universal",
+      "category": "classic",
+      "description": "For photographers and the perpetually nostalgic. The heaviest charm in the box.",
+      "tags": [
+        "camera",
+        "photo",
+        "graphite",
+        "heavy"
+      ],
+      "previewImage": "charm-preview-camera"
+    },
+    {
+      "id": "snowflake",
+      "name": "Snowflake",
+      "region": "Northern winters",
+      "category": "seasonal",
+      "description": "No two alike, and none lasting — which is most of why they are worn. A six-armed crystal of ice, the shape water takes when it freezes slowly enough to be careful about it.",
+      "tags": [
+        "winter",
+        "ice",
+        "christmas",
+        "crystal",
+        "cold"
+      ],
+      "previewImage": "charm-preview-snowflake"
+    },
+    {
+      "id": "bell",
+      "name": "Bell",
+      "region": "Europe",
+      "category": "seasonal",
+      "description": "Hung on doors and harnesses through midwinter, when a bell was how you found the way home in weather that hid the road. Brass, so it carries.",
+      "tags": [
+        "christmas",
+        "brass",
+        "winter",
+        "sound",
+        "door"
+      ],
+      "previewImage": "charm-preview-bell"
+    },
+    {
+      "id": "candyCane",
+      "name": "Candy Cane",
+      "region": "Germany and the United States",
+      "category": "seasonal",
+      "description": "A shepherd's crook in boiled sugar, hung on trees since the nineteenth century. The red stripe came later, and nobody is quite sure who added it.",
+      "tags": [
+        "christmas",
+        "sugar",
+        "sweet",
+        "red",
+        "winter"
+      ],
+      "previewImage": "charm-preview-candyCane"
+    },
+    {
+      "id": "pumpkin",
+      "name": "Pumpkin",
+      "region": "Ireland and North America",
+      "category": "seasonal",
+      "description": "Carved first from turnips in Ireland, then from the far more obliging pumpkins of North America. A light in a face in a window, to keep the dark occupied.",
+      "tags": [
+        "halloween",
+        "autumn",
+        "lantern",
+        "orange",
+        "carved"
+      ],
+      "previewImage": "charm-preview-pumpkin"
+    },
+    {
+      "id": "ghost",
+      "name": "Ghost",
+      "region": "Worldwide",
+      "category": "seasonal",
+      "description": "The oldest costume there is: a sheet, two holes, and the entire idea of a visitor who has not quite left. Hung at Halloween, when the door is said to be ajar.",
+      "tags": [
+        "halloween",
+        "spirit",
+        "autumn",
+        "white",
+        "haunt"
+      ],
+      "previewImage": "charm-preview-ghost"
+    },
+    {
+      "id": "bat",
+      "name": "Bat",
+      "region": "Worldwide",
+      "category": "seasonal",
+      "description": "An omen in Europe and a blessing in China, where the word for bat sounds like the word for fortune. It depends entirely on who is doing the looking.",
+      "tags": [
+        "halloween",
+        "night",
+        "autumn",
+        "luck",
+        "wings"
+      ],
+      "previewImage": "charm-preview-bat"
+    },
+    {
+      "id": "diya",
+      "name": "Diya",
+      "region": "India",
+      "category": "seasonal",
+      "description": "A clay lamp filled with oil and lit at Diwali, set in rows along walls and windowsills. The festival is named for them: a row of lights, against a new-moon night.",
+      "tags": [
+        "diwali",
+        "lamp",
+        "flame",
+        "clay",
+        "India",
+        "festival"
+      ],
+      "previewImage": "charm-preview-diya"
+    },
+    {
+      "id": "lotus",
+      "name": "Lotus",
+      "region": "India and East Asia",
+      "category": "seasonal",
+      "description": "Rooted in mud and opening clean above it, which is the whole of what it is taken to mean. Drawn at Diwali in rangoli on the threshold, to invite Lakshmi in.",
+      "tags": [
+        "diwali",
+        "flower",
+        "India",
+        "purity",
+        "festival"
+      ],
+      "previewImage": "charm-preview-lotus"
+    },
+    {
+      "id": "lantern",
+      "name": "Lantern",
+      "region": "India and China",
+      "category": "seasonal",
+      "description": "Paper and silk over a frame, hung in strings at Diwali and at the lunar new year. Light you can carry, and light that says the house is keeping the festival.",
+      "tags": [
+        "diwali",
+        "lantern",
+        "light",
+        "red",
+        "festival"
+      ],
+      "previewImage": "charm-preview-lantern"
+    },
+    {
+      "id": "firework",
+      "name": "Firework",
+      "region": "China",
+      "category": "seasonal",
+      "description": "Invented to frighten off what the new year might otherwise bring, and kept for a thousand years after anyone believed that, because it turned out to be a good way to begin.",
+      "tags": [
+        "new year",
+        "fireworks",
+        "celebration",
+        "gold",
+        "night"
+      ],
+      "previewImage": "charm-preview-firework"
+    },
+    {
+      "id": "luckyCoin",
+      "name": "Lucky Coin",
+      "region": "China",
+      "category": "seasonal",
+      "description": "A round coin with a square hole, strung on red cord: heaven round, earth square, and the year ahead threaded through the middle of both.",
+      "tags": [
+        "new year",
+        "coin",
+        "luck",
+        "fortune",
+        "gold",
+        "China"
+      ],
+      "previewImage": "charm-preview-luckyCoin"
+    },
+    {
+      "id": "spiderMan",
+      "name": "Spider-Man",
+      "region": "Marvel",
+      "category": "marvel",
+      "description": "Hanging head-down from a thread of his own, which is the way he is most often drawn and the only pose in this set that was already a charm before anybody hung it. Pair him with Spider Thread.",
+      "tags": [
+        "Spider-Man",
+        "web",
+        "upside down",
+        "Marvel"
+      ],
+      "previewImage": "charm-preview-spiderMan"
+    },
+    {
+      "id": "spiderManSwinging",
+      "name": "Spider-Man Swinging",
+      "region": "Marvel",
+      "category": "marvel",
+      "description": "Caught mid-swing on a line he shot a moment ago, one arm up and the rest of him still travelling. The second of him in this set, and the one that looks like it is going somewhere.",
+      "tags": [
+        "Spider-Man",
+        "web",
+        "swing",
+        "Marvel"
+      ],
+      "previewImage": "charm-preview-spiderManSwinging"
+    },
+    {
+      "id": "captainAmericaShield",
+      "name": "Captain America Shield",
+      "region": "Marvel",
+      "category": "marvel",
+      "description": "Concentric rings and a white star, struck face on. The heaviest thing in the set after the hammer, and it hangs like it.",
+      "tags": [
+        "Captain America",
+        "shield",
+        "star",
+        "Marvel"
+      ],
+      "previewImage": "charm-preview-captainAmericaShield"
+    },
+    {
+      "id": "ironManHelmet",
+      "name": "Iron Man Helmet",
+      "region": "Marvel",
+      "category": "marvel",
+      "description": "Red and gold plate with the eye slits lit. Faces forward, so it reads as a mask rather than as a head.",
+      "tags": [
+        "Iron Man",
+        "helmet",
+        "gold",
+        "Marvel"
+      ],
+      "previewImage": "charm-preview-ironManHelmet"
+    },
+    {
+      "id": "thorHammer",
+      "name": "Thor Hammer",
+      "region": "Marvel",
+      "category": "marvel",
+      "description": "Mjölnir, head square on, a rune lit on its face. The heaviest charm in the app, and on a chain it barely moves.",
+      "tags": [
+        "Thor",
+        "Mjölnir",
+        "hammer",
+        "Marvel"
+      ],
+      "previewImage": "charm-preview-thorHammer"
+    },
+    {
+      "id": "hulkFist",
+      "name": "Hulk Fist",
+      "region": "Marvel",
+      "category": "marvel",
+      "description": "A closed green fist inside a ring. Solid, and the dullest-sounding charm here — nothing about it rings.",
+      "tags": [
+        "Hulk",
+        "fist",
+        "green",
+        "Marvel"
+      ],
+      "previewImage": "charm-preview-hulkFist"
+    },
+    {
+      "id": "batmanSymbol",
+      "name": "Batman Symbol",
+      "region": "DC",
+      "category": "dc",
+      "description": "Wings spread wide and brushed steel-dark. The widest charm in the app, which is why it hangs at a smaller size than the rest of its set.",
+      "tags": [
+        "Batman",
+        "bat",
+        "wings",
+        "DC"
+      ],
+      "previewImage": "charm-preview-batmanSymbol"
+    },
+    {
+      "id": "supermanShield",
+      "name": "Superman Shield",
+      "region": "DC",
+      "category": "dc",
+      "description": "The crest, cut as a shield and set in silver. Red on chrome, and it catches the light from the same corner every other charm does.",
+      "tags": [
+        "Superman",
+        "shield",
+        "crest",
+        "DC"
+      ],
+      "previewImage": "charm-preview-supermanShield"
+    },
+    {
+      "id": "wonderWomanEmblem",
+      "name": "Wonder Woman Emblem",
+      "region": "DC",
+      "category": "dc",
+      "description": "Gold wings folded into a W, over red and blue. Broad across the shoulders and narrow at the point, so it settles nose-down.",
+      "tags": [
+        "Wonder Woman",
+        "emblem",
+        "gold",
+        "DC"
+      ],
+      "previewImage": "charm-preview-wonderWomanEmblem"
+    },
+    {
+      "id": "shazamLightning",
+      "name": "Shazam Lightning",
+      "region": "DC",
+      "category": "dc",
+      "description": "A single bolt in red and gold. The lightest charm in the set and the quickest to swing.",
+      "tags": [
+        "Shazam",
+        "lightning",
+        "bolt",
+        "DC"
+      ],
+      "previewImage": "charm-preview-shazamLightning"
+    },
+    {
+      "id": "greenLanternRing",
+      "name": "Green Lantern Ring",
+      "region": "DC",
+      "category": "dc",
+      "description": "A lit green stone in a silver ring. The one charm in this set that glows rather than shines.",
+      "tags": [
+        "Green Lantern",
+        "ring",
+        "green",
+        "DC"
+      ],
+      "previewImage": "charm-preview-greenLanternRing"
+    },
+    {
+      "id": "vel",
+      "name": "Vel",
+      "region": "Tamil Nadu, South India",
+      "category": "tamilSpiritual",
+      "description": "Murugan's spear, and the sign of the god himself rather than a weapon he carries. A vel is planted at his hill shrines and carried by pilgrims at Thaipusam; the leaf-shaped blade is read as wisdom, broad at the base and sharp at the point.",
+      "tags": [
+        "Murugan",
+        "vel",
+        "spear",
+        "Thaipusam",
+        "Tamil Nadu"
+      ],
+      "previewImage": "charm-preview-vel"
+    },
+    {
+      "id": "vinayagarCoin",
+      "name": "Vinayagar Coin",
+      "region": "Tamil Nadu, South India",
+      "category": "tamilSpiritual",
+      "description": "Vinayagar — Ganesha — struck in relief inside a wreath. He is asked first, before any journey, any examination and any new venture, because he is the one who removes what is in the way.",
+      "tags": [
+        "Vinayagar",
+        "Ganesha",
+        "coin",
+        "elephant",
+        "beginnings"
+      ],
+      "previewImage": "charm-preview-vinayagarCoin"
+    },
+    {
+      "id": "omSymbol",
+      "name": "OM Symbol",
+      "region": "Tamil Nadu, South India",
+      "category": "tamilSpiritual",
+      "description": "The Om, set in gold and stoned in red and green. It opens a prayer and closes one, and is cut above doorways so that the sound is there whether or not anyone is saying it.",
+      "tags": [
+        "Om",
+        "syllable",
+        "gold",
+        "doorway",
+        "Tamil Nadu"
+      ],
+      "previewImage": "charm-preview-omSymbol"
+    },
+    {
+      "id": "karuppuStatue",
+      "name": "Karuppu Statue",
+      "region": "Tamil Nadu, South India",
+      "category": "tamilSpiritual",
+      "description": "Karuppasamy, a guardian deity of the village boundary, cast dark and standing with his aruval raised. He is set at the edge of a settlement facing outward: the one who keeps watch on what a house cannot see.",
+      "tags": [
+        "Karuppasamy",
+        "guardian",
+        "village deity",
+        "aruval",
+        "boundary"
+      ],
+      "previewImage": "charm-preview-karuppuStatue"
+    },
+    {
+      "id": "templeBell",
+      "name": "Temple Bell",
+      "region": "Tamil Nadu, South India",
+      "category": "tamilSpiritual",
+      "description": "The mani, rung on the way in and not on the way out. The note is meant to clear the mind of whatever it walked in carrying, so that what happens next is the only thing in it.",
+      "tags": [
+        "mani",
+        "bell",
+        "brass",
+        "temple",
+        "Tamil Nadu"
+      ],
+      "previewImage": "charm-preview-templeBell"
+    },
+    {
+      "id": "btsMemberOne",
+      "name": "RM",
+      "region": "BTS",
+      "category": "bts",
+      "description": "Namjoon — RM, the leader, and the one who speaks for the seven when there is speaking to be done.",
+      "tags": [
+        "RM",
+        "Namjoon",
+        "leader",
+        "BTS"
+      ],
+      "previewImage": "charm-preview-btsMemberOne"
+    },
+    {
+      "id": "btsMemberTwo",
+      "name": "Jin",
+      "region": "BTS",
+      "category": "bts",
+      "description": "Seokjin — Jin, the eldest, and by his own long-running claim worldwide handsome.",
+      "tags": [
+        "Jin",
+        "Seokjin",
+        "vocalist",
+        "BTS"
+      ],
+      "previewImage": "charm-preview-btsMemberTwo"
+    },
+    {
+      "id": "btsMemberThree",
+      "name": "SUGA",
+      "region": "BTS",
+      "category": "bts",
+      "description": "Yoongi — SUGA, who produces as Agust D and says the least of the seven on stage.",
+      "tags": [
+        "SUGA",
+        "Yoongi",
+        "Agust D",
+        "BTS"
+      ],
+      "previewImage": "charm-preview-btsMemberThree"
+    },
+    {
+      "id": "btsMemberFour",
+      "name": "j-hope",
+      "region": "BTS",
+      "category": "bts",
+      "description": "Hoseok — j-hope, the dancer of the group, and the one the others call their sunshine.",
+      "tags": [
+        "j-hope",
+        "Hoseok",
+        "dance",
+        "BTS"
+      ],
+      "previewImage": "charm-preview-btsMemberFour"
+    },
+    {
+      "id": "btsMemberFive",
+      "name": "Jimin",
+      "region": "BTS",
+      "category": "bts",
+      "description": "Jimin — the smallest of the seven and the one trained in contemporary dance before any of this.",
+      "tags": [
+        "Jimin",
+        "dance",
+        "vocalist",
+        "BTS"
+      ],
+      "previewImage": "charm-preview-btsMemberFive"
+    },
+    {
+      "id": "btsMemberSix",
+      "name": "V",
+      "region": "BTS",
+      "category": "bts",
+      "description": "Taehyung — V, the baritone, and the one who named himself after a letter.",
+      "tags": [
+        "V",
+        "Taehyung",
+        "baritone",
+        "BTS"
+      ],
+      "previewImage": "charm-preview-btsMemberSix"
+    },
+    {
+      "id": "btsMemberSeven",
+      "name": "Jungkook",
+      "region": "BTS",
+      "category": "bts",
+      "description": "Jungkook — the maknae, the youngest, and the one who joined at fifteen.",
+      "tags": [
+        "Jungkook",
+        "maknae",
+        "youngest",
+        "BTS"
+      ],
+      "previewImage": "charm-preview-btsMemberSeven"
+    },
+    {
+      "id": "ronaldoJersey",
+      "name": "Ronaldo 7",
+      "region": "Portugal",
+      "category": "footballLegends",
+      "description": "Portugal's number seven, in the maroon and gold of the home shirt. The seven is the only number in this set that has become a name.",
+      "tags": [
+        "Ronaldo",
+        "Portugal",
+        "seven",
+        "jersey"
+      ],
+      "previewImage": "charm-preview-ronaldoJersey"
+    },
+    {
+      "id": "messiJersey",
+      "name": "Messi 10",
+      "region": "Argentina",
+      "category": "footballLegends",
+      "description": "Argentina's sky blue and white stripes with the ten on the back — the shirt a World Cup was finally won in.",
+      "tags": [
+        "Messi",
+        "Argentina",
+        "ten",
+        "jersey"
+      ],
+      "previewImage": "charm-preview-messiJersey"
+    },
+    {
+      "id": "neymarJersey",
+      "name": "Neymar 10",
+      "region": "Brazil",
+      "category": "footballLegends",
+      "description": "Brazil's canarinho yellow, green at the collar and cuffs, ten on the back.",
+      "tags": [
+        "Neymar",
+        "Brazil",
+        "ten",
+        "jersey"
+      ],
+      "previewImage": "charm-preview-neymarJersey"
+    },
+    {
+      "id": "realMadridCrest",
+      "name": "Real Madrid",
+      "region": "Spain",
+      "category": "footballLegends",
+      "description": "The C, F and M interlocked under a royal crown — granted by Alfonso XIII in 1920, which is where the Real comes from.",
+      "tags": [
+        "Real Madrid",
+        "crest",
+        "crown",
+        "Spain"
+      ],
+      "previewImage": "charm-preview-realMadridCrest"
+    },
+    {
+      "id": "fcBarcelonaCrest",
+      "name": "FC Barcelona",
+      "region": "Spain",
+      "category": "footballLegends",
+      "description": "Blaugrana: the St George's cross and the Catalan bars above, the blue and claret halves below, a ball at the foot.",
+      "tags": [
+        "Barcelona",
+        "crest",
+        "blaugrana",
+        "Catalonia"
+      ],
+      "previewImage": "charm-preview-fcBarcelonaCrest"
+    },
+    {
+      "id": "billieEilish",
+      "name": "Billie Eilish",
+      "region": "United States",
+      "category": "musicLegends",
+      "description": "Green roots over black, sat down in oversized everything, looking like she would rather not be photographed.",
+      "tags": [
+        "Billie Eilish",
+        "singer",
+        "green",
+        "music"
+      ],
+      "previewImage": "charm-preview-billieEilish"
+    },
+    {
+      "id": "xxxtentacion",
+      "name": "XXXTentacion",
+      "region": "United States",
+      "category": "musicLegends",
+      "description": "Half-blond dreads and folded arms, sitting the way the album covers had him sit.",
+      "tags": [
+        "XXXTentacion",
+        "rapper",
+        "dreads",
+        "music"
+      ],
+      "previewImage": "charm-preview-xxxtentacion"
+    },
+    {
+      "id": "michaelJackson",
+      "name": "Michael Jackson",
+      "region": "United States",
+      "category": "musicLegends",
+      "description": "Caught mid-lean with the fedora down and one sequinned glove up — the pose that needs no caption anywhere on earth.",
+      "tags": [
+        "Michael Jackson",
+        "pop",
+        "fedora",
+        "glove"
+      ],
+      "previewImage": "charm-preview-michaelJackson"
+    },
+    {
+      "id": "taylorSwift",
+      "name": "Taylor Swift",
+      "region": "United States",
+      "category": "musicLegends",
+      "description": "Sat on a flight case with an acoustic, which is where the songs start before a stadium gets involved.",
+      "tags": [
+        "Taylor Swift",
+        "guitar",
+        "songwriter",
+        "music"
+      ],
+      "previewImage": "charm-preview-taylorSwift"
+    },
+    {
+      "id": "juiceWrld",
+      "name": "Juice WRLD",
+      "region": "United States",
+      "category": "musicLegends",
+      "description": "999 across the hoodie — his own number, six-six-six turned over, for taking a bad thing and making something of it.",
+      "tags": [
+        "Juice WRLD",
+        "999",
+        "rapper",
+        "music"
+      ],
+      "previewImage": "charm-preview-juiceWrld"
+    },
+    {
+      "id": "theWeeknd",
+      "name": "The Weeknd",
+      "region": "Canada",
+      "category": "musicLegends",
+      "description": "Sequined red jacket over black, arms out and eyes shut, halfway through the note that made the night famous.",
+      "tags": [
+        "The Weeknd",
+        "singer",
+        "red jacket",
+        "music"
+      ],
+      "previewImage": "charm-preview-theWeeknd"
+    },
+    {
+      "id": "rachelGreen",
+      "name": "Rachel Green",
+      "region": "United States",
+      "category": "friends",
+      "description": "Coffee in hand, bag on the shoulder — which is how she spent a decent fraction of ten years.",
+      "tags": [
+        "Rachel",
+        "Friends",
+        "coffee",
+        "New York"
+      ],
+      "previewImage": "charm-preview-rachelGreen"
+    },
+    {
+      "id": "monicaGeller",
+      "name": "Monica Geller",
+      "region": "United States",
+      "category": "friends",
+      "description": "Arms folded, all in black, and everything behind her exactly where it ought to be.",
+      "tags": [
+        "Monica",
+        "Friends",
+        "chef",
+        "New York"
+      ],
+      "previewImage": "charm-preview-monicaGeller"
+    },
+    {
+      "id": "rossGeller",
+      "name": "Ross Geller",
+      "region": "United States",
+      "category": "friends",
+      "description": "Holding a dinosaur, because he is a palaeontologist and would like a moment of your time to explain it.",
+      "tags": [
+        "Ross",
+        "Friends",
+        "dinosaur",
+        "New York"
+      ],
+      "previewImage": "charm-preview-rossGeller"
+    },
+    {
+      "id": "joeyTribbiani",
+      "name": "Joey Tribbiani",
+      "region": "United States",
+      "category": "friends",
+      "description": "Leather jacket, finger up, mouth open. You already know the line.",
+      "tags": [
+        "Joey",
+        "Friends",
+        "actor",
+        "New York"
+      ],
+      "previewImage": "charm-preview-joeyTribbiani"
+    },
+    {
+      "id": "chandlerBing",
+      "name": "Chandler Bing",
+      "region": "United States",
+      "category": "friends",
+      "description": "In the suit, hands in pockets, mid-sarcasm. Could his job BE any harder to describe?",
+      "tags": [
+        "Chandler",
+        "Friends",
+        "sarcasm",
+        "New York"
+      ],
+      "previewImage": "charm-preview-chandlerBing"
+    },
+    {
+      "id": "phoebeBuffay",
+      "name": "Phoebe Buffay",
+      "region": "United States",
+      "category": "friends",
+      "description": "Guitar in hand, which means a cat somewhere is about to be sung about at length.",
+      "tags": [
+        "Phoebe",
+        "Friends",
+        "guitar",
+        "New York"
+      ],
+      "previewImage": "charm-preview-phoebeBuffay"
+    },
+    {
+      "id": "walterWhite",
+      "name": "Walter White",
+      "region": "United States",
+      "category": "breakingBad",
+      "description": "Yellow hazmat, a flask of blue in one hand and the gas mask in the other. Still telling himself it is about the family.",
+      "tags": [
+        "Walter White",
+        "chemistry",
+        "hazmat",
+        "Breaking Bad"
+      ],
+      "previewImage": "charm-preview-walterWhite"
+    },
+    {
+      "id": "jessePinkman",
+      "name": "Jesse Pinkman",
+      "region": "United States",
+      "category": "breakingBad",
+      "description": "Beanie and a yellow jacket, standing like a man who has just been told off and is about to be told off again.",
+      "tags": [
+        "Jesse",
+        "Breaking Bad",
+        "beanie",
+        "Albuquerque"
+      ],
+      "previewImage": "charm-preview-jessePinkman"
+    },
+    {
+      "id": "saulGoodman",
+      "name": "Saul Goodman",
+      "region": "United States",
+      "category": "breakingBad",
+      "description": "Pinstripes, a loud tie and a sign carrying his own catchphrase, which is the most honest thing about him.",
+      "tags": [
+        "Saul",
+        "lawyer",
+        "Breaking Bad",
+        "Albuquerque"
+      ],
+      "previewImage": "charm-preview-saulGoodman"
+    },
+    {
+      "id": "gusFring",
+      "name": "Gus Fring",
+      "region": "United States",
+      "category": "breakingBad",
+      "description": "The good suit, the glasses, and absolutely nothing showing on his face. That is the frightening part.",
+      "tags": [
+        "Gus Fring",
+        "Los Pollos",
+        "Breaking Bad",
+        "suit"
+      ],
+      "previewImage": "charm-preview-gusFring"
+    },
+    {
+      "id": "mikeEhrmantraut",
+      "name": "Mike Ehrmantraut",
+      "region": "United States",
+      "category": "breakingBad",
+      "description": "Leather jacket, hands where you can see them, and a patience you would be unwise to test.",
+      "tags": [
+        "Mike",
+        "fixer",
+        "Breaking Bad",
+        "Albuquerque"
+      ],
+      "previewImage": "charm-preview-mikeEhrmantraut"
+    },
+    {
+      "id": "heisenberg",
+      "name": "Heisenberg",
+      "region": "United States",
+      "category": "breakingBad",
+      "description": "The porkpie hat, the glasses, a bag in one hand and the product in the other. The same man as the hazmat, further along.",
+      "tags": [
+        "Heisenberg",
+        "hat",
+        "Breaking Bad",
+        "alias"
+      ],
+      "previewImage": "charm-preview-heisenberg"
+    },
+    {
+      "id": "rv",
+      "name": "RV",
+      "region": "United States",
+      "category": "breakingBad",
+      "description": "The Fleetwood Bounder, sun-bleached and desert-dented, that did the cooking before anybody had a laboratory. The most recognisable vehicle on television.",
+      "tags": [
+        "RV",
+        "Fleetwood",
+        "desert",
+        "lab",
+        "Breaking Bad"
+      ],
+      "previewImage": "charm-preview-rv"
+    },
+    {
+      "id": "eleven",
+      "name": "Eleven",
+      "region": "Hawkins, Indiana",
+      "category": "strangerThings",
+      "description": "Pink dress, buzzed hair, one hand out. The nosebleed comes after.",
+      "tags": [
+        "Eleven",
+        "Hawkins",
+        "powers",
+        "Stranger Things"
+      ],
+      "previewImage": "charm-preview-eleven"
+    },
+    {
+      "id": "mikeWheeler",
+      "name": "Mike Wheeler",
+      "region": "Hawkins, Indiana",
+      "category": "strangerThings",
+      "description": "Walkie-talkie up, waiting on a reply from someone who may not be able to answer.",
+      "tags": [
+        "Mike",
+        "Hawkins",
+        "walkie-talkie",
+        "Stranger Things"
+      ],
+      "previewImage": "charm-preview-mikeWheeler"
+    },
+    {
+      "id": "dustinHenderson",
+      "name": "Dustin Henderson",
+      "region": "Hawkins, Indiana",
+      "category": "strangerThings",
+      "description": "Cap on, headset on, halfway through a sentence and not slowing down for anybody.",
+      "tags": [
+        "Dustin",
+        "Hawkins",
+        "radio",
+        "Stranger Things"
+      ],
+      "previewImage": "charm-preview-dustinHenderson"
+    },
+    {
+      "id": "lucasSinclair",
+      "name": "Lucas Sinclair",
+      "region": "Hawkins, Indiana",
+      "category": "strangerThings",
+      "description": "Camo bandana and a wrist-rocket, drawn and aimed. The only one of them who came prepared.",
+      "tags": [
+        "Lucas",
+        "Hawkins",
+        "slingshot",
+        "Stranger Things"
+      ],
+      "previewImage": "charm-preview-lucasSinclair"
+    },
+    {
+      "id": "willByers",
+      "name": "Will Byers",
+      "region": "Hawkins, Indiana",
+      "category": "strangerThings",
+      "description": "Holding the string of Christmas lights his mother nailed to the wall to spell things out, letter by letter.",
+      "tags": [
+        "Will",
+        "Hawkins",
+        "lights",
+        "Stranger Things"
+      ],
+      "previewImage": "charm-preview-willByers"
+    },
+    {
+      "id": "demogorgon",
+      "name": "Demogorgon",
+      "region": "Hawkins, Indiana",
+      "category": "strangerThings",
+      "description": "The face opens into five petals. That is the whole of what anybody needs to know about it.",
+      "tags": [
+        "Demogorgon",
+        "Upside Down",
+        "monster",
+        "Stranger Things"
+      ],
+      "previewImage": "charm-preview-demogorgon"
+    }
+  ]
+}

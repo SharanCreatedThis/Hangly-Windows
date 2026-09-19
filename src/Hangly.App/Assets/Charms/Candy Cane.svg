@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 86 157">
+  <defs><linearGradient id="gold" x1="0.12" y1="0.05" x2="0.88" y2="0.95"><stop offset="0" stop-color="#ffeeb4"/><stop offset="0.42" stop-color="#e0b845"/><stop offset="1" stop-color="#7a5a12"/></linearGradient><radialGradient id="goldBead" cx="0.33" cy="0.28" r="0.8"><stop offset="0" stop-color="#fff6d6"/><stop offset="0.42" stop-color="#e3bb4f"/><stop offset="1" stop-color="#6b4d0e"/></radialGradient><radialGradient id="candyBead" cx="0.33" cy="0.28" r="0.8"><stop offset="0" stop-color="#ffb3a6"/><stop offset="0.42" stop-color="#e0281c"/><stop offset="1" stop-color="#5e0b06"/></radialGradient></defs>
+  <path d="M43,0L43,66" fill="none" stroke="#5a4109" stroke-width="3.4"/>
+  <path d="M43,0L43,66" fill="none" stroke="url(#gold)" stroke-width="2.2"/>
+  <circle cx="43" cy="24" r="7.4" fill="#4a3408"/>
+  <circle cx="43" cy="24" r="6.5" fill="url(#goldBead)"/>
+  <circle cx="43" cy="43" r="9.4" fill="#5e0b06"/>
+  <circle cx="43" cy="43" r="8.4" fill="url(#candyBead)"/>
+  <ellipse cx="40.1" cy="39.6" rx="2.9" ry="2" fill="#ffffff" opacity="0.8"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M54,146L54,94A15,15 0 0 0 24,94" stroke="#5e0b06" stroke-width="17"/>
+    <path d="M54,146L54,94A15,15 0 0 0 24,94" stroke="#fdfdfb" stroke-width="13.4"/>
+    <path d="M54,146L54,94A15,15 0 0 0 24,94" stroke="#e0281c" stroke-width="13.4"
+          stroke-dasharray="6.5 9.5" stroke-linecap="butt"/>
+    <path d="M54,146L54,94A15,15 0 0 0 24,94" stroke="#ffffff" stroke-width="3" opacity="0.5"
+          transform="translate(-2.4,-2.4)"/>
+    <path d="M54,146L54,94A15,15 0 0 0 24,94" stroke="#5e0b06" stroke-width="2.4" opacity="0.22"
+          transform="translate(2.6,2.6)"/>
+  </g>
+</svg>

@@ -1,0 +1,8 @@
+bin/
+obj/
+*.user
+.vs/
+Generated Files/
+publish/
+*.msix
+*.appx
