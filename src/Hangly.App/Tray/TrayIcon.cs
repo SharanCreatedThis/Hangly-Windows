@@ -75,11 +75,11 @@ public sealed class TrayIcon : IDisposable
     /// <summary>What a left-click does, which is the same as the first menu command.</summary>
     public Action? PrimaryAction { get; set; }
 
-    public TrayIcon(string tooltip, string iconPath)
+    public TrayIcon(string tooltip)
     {
         procedure = HandleMessage;
         window = CreateMessageWindow();
-        icon = LoadIconFromFile(iconPath);
+        icon = LoadApplicationIcon();
         Register(tooltip);
     }
 
@@ -267,10 +267,43 @@ public sealed class TrayIcon : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private static IntPtr LoadIconFromFile(string path) =>
-        File.Exists(path)
-            ? LoadImage(IntPtr.Zero, path, 1, 0, 0, 0x00000010 | 0x00008000)
-            : IntPtr.Zero;
+    /// <summary>The icon embedded in the running executable.</summary>
+    /// <remarks>
+    /// Read from the executable rather than from a file beside it. The build already
+    /// embeds it through <c>ApplicationIcon</c>, and shipping a second copy as a content
+    /// file gave the resource compiler two entries for one path — so there is exactly one
+    /// icon now, and the tray shows the same one Explorer does by construction.
+    ///
+    /// <para>A null icon is survivable: the notification area falls back to a blank slot,
+    /// which is worse-looking than it should be but is not a reason to refuse to run.</para>
+    /// </remarks>
+    private static IntPtr LoadApplicationIcon()
+    {
+        string? executable = Environment.ProcessPath;
+        if (string.IsNullOrEmpty(executable))
+        {
+            return IntPtr.Zero;
+        }
+
+        IntPtr large = IntPtr.Zero;
+        IntPtr small = IntPtr.Zero;
+
+        // The small icon is the one the notification area actually draws.
+        if (ExtractIconEx(executable, 0, ref large, ref small, 1) > 0)
+        {
+            if (large != IntPtr.Zero && large != small)
+            {
+                DestroyIcon(large);
+            }
+
+            if (small != IntPtr.Zero)
+            {
+                return small;
+            }
+        }
+
+        return large;
+    }
 
     private delegate IntPtr WndProc(IntPtr hWnd, uint message, IntPtr wParam, IntPtr lParam);
 
@@ -370,14 +403,13 @@ public sealed class TrayIcon : IDisposable
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetCursorPos(out Point point);
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern IntPtr LoadImage(
-        IntPtr instance,
-        string name,
-        uint type,
-        int cx,
-        int cy,
-        uint load);
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern uint ExtractIconEx(
+        string file,
+        int iconIndex,
+        ref IntPtr largeIcon,
+        ref IntPtr smallIcon,
+        uint icons);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

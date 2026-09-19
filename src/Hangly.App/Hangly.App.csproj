@@ -73,7 +73,12 @@
   <ItemGroup>
     <!-- Copied whole, exactly as the macOS bundle copies Assets/Charms. -->
     <Content Include="Assets/Charms/**" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Assets/hangly.ico" CopyToOutputDirectory="PreserveNewest" />
+
+    <!-- hangly.ico is deliberately NOT Content. ApplicationIcon already embeds it in the
+         executable, and registering the same file as a resource as well gives the PRI
+         compiler two entries for one path (PRI175 / PRI277). The tray reads the icon back
+         out of the executable instead, which is also one fewer file to ship and one fewer
+         way for the two copies to drift apart. -->
   </ItemGroup>
 
 </Project>

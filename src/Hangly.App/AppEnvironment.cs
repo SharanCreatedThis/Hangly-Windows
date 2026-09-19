@@ -61,7 +61,7 @@ public sealed class AppEnvironment : IDisposable
             store.Update(settings => settings with { LaunchAtLogin = actuallyEnabled });
         }
 
-        tray = new TrayIcon("Hangly", Path.Combine(AppContext.BaseDirectory, "Assets", "hangly.ico"))
+        tray = new TrayIcon("Hangly")
         {
             MenuBuilder = BuildMenu,
         };
