@@ -9,16 +9,25 @@ C#, WinUI 3, .NET 9, Win2D.
 
 ## Status
 
-**This is a foundation, not a finished app.** The physics engine is complete and
-verified; the shell is written but has never been compiled, because it was written on a
-Mac. Read [PORTING.md](PORTING.md) before you build it — it says exactly what is done,
-what is untested, and what has not been started.
+[![Build](https://github.com/SharanCreatedThis/Hangly-Windows/actions/workflows/build.yml/badge.svg)](https://github.com/SharanCreatedThis/Hangly-Windows/actions/workflows/build.yml)
+
+**This builds, and it has never been run.** Those are both true and neither implies the
+other. [STATUS.md](STATUS.md) is the detailed report; [PORTING.md](PORTING.md) explains
+what was rewritten rather than transcribed, and why.
 
 | | |
 |---|---|
-| Solver, models, settings, placement | Ported, compiling, **67 tests passing** |
-| Overlay window, tray, renderer, artwork | Written, **never compiled** |
-| Charm catalogue, Customize, Studio, weather, seasons, sound | **Not started** |
+| Solver, models, settings, placement | Ported — **67 / 67 tests passing on Windows CI** |
+| Overlay window, tray, renderer, artwork | **Compiles and publishes** on x64 and ARM64; never launched |
+| Charms on the rope | **One** — the plain bead, as an explicit bootstrap |
+| Catalogue, Customize, Studio, weather, seasons, sound | **Not started** |
+
+Roughly **25%** ported by weighted line count. The hardest quarter, and the one where
+being approximately right is the same as being wrong, is the part that is done.
+
+The next thing that matters is not more code — it is running the thing on real Windows
+hardware and finding out whether the overlay is genuinely transparent. See
+[STATUS.md §6](STATUS.md#6-next-milestone).
 
 ---
 
