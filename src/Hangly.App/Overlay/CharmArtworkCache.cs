@@ -152,7 +152,7 @@ public sealed class CharmArtworkCache : IDisposable
             pixelBytes,
             pixels,
             pixels,
-            Microsoft.Graphics.Canvas.DirectX.DirectXPixelFormat.B8G8R8A8UIntNormalized);
+            Windows.Graphics.DirectX.DirectXPixelFormat.B8G8R8A8UIntNormalized);
 
         rasters[(fileName, pixels)] = bitmap;
         return bitmap;

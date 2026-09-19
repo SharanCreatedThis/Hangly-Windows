@@ -119,9 +119,10 @@ public sealed class RopeRenderer
             {
                 // A dashed pass across the cord reads as the lit side of a twist. The web
                 // is the same idea at a finer pitch and a lighter ink.
+                // CustomDashStyle alone is what makes the dashes custom. CanvasDashStyle
+                // has no Custom member to pair it with — setting the array is the switch.
                 var style = new CanvasStrokeStyle
                 {
-                    DashStyle = CanvasDashStyle.Custom,
                     CustomDashStyle = [(float)texture.Pitch, (float)texture.Pitch],
                     DashCap = CanvasCapStyle.Flat,
                 };
@@ -136,13 +137,11 @@ public sealed class RopeRenderer
                 // under of a flat braid.
                 var style = new CanvasStrokeStyle
                 {
-                    DashStyle = CanvasDashStyle.Custom,
                     CustomDashStyle = [(float)texture.Pitch, (float)(texture.Pitch * 0.9)],
                     DashCap = CanvasCapStyle.Flat,
                 };
                 var offsetStyle = new CanvasStrokeStyle
                 {
-                    DashStyle = CanvasDashStyle.Custom,
                     CustomDashStyle = [(float)texture.Pitch, (float)(texture.Pitch * 0.9)],
                     DashOffset = (float)texture.Pitch,
                     DashCap = CanvasCapStyle.Flat,
@@ -159,7 +158,6 @@ public sealed class RopeRenderer
                 // catching the near edge of each.
                 var notch = new CanvasStrokeStyle
                 {
-                    DashStyle = CanvasDashStyle.Custom,
                     CustomDashStyle = [(float)(texture.Pitch * texture.Thickness), (float)texture.Pitch],
                     DashCap = CanvasCapStyle.Round,
                 };
