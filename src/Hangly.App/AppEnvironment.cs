@@ -85,7 +85,7 @@ public sealed class AppEnvironment : IDisposable
         artwork = new CharmArtworkCache(device, CharmArtworkCache.DefaultDirectory);
         var renderer = new RopeRenderer(artwork);
 
-        overlay = new OverlayWindow(store.Settings.Overlay, rope, renderer);
+        overlay = new OverlayWindow(store.Settings.Overlay, rope, renderer, BuiltInCharms.Default);
         overlay.Begin();
     }
 

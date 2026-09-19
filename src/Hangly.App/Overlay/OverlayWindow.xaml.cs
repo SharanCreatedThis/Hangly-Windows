@@ -60,11 +60,22 @@ public sealed partial class OverlayWindow : Window
     private Rect frame;
     private double scale = 1;
 
-    public OverlayWindow(OverlaySettings settings, RopeSimulation rope, RopeRenderer renderer)
+    public OverlayWindow(
+        OverlaySettings settings,
+        RopeSimulation rope,
+        RopeRenderer renderer,
+        IReadOnlyList<CharmDescriptor> charms)
     {
         this.settings = settings;
         this.rope = rope;
         this.renderer = renderer;
+
+        // What hangs on the rope, told to both halves at once: the solver needs the mass
+        // and the radius, the renderer needs the artwork and the palette, and they must be
+        // the same list or the charm will be drawn somewhere the rope is not carrying it.
+        renderer.Charms = charms;
+        rope.SetCharmStack([.. charms.Select(charm => charm.Metrics)]);
+        rope.SetBeads([.. charms.Select(charm => charm.Beads)]);
 
         InitializeComponent();
 
