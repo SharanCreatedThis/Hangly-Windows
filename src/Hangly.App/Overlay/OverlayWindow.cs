@@ -61,7 +61,7 @@ public sealed class OverlayWindow : IDisposable
 
     private Thread? thread;
     private volatile bool isRunning;
-    private volatile OverlaySettings? pending;
+    private OverlaySettings? pending;
 
     private OverlaySettings settings;
     private bool isClickThrough = true;
@@ -96,7 +96,7 @@ public sealed class OverlayWindow : IDisposable
     /// than applied, because everything it touches — the window, the solver, the surface
     /// — belongs to the frame loop.
     /// </remarks>
-    public void Apply(OverlaySettings updated) => pending = updated;
+    public void Apply(OverlaySettings updated) => Interlocked.Exchange(ref pending, updated);
 
     /// <summary>Starts the frame loop, which is also what creates the window.</summary>
     public void Begin()
@@ -150,9 +150,10 @@ public sealed class OverlayWindow : IDisposable
                 // did while there was still a XAML tree to hang it on.
                 NativeMethods.DwmFlush();
 
-                if (pending is OverlaySettings updated)
+                // Taken rather than read, so a second change arriving between the read and
+                // the clear is not the one that gets dropped.
+                if (Interlocked.Exchange(ref pending, null) is OverlaySettings updated)
                 {
-                    pending = null;
                     ApplyOnLoop(updated);
                 }
 
@@ -190,6 +191,12 @@ public sealed class OverlayWindow : IDisposable
         Reposition();
         rope.SetCharmSize(updated.CharmSize, CanvasSize);
         rope.SetRopeLength(updated.RopeLength, CanvasSize);
+
+        // Drawn immediately, and not left to the next tick. A settled rope is not redrawn
+        // at all, so a new cord colour or a new opacity would otherwise sit unseen until
+        // something happened to wake it — and a change of size has already thrown away the
+        // surface holding the frame that is currently on screen.
+        Draw();
     }
 
     /// <summary>Puts the window where the settings say, on the display they name.</summary>
