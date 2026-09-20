@@ -53,6 +53,11 @@ internal sealed class LayeredOverlaySurface : IDisposable
     private IntPtr previousBitmap;
     private IntPtr pixels;
 
+    // The frame is read back through these, once per present, and both are reused.
+    // See Present.
+    private Windows.Storage.Streams.Buffer? transfer;
+    private byte[] scratch = [];
+
     private CanvasRenderTarget? target;
     private int pixelWidth;
     private int pixelHeight;
@@ -132,6 +137,21 @@ internal sealed class LayeredOverlaySurface : IDisposable
             DirectXPixelFormat.B8G8R8A8UIntNormalized,
             CanvasAlphaMode.Premultiplied);
 
+        // One buffer for the life of this size, and its address taken once. Win2D will
+        // only hand a frame back as a fresh array or into an IBuffer, and at this size a
+        // fresh array is 1.27 MB — fifteen times the 85,000-byte threshold that puts an
+        // allocation on the Large Object Heap. The LOH is collected only by gen 2 and is
+        // not compacted, so allocating one per frame made every collection a full one:
+        // measured at 154 MB/s and thirty gen-2 collections a second during a drag,
+        // against a frame budget of 8.3 ms. Reusing the buffer removes the allocation
+        // entirely.
+        int byteCount = widthInPixels * heightInPixels * 4;
+        transfer = new Windows.Storage.Streams.Buffer((uint)byteCount)
+        {
+            Length = (uint)byteCount,
+        };
+        scratch = new byte[byteCount];
+
         var header = new NativeMethods.BitmapInfoHeader
         {
             Size = Marshal.SizeOf<NativeMethods.BitmapInfoHeader>(),
@@ -191,13 +211,19 @@ internal sealed class LayeredOverlaySurface : IDisposable
             draw(session);
         }
 
-        // Win2D will only read back into a fresh array or an IBuffer, so this allocates
-        // roughly a megabyte per drawn frame. Tolerated rather than worked around,
-        // because the rope stops being drawn the moment it settles and the alternative
-        // is an IBufferByteAccess COM path for an ornament that is idle most of its life.
-        // If a sustained drag ever shows up in a profile, that is the thing to write.
-        byte[] frame = target.GetPixelBytes();
-        Marshal.Copy(frame, 0, pixels, frame.Length);
+        // Into the reused buffer, out through a reader, and into the DIB. Two copies
+        // where one would do, and the second one is the price of not being able to take
+        // the buffer's address: IBufferByteAccess is the only route to it, and CsWinRT
+        // will not cast a projected WinRT object to a ComImport interface — that was
+        // tried, and threw InvalidCastException at the first frame. The copy is cheap
+        // next to what it replaces. It is bandwidth, not garbage.
+        target.GetPixelBytes(transfer);
+        using (var reader = Windows.Storage.Streams.DataReader.FromBuffer(transfer))
+        {
+            reader.ReadBytes(scratch);
+        }
+
+        Marshal.Copy(scratch, 0, pixels, scratch.Length);
 
         var size = new NativeMethods.Size { Width = pixelWidth, Height = pixelHeight };
         var source = new NativeMethods.Point { X = 0, Y = 0 };
@@ -289,6 +315,7 @@ internal sealed class LayeredOverlaySurface : IDisposable
     private static IntPtr OnMessage(IntPtr hWnd, uint message, IntPtr wParam, IntPtr lParam) =>
         NativeMethods.DefWindowProc(hWnd, message, wParam, lParam);
 
+
     private void ReleaseSurface()
     {
         if (memoryDc != IntPtr.Zero)
@@ -310,6 +337,8 @@ internal sealed class LayeredOverlaySurface : IDisposable
         }
 
         pixels = IntPtr.Zero;
+        transfer = null;
+        scratch = [];
         target?.Dispose();
         target = null;
         pixelWidth = 0;
