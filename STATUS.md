@@ -215,7 +215,7 @@ guest cost an incident once already and is not worth a second:
 | Monitor hot-unplug | ❌ the fallback exists in `DisplayObserver.DisplayAt` and is untested end to end |
 | Wake from sleep | ❌ never tried |
 | **Windows 10 1809**, the floor the manifest declares | ❌ never tried. Either test it or raise the floor; claiming it is the one option that is not available |
-| A DPI change *while running* | ❌ and expected to be wrong — nothing handles `WM_DPICHANGED`, so `scale` is stale until something repositions the window |
+| A DPI change *while running* | ⚠️ handled, never exercised. `WM_DPICHANGED` refits the overlay, and the scale is also compared against the window's own DPI once a second so a missed message cannot leave it stale. Neither path can be triggered from outside the process — Windows refuses a synthetic `WM_DPICHANGED` (`PostMessage` → ERROR_MESSAGE_SYNC_ONLY, `SendMessage` dropped) — so this needs the manual scaling pass |
 
 Customize, About and analytics are covered by `tools/ui-smoke.ps1`, which drives the
 built app through UI Automation inside the guest and checks the settings file afterwards.

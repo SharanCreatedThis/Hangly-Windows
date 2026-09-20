@@ -65,6 +65,7 @@ public sealed class OverlayWindow : IDisposable
     private int isNudged;
     private long swings;
     private long lastRaise;
+    private long lastScaleCheck;
     private int lastSide;
     private IReadOnlyList<CharmDescriptor>? pendingCharms;
 
@@ -199,6 +200,18 @@ public sealed class OverlayWindow : IDisposable
                     Draw();
                 }
 
+                if (LayeredOverlaySurface.TakeScaleChanged() || ScaleDrifted())
+                {
+                    // Re-fit to the display the window is now on. Reposition re-reads the
+                    // DPI, resizes the surface and re-fits the rope in one step, which is
+                    // the same path a settings change takes — so there is one way the
+                    // overlay comes to terms with its canvas, not two.
+                    Reposition();
+                    rope.Wake();
+                    Draw();
+                    Diagnostics.Log($"display scale changed; refitted at {scale:0.##}x");
+                }
+
                 HoldTopmost();
                 clock.Advance();
             }
@@ -212,6 +225,43 @@ public sealed class OverlayWindow : IDisposable
             clock.Stop();
             surface.Dispose();
         }
+    }
+
+    /// <summary>Whether the display's scale no longer matches what the overlay was fitted at.</summary>
+    /// <remarks>
+    /// <b>Why this exists when WM_DPICHANGED is already handled.</b> The message is the
+    /// fast path and it arrives the instant the scale changes. It is also, on its own, a
+    /// single point of failure that cannot be tested: Windows refuses to deliver a
+    /// synthetic WM_DPICHANGED from another process — <c>PostMessage</c> returns
+    /// ERROR_MESSAGE_SYNC_ONLY and <c>SendMessage</c> is dropped — so nothing outside the
+    /// window can exercise the handler, and a bug in it would only ever be found by a
+    /// person changing their display settings.
+    ///
+    /// <para>So the scale is also compared against the window's own DPI on the same slow
+    /// cadence that holds the z-order. It costs one <c>GetDpiForWindow</c> a second, it
+    /// catches any case the message misses, and unlike the message it can be reasoned
+    /// about from the outside: if the two ever disagree, the next second fixes it.</para>
+    /// </remarks>
+    private bool ScaleDrifted()
+    {
+        if (Environment.TickCount64 - lastScaleCheck < TopmostIntervalMs)
+        {
+            return false;
+        }
+
+        lastScaleCheck = Environment.TickCount64;
+        uint dpi = NativeMethods.GetDpiForWindow(surface.Handle);
+        if (dpi == 0)
+        {
+            return false;
+        }
+
+        double current = dpi / 96.0;
+
+        // A tolerance, because scale is a double built by dividing: comparing it exactly
+        // would refit the overlay every second on a display whose DPI does not divide
+        // cleanly, which is most of them.
+        return Math.Abs(current - scale) > 0.001;
     }
 
     /// <summary>Re-asserts the window's place above everything, about once a second.</summary>

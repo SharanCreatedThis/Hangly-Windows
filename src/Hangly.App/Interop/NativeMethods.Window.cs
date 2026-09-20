@@ -31,6 +31,9 @@ namespace Hangly.App.Interop;
 /// </remarks>
 internal static partial class NativeMethods
 {
+    /// <summary>Sent when a window's DPI changes, by a display change or by moving.</summary>
+    internal const uint WmDpiChanged = 0x02E0;
+
     internal const uint WsPopup = 0x80000000;
     internal const uint WsVisible = 0x10000000;
 

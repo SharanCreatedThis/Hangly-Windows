@@ -61,6 +61,7 @@ internal sealed class LayeredOverlaySurface : IDisposable
     private CanvasRenderTarget? target;
     private int pixelWidth;
     private int pixelHeight;
+    private double pixelScale;
 
     public LayeredOverlaySurface(CanvasDevice device) => this.device = device;
 
@@ -119,7 +120,13 @@ internal sealed class LayeredOverlaySurface : IDisposable
             return;
         }
 
-        if (widthInPixels == pixelWidth && heightInPixels == pixelHeight)
+        // The scale is part of the identity, not just the size. A display change can
+        // leave the pixel dimensions where they were while the DPI underneath them moves,
+        // and a render target built at the old DPI would draw everything at the wrong
+        // size with no other symptom.
+        if (widthInPixels == pixelWidth
+            && heightInPixels == pixelHeight
+            && scale.Equals(pixelScale))
         {
             return;
         }
@@ -128,6 +135,7 @@ internal sealed class LayeredOverlaySurface : IDisposable
 
         pixelWidth = widthInPixels;
         pixelHeight = heightInPixels;
+        pixelScale = scale;
 
         target = new CanvasRenderTarget(
             device,
@@ -334,8 +342,36 @@ internal sealed class LayeredOverlaySurface : IDisposable
         isClassRegistered = true;
     }
 
-    private static IntPtr OnMessage(IntPtr hWnd, uint message, IntPtr wParam, IntPtr lParam) =>
-        NativeMethods.DefWindowProc(hWnd, message, wParam, lParam);
+    /// <summary>Set when Windows says this window's scale factor has changed.</summary>
+    /// <remarks>
+    /// Static, and a flag rather than a call, because the window procedure is a static
+    /// thunk — Windows keeps a function pointer, not a delegate bound to an instance —
+    /// and because re-fitting the overlay means resizing a render target and a DIB, which
+    /// is the frame loop's work and not something to do inside a message handler.
+    ///
+    /// <para>One flag for the process is enough: there is one overlay window.</para>
+    /// </remarks>
+    private static int scaleChanged;
+
+    /// <summary>Takes the scale-change notice, if one has arrived.</summary>
+    public static bool TakeScaleChanged() => Interlocked.Exchange(ref scaleChanged, 0) == 1;
+
+    private static IntPtr OnMessage(IntPtr hWnd, uint message, IntPtr wParam, IntPtr lParam)
+    {
+        if (message == NativeMethods.WmDpiChanged)
+        {
+            Services.Diagnostics.Log($"WM_DPICHANGED received, wParam 0x{wParam.ToInt64():X}");
+            // Windows sends this when the window's scale factor changes — the person
+            // changed the display's scaling, or the window moved to a display with a
+            // different one. Without it `scale` stays at whatever it was when the window
+            // was last positioned, and everything measured in points against it — the
+            // canvas, the cursor's position, the charm's grab radius — is wrong until
+            // something else happens to reposition the window.
+            Interlocked.Exchange(ref scaleChanged, 1);
+        }
+
+        return NativeMethods.DefWindowProc(hWnd, message, wParam, lParam);
+    }
 
 
     private void ReleaseSurface()
@@ -365,6 +401,7 @@ internal sealed class LayeredOverlaySurface : IDisposable
         target = null;
         pixelWidth = 0;
         pixelHeight = 0;
+        pixelScale = 0;
     }
 
     public void Dispose()
