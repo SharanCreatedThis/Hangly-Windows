@@ -20,4 +20,11 @@
     <InternalsVisibleTo Include="Hangly.Core.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The hostile corpus, copied beside the test binary so the suite reads real files
+         rather than strings built in code: an attack that only exists as a C# literal has
+         never been through a file system, an encoding, or a byte-order mark. -->
+    <Content Include="Hostile\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

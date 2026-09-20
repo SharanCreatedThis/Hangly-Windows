@@ -188,21 +188,72 @@ public static class SvgSanitizer
     }
 
     /// <summary>A reference is kept only when it points inside this same document.</summary>
+    /// <summary>
+    /// Whether a reference stays inside this file.
+    /// </summary>
+    /// <remarks>
+    /// Two kinds qualify, and only two.
+    ///
+    /// <para><b>A fragment</b> — <c>#gradient</c> — which names something in the same
+    /// document and is how gradients, clips and masks are wired.</para>
+    ///
+    /// <para><b>An inline raster</b> — <c>data:image/png;base64,…</c> — which carries its
+    /// own bytes and fetches nothing. Refusing these was a real defect, found by putting
+    /// an ordinary Illustrator export through the audit: most SVGs that contain a
+    /// photograph carry it exactly this way, and every one of this collection's own
+    /// seventy charms is built like it. Stripping the reference left a blank charm, which
+    /// is a worse answer than refusing the file would have been because it looked like it
+    /// had worked.</para>
+    ///
+    /// <para><c>data:image/svg+xml</c> is deliberately <b>not</b> on the list. It is a
+    /// document rather than a picture, it can carry script, and it would arrive already
+    /// decoded past everything above.</para>
+    /// </remarks>
     private static bool IsLocalReference(string value)
     {
         string trimmed = value.Trim();
-        return trimmed.StartsWith('#');
+        if (trimmed.StartsWith('#'))
+        {
+            return true;
+        }
+
+        foreach (string prefix in InlineRasterPrefixes)
+        {
+            if (trimmed.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
+
+    /// <summary>The raster media types an inline <c>data:</c> reference may declare.</summary>
+    private static readonly string[] InlineRasterPrefixes =
+    [
+        "data:image/png;",
+        "data:image/jpeg;",
+        "data:image/jpg;",
+        "data:image/gif;",
+        "data:image/webp;",
+        "data:image/bmp;",
+    ];
 
     /// <summary>Whether anything is left that would put ink on the page.</summary>
     private static bool HasDrawing(XElement root)
     {
+        // `g` is not on this list, and `defs` is excluded entirely. A group is a container
+        // rather than a mark, and a definition is something to be referenced later — an
+        // SVG whose only content is <defs><g/></defs> draws nothing at all, and used to be
+        // accepted on the strength of that `g`. It imported as a blank charm.
         string[] drawing =
         [
             "path", "rect", "circle", "ellipse", "line", "polyline", "polygon",
-            "text", "use", "image", "g",
+            "text", "use", "image",
         ];
 
-        return root.Descendants().Any(element => drawing.Contains(element.Name.LocalName, StringComparer.Ordinal));
+        return root.Descendants()
+            .Where(element => !element.Ancestors().Any(a => a.Name.LocalName == "defs"))
+            .Any(element => drawing.Contains(element.Name.LocalName, StringComparer.Ordinal));
     }
 }
