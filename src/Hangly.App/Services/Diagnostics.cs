@@ -163,7 +163,9 @@ public static class Diagnostics
 
             if (outcome.IsAccepted && outcome.Entry is not null)
             {
-                string stored = File.ReadAllText(store.PathFor(outcome.Entry));
+                string stored = store.PathFor(outcome.Entry) is string saved
+                    ? File.ReadAllText(saved)
+                    : string.Empty;
                 foreach (string forbidden in (string[])
                     ["<script", "onload", "onclick", "foreignObject", "@import", "attacker.example", "file:///"])
                 {

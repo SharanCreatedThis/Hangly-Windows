@@ -277,6 +277,15 @@ if ($yours) {
             ClickElement $delete
             Check 'deleting removes it from disk' (-not (Test-Path (Join-Path $charms "$importId.svg")))
             Check 'deleting takes it off the rope' (-not ((Settings).overlay.charmIds -contains "custom:$importId"))
+
+            # The places that are put away name charms too, and a deleted import that
+            # survived in one would come back the next time the count grew.
+            Check 'deleting empties the hidden places too' `
+                (-not (@((Settings).overlay.slots | ForEach-Object { $_.id }) -contains "custom:$importId"))
+            Check 'deleting unstars it' `
+                (-not ((Settings).library.favouriteCharmIds -contains "custom:$importId"))
+            Check 'deleting forgets it' `
+                (-not ((Settings).library.recentCharmIds -contains "custom:$importId"))
             Check 'deleting removes the Yours category' `
                 ($null -eq (FindIn ([System.Windows.Automation.ControlType]::Button) '^Show Yours$'))
         }

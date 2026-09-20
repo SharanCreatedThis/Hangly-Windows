@@ -176,3 +176,61 @@ public class HostileSvgAudit
         File.WriteAllLines(@"C:\Mac\Home\Documents\hangly-shots\hostile.txt", lines);
     }
 }
+
+/// <summary>Where an import is allowed to write, and what it is allowed to name.</summary>
+public class ImportFilesystemSafetyTests
+{
+    [Theory(DisplayName = "A manifest cannot name a path out of the store")]
+    [InlineData(@"..\..\evil.svg")]
+    [InlineData("../../evil.svg")]
+    [InlineData(@"C:\Windows\System32\drivers\etc\hosts")]
+    [InlineData(@"\\server\share\evil.svg")]
+    [InlineData("..")]
+    [InlineData(".")]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("sub/dir/file.svg")]
+    public void TraversalIsRefused(string name) =>
+        Assert.False(CustomCharmStore.IsBareFileName(name), $"'{name}' was treated as a plain file name");
+
+    [Theory(DisplayName = "An ordinary generated name is accepted")]
+    [InlineData("0f8fad5b-d9cb-469f-a165-70867728950e.svg")]
+    [InlineData("charm.svg")]
+    public void PlainNamesAreAccepted(string name) =>
+        Assert.True(CustomCharmStore.IsBareFileName(name), $"'{name}' was refused");
+
+    /// <summary>
+    /// The name of the file someone imported never reaches the file system.
+    /// </summary>
+    /// <remarks>
+    /// This is where traversal is actually closed: the store writes to a fresh GUID and
+    /// only ever reads the display name back out of the manifest, so a file called
+    /// <c>..\\..\\evil.svg</c> could not name its own destination even if the file system
+    /// allowed it to exist.
+    /// </remarks>
+    [Fact(DisplayName = "The stored file is named after a GUID, not after the import")]
+    public void StoredNamesAreGenerated()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "HanglyAudit", Guid.NewGuid().ToString("N"));
+        var store = new CustomCharmStore(folder);
+        CustomCharmEntry entry = store.Add(
+            "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle r=\"5\"/></svg>",
+            "../../../etc/passwd",
+            new Hangly.Core.Models.CharmMetrics(2, 0.1, 0.9),
+            new Hangly.Core.Models.CharmPalette(
+                new Hangly.Core.Models.CharmColor(0, 0, 0),
+                new Hangly.Core.Models.CharmColor(0, 0, 0),
+                new Hangly.Core.Models.CharmColor(0, 0, 0),
+                new Hangly.Core.Models.CharmColor(0, 0, 0)));
+
+        Assert.True(CustomCharmStore.IsBareFileName(entry.ImageFileName));
+        Assert.EndsWith(".svg", entry.ImageFileName, StringComparison.Ordinal);
+        Assert.True(Guid.TryParse(Path.GetFileNameWithoutExtension(entry.ImageFileName), out _));
+
+        // And it landed inside the store, not beside it.
+        string written = store.PathFor(entry)!;
+        Assert.StartsWith(folder, Path.GetFullPath(written), StringComparison.OrdinalIgnoreCase);
+
+        Directory.Delete(folder, recursive: true);
+    }
+}

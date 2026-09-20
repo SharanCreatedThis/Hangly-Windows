@@ -111,7 +111,7 @@ public class CustomCharmTests : IDisposable
     {
         var store = new CustomCharmStore(directory);
         CustomCharmEntry entry = store.Add("<svg/>", "My charm", Metrics, Palette);
-        var index = new CharmIndex([entry.AsCatalogEntry(store.PathFor(entry))]);
+        var index = new CharmIndex([entry.AsCatalogEntry(store.PathFor(entry)!)]);
 
         Assert.Equal(71, index.All.Count);
         Assert.True(index.Contains(entry.CharmId));
@@ -131,7 +131,7 @@ public class CustomCharmTests : IDisposable
     {
         var store = new CustomCharmStore(directory);
         CustomCharmEntry entry = store.Add("<svg/>", "Seahorse", Metrics, Palette);
-        var index = new CharmIndex([entry.AsCatalogEntry(store.PathFor(entry))]);
+        var index = new CharmIndex([entry.AsCatalogEntry(store.PathFor(entry)!)]);
 
         Assert.Contains(entry.CharmId, CharmSearch
             .Apply(index, CharmFilter.All, "seahorse", [], []).Select(c => c.Id));
@@ -151,7 +151,7 @@ public class CustomCharmTests : IDisposable
     {
         var store = new CustomCharmStore(directory);
         CustomCharmEntry entry = store.Add("<svg/>", "Thing", Metrics, Palette);
-        CharmCatalogEntry projected = entry.AsCatalogEntry(store.PathFor(entry));
+        CharmCatalogEntry projected = entry.AsCatalogEntry(store.PathFor(entry)!);
 
         Assert.Equal(0, projected.BeadCount);
         Assert.Equal(0, projected.BodyRun);
@@ -169,7 +169,7 @@ public class CustomCharmTests : IDisposable
         var reopened = new CustomCharmStore(directory);
         CustomCharmEntry reloaded = Assert.Single(reopened.Entries);
         Assert.Equal(entry, reloaded);
-        Assert.Equal("<svg>drawing</svg>", File.ReadAllText(reopened.PathFor(reloaded)));
+        Assert.Equal("<svg>drawing</svg>", File.ReadAllText(reopened.PathFor(reloaded)!));
     }
 
     [Fact(DisplayName = "Deleting takes the drawing with it")]
@@ -177,7 +177,7 @@ public class CustomCharmTests : IDisposable
     {
         var store = new CustomCharmStore(directory);
         CustomCharmEntry entry = store.Add("<svg/>", "Gone", Metrics, Palette);
-        string path = store.PathFor(entry);
+        string path = store.PathFor(entry)!;
 
         store.Remove(entry.Id);
 
@@ -199,7 +199,7 @@ public class CustomCharmTests : IDisposable
     {
         var store = new CustomCharmStore(directory);
         CustomCharmEntry entry = store.Add("<svg/>", "Doomed", Metrics, Palette);
-        File.Delete(store.PathFor(entry));
+        File.Delete(store.PathFor(entry)!);
 
         var reopened = new CustomCharmStore(directory);
         Assert.Empty(reopened.Entries);

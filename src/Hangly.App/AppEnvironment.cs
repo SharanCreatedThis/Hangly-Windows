@@ -253,7 +253,17 @@ public sealed class AppEnvironment : IDisposable
         var projected = new List<Hangly.Core.Models.CharmCatalogEntry>(charms.Entries.Count);
         foreach (CustomCharmEntry entry in charms.Entries)
         {
-            projected.Add(entry.AsCatalogEntry(charms.PathFor(entry)));
+            // An entry whose manifest does not name a plain file has no drawing as far as
+            // this build is concerned. It resolves to the placeholder rather than to
+            // whatever the name was pointing at.
+            if (charms.PathFor(entry) is string file)
+            {
+                projected.Add(entry.AsCatalogEntry(file));
+            }
+            else
+            {
+                Diagnostics.Log($"import '{entry.Id}' names a file it should not; ignoring it");
+            }
         }
 
         index = new CharmIndex(projected);

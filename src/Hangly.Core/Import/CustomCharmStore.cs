@@ -59,7 +59,33 @@ public sealed class CustomCharmStore
         Path.GetDirectoryName(SettingsStore.DefaultPath)!,
         "Charms");
 
-    public string PathFor(CustomCharmEntry entry) => Path.Combine(Directory, entry.ImageFileName);
+    /// <summary>Where an entry's drawing lives, if the manifest names it sanely.</summary>
+    /// <remarks>
+    /// <b>The manifest is not trusted to name a path.</b> Every file this store writes is
+    /// named after a fresh GUID, so the name of the file someone imported never reaches
+    /// the file system — that is where traversal is actually closed. But the manifest sits
+    /// in <c>%APPDATA%</c> and is editable, and <see cref="Remove"/> deletes whatever this
+    /// returns. A manifest carrying <c>..\..\something</c>, whether by malice or by
+    /// corruption, would have had the app delete a file outside its own folder on the
+    /// owner's behalf.
+    ///
+    /// <para>So a name is only a name: no separators, no root, no traversal. Anything else
+    /// resolves to nothing and the entry is treated as having lost its drawing, which is a
+    /// path the store already has and already prunes.</para>
+    /// </remarks>
+    public string? PathFor(CustomCharmEntry entry) =>
+        IsBareFileName(entry.ImageFileName)
+            ? Path.Combine(Directory, entry.ImageFileName)
+            : null;
+
+    /// <summary>Whether this is a plain file name rather than a route somewhere.</summary>
+    public static bool IsBareFileName(string name) =>
+        !string.IsNullOrWhiteSpace(name)
+        && name.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, Path.VolumeSeparatorChar]) < 0
+        && name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0
+        && name != "."
+        && name != ".."
+        && string.Equals(Path.GetFileName(name), name, StringComparison.Ordinal);
 
     public CustomCharmEntry? Find(Guid id) => entries.FirstOrDefault(entry => entry.Id == id);
 
@@ -101,8 +127,7 @@ public sealed class CustomCharmStore
 
         entries.Remove(entry);
 
-        string path = PathFor(entry);
-        if (File.Exists(path))
+        if (PathFor(entry) is string path && File.Exists(path))
         {
             File.Delete(path);
         }
