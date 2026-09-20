@@ -83,7 +83,7 @@ were. Full write-up in PORTING.md §3.
 - The **overlay**, confirmed by watching it rather than by inferring it: a transparent,
   click-through, always-on-top window; the charm grabbed, dragged, thrown and left to
   settle; the tray icon, its menu, and the menu's keyboard navigation.
-- The **charm catalogue — all eighty-one**, generated from the Swift by
+- The **charm catalogue — all seventy**, generated from the Swift by
   `tools/generate-catalogue.py` rather than transcribed. Every one of them opens,
   rasterises and measures: `Hangly.exe --check-artwork` reports *81 measured, 0 missing,
   0 unmeasurable*, on both architectures.
@@ -92,7 +92,7 @@ were. Full write-up in PORTING.md §3.
   rest is laid out as the designer drew it. Charms are drawn cropped to their measured
   body, and their beads ride the cord as the solver's own particles.
 - **One, two or three charms** chosen from the tray or the Customize window.
-- The **Library**: all eighty-one charms grouped by pack, search that reaches names,
+- The **Library**: all seventy charms grouped by pack, search that reaches names,
   places, materials and tags and folds accents so *pancha* finds *Pánchángjié*, filter
   chips for favourites, recents and all fourteen categories, starring, and an empty state
   that says which nothing it is.
@@ -107,7 +107,7 @@ were. Full write-up in PORTING.md §3.
   `PRIVACY.md` promises: whether sharing is on, where it would go, the installation
   identifier masked, the last event, and how many have been sent.
 - The **Customize window**: a WinUI settings window with a charm picker showing all
-  eighty-one as artwork grouped by pack, the number on the cord, the cord itself with its
+  seventy as artwork grouped by pack, the number on the cord, the cord itself with its
   description, size, reach and opacity, where it hangs, and the two behaviour switches.
   Every control writes straight through to the store and the rope changes as you watch.
 
@@ -146,9 +146,6 @@ Ordered by what unblocks the most.
 | **Charm Library** | ~1,800 | Browser, search, categories, favourites. |
 | **Charm Studio** | ~2,400 | Editor, pipeline, undo stack. **Deferred: explicitly out of scope for v1.** |
 | **Custom charm import** | ~1,200 | Image processor, store, dialogs. |
-| **Weather** | ~700 | Open-Meteo client, moods, effects. |
-| **Seasons** | ~600 | Seasonal packs and the coordinator. |
-| **Sound** | ~500 | Synthesiser and per-material charm sounds. |
 | **Menu bar artwork** | ~400 | The animated tray icon. Currently a static icon. |
 | **Welcome, updates, analytics** | ~900 | |
 
@@ -198,10 +195,10 @@ and "somebody watched it work". This is the second list.
 |---|---|
 | Windows 11 ARM64 at 200% | ✅ the configuration everything below was seen on |
 | Windows 11 ARM64 at 250% | ✅ incidentally, during a display-scaling incident |
-| **x64, under ARM64 emulation** | ✅ PE machine AMD64, launches, renders, 81 charms measured |
+| **x64, under ARM64 emulation** | ✅ PE machine AMD64, launches, renders, 70 charms measured |
 | Transparency, click-through, drag, throw, settle | ✅ |
 | Tray icon, menu, keyboard navigation | ✅ |
-| All 81 charms load, rasterise and measure | ✅ |
+| All 70 charms load, rasterise and measure | ✅ |
 | Charms drawn cropped to their measured body, beads on the cord | ✅ one, two and three at a time |
 | Velopack install, run, and settings surviving an install-over | ✅ |
 
@@ -300,7 +297,7 @@ would be worse than saying so.
 | `macos_version` → `windows_version` | The same key holding a different kind of number would make the two datasets disagree about what the word means |
 | Transport | Hand-written against PostHog's capture endpoint rather than their SDK. The macOS build wraps the SDK behind the same provider seam; here the wrapper was the whole job, and a file this size can be read to check what leaves |
 | No batching | Each event is its own request. macOS lets the SDK queue; at a handful of events per session there is nothing to gain and a queue is something to lose on a crash |
-| Events defined but never fired | `charm_imported`, `charm_saved`, `charm_reordered`, `weather_effect_toggled`, `collection_opened`, `collection_charm_selected`, `follow_popup_*`, `airdrop_*`, `coffee_copy_upi`, `coffee_qr_viewed` — the features do not exist yet. Named now so both platforms report the same act under the same name later |
+| Events defined but never fired | `charm_imported`, `charm_saved`, `charm_reordered`, `collection_opened`, `collection_charm_selected`, `follow_popup_*`, `airdrop_*`, `coffee_copy_upi`, `coffee_qr_viewed` — the features do not exist yet. Named now so both platforms report the same act under the same name later |
 | Import input format | **SVG here, photographs on macOS.** The biggest gap in this milestone; see PORTING.md |
 | Import review step | macOS opens every interactive import in the Studio first. Here it goes straight into the Library |
 | About page | One page, not the macOS four-band layout: no statistics, no secrets button, no creator card, no in-app release-notes or coffee sheets — both links open a browser |
@@ -322,9 +319,31 @@ What remains for v1, in the order that unblocks the most:
 
 1. **Raster import** — the formats macOS actually accepts, and drag-and-drop from
    Explorer. The SVG path is done; the photograph path is the gap.
-2. **Weather and seasons**, if they are kept at all — see the roadmap reassessment.
-3. **Sound**, the welcome flow, the follow card, and the tray artwork.
+2. **The welcome flow, the follow card, and the tray artwork.**
 4. **Packaging, signing and the v0.9.0 pre-release**, which is blocked on SignPath
    answering whether a pre-release satisfies "already released".
 
 **Charm Studio is deferred — explicitly out of scope for v1.**
+
+---
+
+## Scope: what this build deliberately does not have
+
+Cut for v1 on 21 September 2026, and cut rather than hidden. There is no disabled code,
+no feature flag and no dormant branch for any of these — they are gone from the source,
+the settings document, the analytics table, the tests and the docs.
+
+| Cut | What went with it |
+|---|---|
+| **Weather** | The `weather_effect_toggled` analytics event, and the reference to a weather city in the privacy copy. Nothing else existed; the feature was never ported. |
+| **Seasonal packs** | The `seasonal` category, and the eleven charms filed under it — Snowflake, Bell, Candy Cane, Pumpkin, Ghost, Bat, Diya, Lotus, Lantern, Firework and Lucky Coin — with their artwork. The catalogue is **70 charms**, not macOS's 81. |
+| **Sound** | `CharmSound`, the `Sound` field on every catalogue entry, and `SoundEnabled` / `SoundVolume` in the settings document. No playback had ever been written. |
+
+The generator is where the catalogue difference is expressed: `SOURCES` no longer reads
+`SeasonalCharmCatalog.swift` and `DROPPED_CATEGORIES` names the category. `reference/swift/`
+is untouched, as always — it still describes the macOS app, which still has all eighty-one.
+
+**Settings written by an older build** still load. Unknown keys have always been ignored,
+so `soundEnabled`, `soundVolume` and anything seasonal are dropped on read; a rope
+carrying a deleted charm falls back to the bead, which is the same path a deleted import
+already took.

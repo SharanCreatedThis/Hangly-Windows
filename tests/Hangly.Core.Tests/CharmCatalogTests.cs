@@ -15,8 +15,30 @@ namespace Hangly.Core.Tests;
 /// </summary>
 public class CharmCatalogTests
 {
-    [Fact(DisplayName = "Eighty-one charms ship, which is what the Swift declares")]
-    public void CountMatchesTheOriginal() => Assert.Equal(81, CharmCatalog.All.Count);
+    /// <summary>Seventy charms ship, which is eleven fewer than macOS.</summary>
+    /// <remarks>
+    /// The Swift declares eighty-one. The difference is the seasonal pack, cut from this
+    /// build along with the eleven charms that only existed to fill it — see STATUS.md.
+    /// The generator is where that is expressed, by not reading
+    /// <c>SeasonalCharmCatalog.swift</c> at all, so this number and the Swift's are both
+    /// right about their own platform.
+    /// </remarks>
+    [Fact(DisplayName = "Seventy charms ship: the Swift's eighty-one less the seasonal pack")]
+    public void CountMatchesTheOriginal() => Assert.Equal(70, CharmCatalog.All.Count);
+
+    [Fact(DisplayName = "No charm is filed under a category the chips do not offer")]
+    public void EveryCharmHasAnOfferedCategory()
+    {
+        var offered = CharmCatalog.Categories.Select(category => category.Id).ToHashSet();
+        string[] orphaned =
+        [
+            .. CharmCatalog.All
+                .Where(charm => !offered.Contains(charm.CategoryId))
+                .Select(charm => $"{charm.Id} -> {charm.CategoryId}"),
+        ];
+
+        Assert.Empty(orphaned);
+    }
 
     [Fact(DisplayName = "Every id is unique, because a settings file names charms by id")]
     public void IdsAreUnique()

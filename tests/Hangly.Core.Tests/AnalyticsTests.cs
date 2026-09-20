@@ -295,7 +295,7 @@ public class AnalyticsTests : IDisposable
             "collection_charm_selected", "collection_opened",
             "follow_instagram_clicked", "follow_popup_dismissed", "follow_popup_follow_clicked",
             "follow_popup_maybe_later", "follow_popup_shown",
-            "rope_count_changed", "rope_style_changed", "weather_effect_toggled",
+            "rope_count_changed", "rope_style_changed",
         ];
 
         string[] actual =
@@ -325,7 +325,6 @@ public class AnalyticsTests : IDisposable
             Events.FollowPopupShown.Name,
             Events.RopeCountChanged(2).Name,
             Events.RopeStyleChanged(RopeStyle.Thread).Name,
-            Events.WeatherEffectToggled(true).Name,
         ];
 
         Assert.Equal(expected, actual.Order().ToArray());

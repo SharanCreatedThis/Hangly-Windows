@@ -43,7 +43,7 @@ public class SettingsCodingTests
     public void UnknownKeysAreIgnored()
     {
         AppSettings settings = AppSettings.FromJson(
-            """{"overlay":{"opacity":0.4,"weatherMood":"storm"},"futureThing":42}""",
+            """{"overlay":{"opacity":0.4,"unknownSetting":"storm"},"futureThing":42}""",
             out bool recovered);
 
         Assert.False(recovered);

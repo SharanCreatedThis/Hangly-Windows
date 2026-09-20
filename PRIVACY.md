@@ -36,7 +36,7 @@ fails is written to the local log and forgotten.
 | With every event | `charm_count`, `active_charm_ids`, `rope_style`, `analytics_enabled`. |
 
 The vocabulary also contains names for features this build does not have yet — the
-collections browser, weather, the follow card, dropping a file on a charm.
+collections browser, the follow card, dropping a file on a charm.
 They are defined so that the two platforms report the same act under the same name when
 those features land. **Nothing this build cannot do is ever sent**, because the code that
 would send it does not exist yet.
@@ -113,9 +113,11 @@ See `Docs/DISTRIBUTION.md` for how releases are built and signed.
 
 ## Weather
 
-**Not in this build.** The macOS app can optionally ask Open-Meteo what the weather is in
-one city you type. Nothing in this build makes that request, because the feature is not
-ported. When it is, this document will be updated before it ships.
+**Not in this build, and not planned for v1.** The macOS app can optionally ask
+Open-Meteo what the weather is in one city you type. Windows ships no weather feature at
+all — no service, no setting, no analytics event — so it makes no such request and there
+is no city stored anywhere. If that ever changes, this document is updated before it
+ships, not after.
 
 ## Permissions
 

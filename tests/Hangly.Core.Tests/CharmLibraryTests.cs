@@ -81,8 +81,8 @@ public class CharmLibraryTests
     [Fact(DisplayName = "An empty query is not a filter")]
     public void EmptyQueryShowsEverything()
     {
-        Assert.Equal(81, CharmSearch.Apply(Index, CharmFilter.All, "", [], []).Count);
-        Assert.Equal(81, CharmSearch.Apply(Index, CharmFilter.All, "   ", [], []).Count);
+        Assert.Equal(70, CharmSearch.Apply(Index, CharmFilter.All, "", [], []).Count);
+        Assert.Equal(70, CharmSearch.Apply(Index, CharmFilter.All, "   ", [], []).Count);
     }
 
     [Fact(DisplayName = "A query nothing matches returns nothing, rather than everything")]

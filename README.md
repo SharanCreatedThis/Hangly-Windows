@@ -20,7 +20,7 @@ what was rewritten rather than transcribed, and why.
 | Solver, models, settings, placement | Ported — **67 / 67 tests passing on Windows CI** |
 | Overlay window, tray, renderer, artwork | **Compiles and publishes** on x64 and ARM64; never launched |
 | Charms on the rope | **One** — the plain bead, as an explicit bootstrap |
-| Catalogue, Customize, Studio, weather, seasons, sound | **Not started** |
+| Studio and photo import | **Not started** |
 
 Roughly **25%** ported by weighted line count. The hardest quarter, and the one where
 being approximately right is the same as being wrong, is the part that is done.

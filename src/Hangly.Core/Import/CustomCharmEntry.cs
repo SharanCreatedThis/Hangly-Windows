@@ -59,7 +59,6 @@ public sealed record CustomCharmEntry
         Mass: Metrics.Mass,
         RadiusRatio: Metrics.RadiusRatio,
         Palette: Palette,
-        Sound: CharmSound.Soft,
         BeadCount: 0,
         BodyRun: 0,
         CategoryId: CharmIndex.CustomCategoryId,

@@ -41,10 +41,6 @@ public sealed record OverlaySettings
     /// <summary>Index of the display to hang on, in the order the system reports them.</summary>
     public int DisplayIndex { get; init; }
 
-    public bool SoundEnabled { get; init; } = true;
-
-    public double SoundVolume { get; init; } = 0.5;
-
     /// <summary>The charms on the cord, from the anchor down.</summary>
     /// <remarks>
     /// Ids from <c>CharmCatalog</c>, which are the macOS <c>CharmKind</c> raw values, so
@@ -74,8 +70,6 @@ public sealed record OverlaySettings
         && OffsetY.Equals(other.OffsetY)
         && RopeStyle == other.RopeStyle
         && DisplayIndex == other.DisplayIndex
-        && SoundEnabled == other.SoundEnabled
-        && SoundVolume.Equals(other.SoundVolume)
         && CharmIds.SequenceEqual(other.CharmIds, StringComparer.Ordinal);
 
     public override int GetHashCode()
@@ -90,8 +84,6 @@ public sealed record OverlaySettings
         hash.Add(OffsetY);
         hash.Add(RopeStyle);
         hash.Add(DisplayIndex);
-        hash.Add(SoundEnabled);
-        hash.Add(SoundVolume);
         foreach (string id in CharmIds)
         {
             hash.Add(id, StringComparer.Ordinal);
@@ -113,7 +105,6 @@ public sealed record OverlaySettings
         OffsetX = Math.Clamp(OffsetX, -4000, 4000),
         OffsetY = Math.Clamp(OffsetY, -2000, 2000),
         DisplayIndex = Math.Max(0, DisplayIndex),
-        SoundVolume = Math.Clamp(SoundVolume, 0, 1),
         CharmIds = ClampedCharmIds(),
     };
 

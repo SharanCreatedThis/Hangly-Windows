@@ -312,7 +312,7 @@
                                     Opacity="0.75"
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     TextWrapping="Wrap"
-                                    Text="Counts which features are used, so Hangly can be made better. Never your name, your files, the weather city, or where your charm sits. Switching it off stops collection immediately and throws away the installation identifier." />
+                                    Text="Counts which features are used, so Hangly can be made better. Never your name, your files, or where your charm sits. Switching it off stops collection immediately and throws away the installation identifier." />
 
                                 <Grid ColumnSpacing="16" RowSpacing="6">
                                     <Grid.ColumnDefinitions>

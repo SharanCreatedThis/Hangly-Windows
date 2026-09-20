@@ -43,7 +43,6 @@ public sealed record CharmCatalogEntry(
     double Mass,
     double RadiusRatio,
     CharmPalette Palette,
-    CharmSound Sound,
     int BeadCount,
     int BodyRun,
     string CategoryId,
@@ -64,7 +63,6 @@ public sealed record CharmCatalogEntry(
         && Mass.Equals(other.Mass)
         && RadiusRatio.Equals(other.RadiusRatio)
         && Palette == other.Palette
-        && Sound == other.Sound
         && BeadCount == other.BeadCount
         && BodyRun == other.BodyRun
         && CategoryId == other.CategoryId

@@ -33,16 +33,25 @@ LIBRARY = SWIFT / "CharmLibrary.json"
 #   + classicEntries
 # and storyPackEntries is legendEntries + screenEntries. Reproduced here because the
 # order is the catalogue's own and a reordering would silently renumber the menu.
+#
+# seasonalEntries is deliberately absent. The Windows build does not ship the seasonal
+# packs, so it does not ship the charms that only existed to fill them — see STATUS.md
+# for the scope decision. The Swift is left exactly as it is; this is the one place that
+# knows Windows carries fewer charms than macOS.
 SOURCES = [
     ("Charms/CollectionCharmCatalog.swift", "collectionEntries"),
-    ("Charms/SeasonalCharmCatalog.swift", "seasonalEntries"),
     ("Charms/CollectionPackCatalog.swift", "collectionPackEntries"),
     ("Charms/StoryPackCatalog.swift", "legendEntries"),
     ("Charms/StoryPackCatalog+Screen.swift", "screenEntries"),
     ("Charms/ClassicCharmCatalog.swift", "classicEntries"),
 ]
 
-EXPECTED = 81
+# Categories the Windows build does not offer, dropped along with every charm filed
+# under them. A category left in the chip row with nothing behind it is worse than one
+# that was never offered.
+DROPPED_CATEGORIES = {"seasonal"}
+
+EXPECTED = 70
 
 
 def read(path: str) -> str:
@@ -53,7 +62,11 @@ def library_metadata() -> tuple[dict[str, dict], list[tuple[str, str]]]:
     """Per-charm Library facts, and the category list, out of CharmLibrary.json."""
     document = json.loads(LIBRARY.read_text(encoding="utf-8"))
     charms = {entry["id"]: entry for entry in document["charms"]}
-    categories = [(c["id"], c["name"]) for c in document["categories"]]
+    categories = [
+        (c["id"], c["name"])
+        for c in document["categories"]
+        if c["id"] not in DROPPED_CATEGORIES
+    ]
     return charms, categories
 
 
@@ -129,7 +142,6 @@ def parse(block: str) -> dict:
         "file": source.group(1),
         "mass": field("mass", r"([0-9.]+)"),
         "radius": field("radiusRatio", r"([0-9.]+)"),
-        "sound": field("sound", r"\.(\w+)"),
         "beadCount": bead_count,
         # Swift defaults bodyRun to beadCount; make it explicit rather than reproduce
         # the defaulting in two languages.
@@ -211,7 +223,6 @@ def main() -> int:
         if name is None:
             print(f"no display name for {e['kind']}", file=sys.stderr)
             return 1
-        sound = e["sound"][0].upper() + e["sound"][1:]
         meta = library[e["kind"]]
         tags = ", ".join(f'"{escape(tag)}"' for tag in meta.get("tags", []))
         lines += [
@@ -226,7 +237,6 @@ def main() -> int:
             f'                new CharmColor({", ".join(e["secondary"])}),',
             f'                new CharmColor({", ".join(e["deep"])}),',
             f'                new CharmColor({", ".join(e["light"])})),',
-            f'            Sound: CharmSound.{sound},',
             f'            BeadCount: {e["beadCount"]},',
             f'            BodyRun: {e["bodyRun"]},',
             f'            CategoryId: "{escape(meta["category"])}",',

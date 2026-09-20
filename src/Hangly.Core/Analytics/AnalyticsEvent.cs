@@ -133,9 +133,6 @@ public static class Events
     public static AnalyticsEvent AppearanceChanged(string setting) =>
         new("appearance_changed", Props(("setting", AnalyticsValue.Of(setting))));
 
-    public static AnalyticsEvent WeatherEffectToggled(bool isEnabled) =>
-        new("weather_effect_toggled", Props(("enabled", AnalyticsValue.Of(isEnabled))));
-
     public static AnalyticsEvent CollectionOpened(string collection) =>
         new("collection_opened", Props(("collection", AnalyticsValue.Of(collection))));
 

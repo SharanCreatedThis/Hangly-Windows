@@ -44,7 +44,6 @@ Start-Sleep -Milliseconds 800
     "isEnabled": true, "opacity": 1, "charmSize": 1, "ropeLength": 1,
     "anchor": "TopCenter", "offsetX": 0, "offsetY": 0,
     "ropeStyle": "Thread", "displayIndex": 0,
-    "soundEnabled": true, "soundVolume": 0.5,
     "charmIds": [ "nazar" ]
   }
 }
