@@ -33,6 +33,25 @@ public static partial class CharmCatalog
         new("strangerThings", "Stranger Things"),
     ];
 
+    /// <summary>The collections the Library offers as cards, in catalogue order.</summary>
+    /// <remarks>
+    /// A collection is a category that has a line written about it. The ones without
+    /// — protection, luck, ritual, classic — are filters rather than collections and
+    /// are offered as chips only, which is how macOS presents them.
+    /// </remarks>
+    public static IReadOnlyList<CharmCollection> Collections { get; } =
+    [
+        new("marvel", "Marvel", "Iconic Marvel-inspired charms designed as hanging ornaments."),
+        new("dc", "DC", "Legendary DC-inspired symbols reimagined as hanging charms."),
+        new("tamilSpiritual", "Tamil Spiritual", "Traditional Tamil spiritual symbols and guardian deities."),
+        new("bts", "BTS", "Stylized BTS-inspired collectible hanging charms."),
+        new("footballLegends", "Football Legends", "Icons of world football."),
+        new("musicLegends", "Music Legends", "Artists who shaped modern music."),
+        new("friends", "Friends", "The iconic friends from New York."),
+        new("breakingBad", "Breaking Bad", "The legendary Breaking Bad universe."),
+        new("strangerThings", "Stranger Things", "Mysteries from the Upside Down."),
+    ];
+
     /// <summary>Every built-in charm, in the order the charm menu offers them.</summary>
     public static IReadOnlyList<CharmCatalogEntry> All { get; } =
     [

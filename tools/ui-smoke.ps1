@@ -129,6 +129,14 @@ function FindIn($type, $pattern) {
   foreach ($e in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)) {
     if ($e.Current.Name -match $pattern) { return $e } }
   return $null }
+# By AutomationId, for the elements whose text is the thing under test and so cannot
+# also be the way to find them.
+function ById($id) {
+  $win = [System.Windows.Automation.AutomationElement]::FromHandle($window)
+  $win.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
+    (New-Object System.Windows.Automation.PropertyCondition(
+      [System.Windows.Automation.AutomationElement]::AutomationIdProperty, $id))) }
+
 # Invoked through UI Automation rather than clicked at coordinates. The filter chips
 # scroll horizontally, and an element scrolled out of view reports a bounding rectangle of
 # NaN — which is not somewhere a mouse can be moved to.
@@ -165,7 +173,21 @@ function CharmTiles {
 }
 
 Check 'the Library page is the one that opens' ([bool](FindIn ([System.Windows.Automation.ControlType]::ListItem) '^Library$'))
-Check 'every charm is shown, the import included' ((CharmTiles) -eq 82)
+Check 'every charm is shown, the import included' ((CharmTiles) -eq 71)
+# The detail panel opens describing whatever is already on the cord.
+# Matched on the stem, not the whole name: 'Nazar boncuğu' carries a Turkish g-breve
+# and this file is read back by a shell that does not reliably keep it.
+Check 'the detail panel names the charm'    ((ById 'DetailName').Current.Name -match '^Nazar')
+Check 'the detail panel gives its region'   ((ById 'DetailRegion').Current.Name -match 'Turkey')
+Check 'the detail panel describes it'       ((ById 'DetailDescription').Current.Name.Length -gt 40)
+Check 'the detail panel says it is hanging' ((ById 'DetailRopeState').Current.Name -eq 'On the rope')
+Check 'the detail panel offers favouriting' ([bool](ById 'DetailFavourite'))
+
+# Collections are cards above the grid, and each names its own count.
+Check 'the Marvel collection is offered'    ([bool](FindIn ([System.Windows.Automation.ControlType]::Text) '^Marvel$'))
+Check 'a collection says how many it holds' ([bool](FindIn ([System.Windows.Automation.ControlType]::Text) '^6 charms$'))
+Check 'a collection describes itself'       ([bool](FindIn ([System.Windows.Automation.ControlType]::Text) 'Mysteries from the Upside Down'))
+
 foreach ($chip in 'All', 'Favourites', 'Recent', 'Protection') {
     Check "the $chip filter is offered" ([bool](FindIn ([System.Windows.Automation.ControlType]::Button) "^Show $chip$"))
 }
@@ -184,7 +206,7 @@ if ($search) {
 
     [System.Windows.Forms.SendKeys]::SendWait('^a{BACKSPACE}')
     Start-Sleep -Seconds 2
-    Check 'clearing the search restores the grid' ((CharmTiles) -eq 82)
+    Check 'clearing the search restores the grid' ((CharmTiles) -eq 71)
 }
 
 $favouriteChip = FindIn ([System.Windows.Automation.ControlType]::Button) '^Show Favourites$'
@@ -288,7 +310,25 @@ if ($about) {
     foreach ($link in 'Website', 'GitHub', 'Release notes', 'Instagram') {
         Check "About links to $link" ([bool](FindIn ([System.Windows.Automation.ControlType]::Hyperlink) "^$link$"))
     }
-    Check 'About offers the coffee button' ([bool](FindIn ([System.Windows.Automation.ControlType]::Button) 'Buy the creator a coffee'))
+    Check 'About offers the coffee button' ([bool](FindIn ([System.Windows.Automation.ControlType]::Button) 'Buy Creator a Coffee'))
+    Check 'About offers the creator card'  ([bool](FindIn ([System.Windows.Automation.ControlType]::Text) '^Support the Creator$'))
+    Check 'About offers suggesting a charm'([bool](FindIn ([System.Windows.Automation.ControlType]::Hyperlink) '^Suggest a charm$'))
+
+    # Milestones, and the secret button that moves one of them.
+    foreach ($stat in 'StatLaunches', 'StatCharms', 'StatSwings', 'StatSecrets') {
+        Check "About shows $stat" ([bool](ById $stat))
+    }
+
+    $secretsBefore = [int](ById 'StatSecrets').Current.Name
+    $secretButton = ById 'SecretButton'
+    Check 'About offers the secret button' ([bool]$secretButton)
+    if ($secretButton) {
+        Check 'no secret is revealed until asked' ((ById 'SecretText').Current.Name -eq 'No secret revealed yet')
+        $secretButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+        Start-Sleep -Milliseconds 900
+        Check 'pressing it reveals a secret'  ((ById 'SecretText').Current.Name -ne 'No secret revealed yet')
+        Check 'and counts it'                 ([int](ById 'StatSecrets').Current.Name -eq $secretsBefore + 1)
+    }
 
     # The analytics section is collapsed until asked for.
     $section = FindIn ([System.Windows.Automation.ControlType]::Group) 'Anonymous analytics'

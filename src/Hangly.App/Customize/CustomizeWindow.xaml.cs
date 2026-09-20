@@ -5,6 +5,7 @@
 //  Where everything about Hangly is changed.
 //
 
+using System.Globalization;
 using Hangly.App.Services;
 using Hangly.App.Import;
 using Hangly.Core.Analytics;
@@ -14,6 +15,7 @@ using Hangly.Core.Settings;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Input;
 
 namespace Hangly.App.Customize;
 
@@ -55,6 +57,12 @@ public sealed partial class CustomizeWindow : Window
 
     /// <summary>Which charm on the cord a click in the grid replaces.</summary>
     private int selectedSlot;
+
+    /// <summary>The charm the detail panel is describing, if any.</summary>
+    private CharmCatalogEntry? detailed;
+
+    /// <summary>The last secret shown, so the next one is a different one.</summary>
+    private string? lastSecret;
 
     public CustomizeWindow(
         SettingsStore store,
@@ -105,6 +113,9 @@ public sealed partial class CustomizeWindow : Window
     /// WinUI's own default is a fraction of the desktop, which on a large monitor is a
     /// settings window the size of a wall.
     /// </remarks>
+    /// <summary>What the detail panel is showing. Bound from the XAML.</summary>
+    public CharmDetail Detail { get; } = new();
+
     private void ResizeToDefault()
     {
         IntPtr handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -172,6 +183,7 @@ public sealed partial class CustomizeWindow : Window
     private void BuildCharmGrid()
     {
         RebuildTiles();
+        BuildCollections();
         BuildFilterChips();
         ShowResults();
     }
@@ -207,6 +219,43 @@ public sealed partial class CustomizeWindow : Window
     }
 
     /// <summary>All, the two saved sets, then every category.</summary>
+    /// <summary>The collection cards, built once from the catalogue's own table.</summary>
+    private void BuildCollections()
+    {
+        var cards = new List<CollectionCard>();
+        foreach (CharmCollection collection in CharmCatalog.Collections)
+        {
+            CharmTile[] members =
+            [
+                .. environment.Charms.All
+                    .Where(entry => entry.CategoryId == collection.Id)
+                    .Select(entry => tilesById.TryGetValue(entry.Id, out CharmTile? tile) ? tile : null)
+                    .OfType<CharmTile>(),
+            ];
+
+            if (members.Length > 0)
+            {
+                cards.Add(new CollectionCard(collection, members));
+            }
+        }
+
+        Collections.ItemsSource = cards;
+    }
+
+    /// <summary>Tapping a collection card filters to it, which is the card's whole job.</summary>
+    private void OnCollectionTapped(object sender, TappedRoutedEventArgs args)
+    {
+        if (sender is not FrameworkElement { DataContext: CollectionCard card })
+        {
+            return;
+        }
+
+        filter = CharmFilter.Category(card.Id);
+        HighlightChips();
+        ShowResults();
+        analytics.Track(Events.CollectionOpened(card.Name));
+    }
+
     private void BuildFilterChips()
     {
         AddChip("All", CharmFilter.All);
@@ -277,9 +326,18 @@ public sealed partial class CustomizeWindow : Window
         }
 
         Packs.ItemsSource = groups;
+        Collections.Visibility = filter is CharmFilter.Everything && string.IsNullOrWhiteSpace(query)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
         ShowEmptyState(matches.Count == 0);
         MarkChosen();
         MarkFavourites();
+
+        // Back to the top whenever the results change. Without this a filter applied
+        // while scrolled down lands you in the middle of a different list, and the first
+        // row of collection cards arrives already half out of view.
+        ResultsScroller.ChangeView(null, 0, null, disableAnimation: true);
     }
 
     /// <summary>Which nothing this is, because they are not the same nothing.</summary>
@@ -446,6 +504,7 @@ public sealed partial class CustomizeWindow : Window
         }
 
         HighlightSlot();
+        ShowSelectedSlotInDetail();
         CordSummary.Text = ids.Count == 1
             ? "One charm hangs on the cord."
             : $"{ids.Count} charms hang on the cord, from the top down.";
@@ -470,12 +529,28 @@ public sealed partial class CustomizeWindow : Window
         }
     }
 
+    /// <summary>Points the panel at whatever the chosen slot is carrying.</summary>
+    /// <remarks>
+    /// Which is what makes the panel open describing something rather than empty, and
+    /// what keeps it honest when the slot changes under it — the panel reports the
+    /// selection, so the selection has to reach it from every place it can move.
+    /// </remarks>
+    private void ShowSelectedSlotInDetail()
+    {
+        IReadOnlyList<string> ids = Overlay.CharmIds;
+        if (selectedSlot >= 0 && selectedSlot < ids.Count)
+        {
+            ShowDetail(environment.Charms.Find(ids[selectedSlot]));
+        }
+    }
+
     private void OnSlotClicked(object sender, RoutedEventArgs args)
     {
         if (sender is Button { Tag: int index })
         {
             selectedSlot = index;
             HighlightSlot();
+            ShowSelectedSlotInDetail();
         }
     }
 
@@ -510,7 +585,60 @@ public sealed partial class CustomizeWindow : Window
         GitHubLink.NavigateUri = new Uri(AppInfo.GitHubUrl);
         ReleaseNotesLink.NavigateUri = new Uri(AppInfo.ReleaseNotesUrl);
         InstagramLink.NavigateUri = new Uri(AppInfo.InstagramUrl);
+        ShowMilestones();
     }
+
+    /// <summary>The four numbers the About page keeps.</summary>
+    /// <remarks>
+    /// macOS's <c>AppMilestones</c> carries <c>charms</c>, <c>launches</c> and
+    /// <c>secretsFound</c>; the fourth, swings, is named only by the statistics label
+    /// "Swings survived: ". The counting rule for it is this build's own — see
+    /// OverlayWindow — because macOS's is not in the repository.
+    /// </remarks>
+    private void ShowMilestones()
+    {
+        // Swings live in the overlay until someone looks, then they are banked. Taking
+        // them zeroes the overlay's counter, so this cannot count the same swing twice.
+        long swung = environment.Overlay?.TakeSwings() ?? 0;
+        if (swung > 0)
+        {
+            store.Update(settings => settings with
+            {
+                Milestones = settings.Milestones with
+                {
+                    SwingsSurvived = settings.Milestones.SwingsSurvived + swung,
+                },
+            });
+        }
+
+        MilestoneSettings milestones = store.Settings.Milestones;
+        StatLaunches.Text = milestones.LaunchCount.ToString("N0", CultureInfo.CurrentCulture);
+        StatCharms.Text = milestones.CharmsHung.ToString("N0", CultureInfo.CurrentCulture);
+        StatSwings.Text = milestones.SwingsSurvived.ToString("N0", CultureInfo.CurrentCulture);
+        StatSecrets.Text = milestones.SecretsFound.ToString("N0", CultureInfo.CurrentCulture);
+    }
+
+    /// <summary>Hands out a secret, and pushes the rope as macOS says it does.</summary>
+    private void OnSecretClicked(object sender, RoutedEventArgs args)
+    {
+        string secret = SecretVault.Reveal(Random.Shared, lastSecret);
+        lastSecret = secret;
+        SecretText.Text = secret;
+
+        store.Update(settings => settings with
+        {
+            Milestones = settings.Milestones with
+            {
+                SecretsFound = settings.Milestones.SecretsFound + 1,
+            },
+        });
+
+        ShowMilestones();
+        environment.Overlay?.Nudge();
+    }
+
+    private void OnSuggestClicked(object sender, RoutedEventArgs args) =>
+        _ = Windows.System.Launcher.LaunchUriAsync(new Uri(AppInfo.SuggestMailUrl));
 
     /// <summary>
     /// The analytics inspector.
@@ -581,6 +709,7 @@ public sealed partial class CustomizeWindow : Window
         }
 
         UpdateDeleteButton(tile.Id);
+        ShowDetail(tile.Entry);
 
         store.Update(settings =>
         {
@@ -596,8 +725,50 @@ public sealed partial class CustomizeWindow : Window
             {
                 Overlay = settings.Overlay with { CharmIds = ids },
                 Library = settings.Library.WithRecent(tile.Id),
+                Milestones = settings.Milestones with
+                {
+                    CharmsHung = settings.Milestones.CharmsHung + 1,
+                },
             };
         });
+    }
+
+    /// <summary>Points the detail panel at a charm, and remembers which one.</summary>
+    private void ShowDetail(CharmCatalogEntry? entry)
+    {
+        detailed = entry;
+        Detail.Show(entry, entry is null ? null : tilesById.GetValueOrDefault(entry.Id)?.Image);
+        RefreshDetailState();
+    }
+
+    /// <summary>Re-reads the two states the panel reports but does not own.</summary>
+    private void RefreshDetailState()
+    {
+        if (detailed is null)
+        {
+            return;
+        }
+
+        AppSettings settings = store.Settings;
+        Detail.IsOnRope = settings.Overlay.CharmIds.Contains(detailed.Id);
+        Detail.IsFavourite = settings.Library.FavouriteCharmIds.Contains(detailed.Id);
+    }
+
+    private void OnDetailFavouriteClicked(object sender, RoutedEventArgs args)
+    {
+        if (detailed is null)
+        {
+            return;
+        }
+
+        string id = detailed.Id;
+        store.Update(settings => settings with
+        {
+            Library = settings.Library.WithFavouriteToggled(id),
+        });
+
+        RefreshDetailState();
+        MarkFavourites();
     }
 
     private void OnCountChanged(object sender, SelectionChangedEventArgs args)

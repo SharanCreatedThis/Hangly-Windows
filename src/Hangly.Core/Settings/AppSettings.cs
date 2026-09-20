@@ -167,6 +167,19 @@ public sealed record MilestoneSettings
 {
     public int LaunchCount { get; init; }
 
+    /// <summary>Distinct charms that have been on the cord, ever.</summary>
+    /// <remarks>
+    /// A count rather than the set, because the About page shows a number and keeping
+    /// the identifiers would mean a settings document that grows with curiosity.
+    /// </remarks>
+    public int CharmsHung { get; init; }
+
+    /// <summary>How many secrets the About page has given up.</summary>
+    public int SecretsFound { get; init; }
+
+    /// <summary>Times the rope has swung through vertical.</summary>
+    public long SwingsSurvived { get; init; }
+
     public bool IsFirstLaunch => LaunchCount <= 1;
 }
 
@@ -268,7 +281,13 @@ public sealed record AppSettings
     public AppSettings Clamped() => this with
     {
         Overlay = Overlay.Clamped(),
-        Milestones = Milestones with { LaunchCount = Math.Max(0, Milestones.LaunchCount) },
+        Milestones = Milestones with
+        {
+            LaunchCount = Math.Max(0, Milestones.LaunchCount),
+            CharmsHung = Math.Max(0, Milestones.CharmsHung),
+            SecretsFound = Math.Max(0, Milestones.SecretsFound),
+            SwingsSurvived = Math.Max(0, Milestones.SwingsSurvived),
+        },
         Library = Library.Clamped(),
     };
 

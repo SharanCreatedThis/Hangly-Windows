@@ -51,6 +51,24 @@ SOURCES = [
 # that was never offered.
 DROPPED_CATEGORIES = {"seasonal"}
 
+# One line about each collection, for the Library's hero cards.
+#
+# These are not in CharmLibrary.json and not in the Swift that ships in reference/ —
+# they live in the macOS view layer, which is not part of this repository. Every line
+# below is a literal read out of the shipping macOS 2.0.0 binary, so they are quotations
+# rather than copy written here. A collection with no line gets no card.
+COLLECTION_BLURBS = {
+    "marvel": "Iconic Marvel-inspired charms designed as hanging ornaments.",
+    "dc": "Legendary DC-inspired symbols reimagined as hanging charms.",
+    "tamilSpiritual": "Traditional Tamil spiritual symbols and guardian deities.",
+    "bts": "Stylized BTS-inspired collectible hanging charms.",
+    "footballLegends": "Icons of world football.",
+    "musicLegends": "Artists who shaped modern music.",
+    "friends": "The iconic friends from New York.",
+    "breakingBad": "The legendary Breaking Bad universe.",
+    "strangerThings": "Mysteries from the Upside Down.",
+}
+
 EXPECTED = 70
 
 
@@ -209,6 +227,27 @@ def main() -> int:
 
     for identifier, name in categories:
         lines.append(f'        new("{escape(identifier)}", "{escape(name)}"),')
+
+    lines += [
+        "    ];",
+        "",
+        "    /// <summary>The collections the Library offers as cards, in catalogue order.</summary>",
+        "    /// <remarks>",
+        "    /// A collection is a category that has a line written about it. The ones without",
+        "    /// — protection, luck, ritual, classic — are filters rather than collections and",
+        "    /// are offered as chips only, which is how macOS presents them.",
+        "    /// </remarks>",
+        "    public static IReadOnlyList<CharmCollection> Collections { get; } =",
+        "    [",
+    ]
+
+    for identifier, name in categories:
+        blurb = COLLECTION_BLURBS.get(identifier)
+        if blurb is None:
+            continue
+        lines.append(
+            f'        new("{escape(identifier)}", "{escape(name)}", "{escape(blurb)}"),'
+        )
 
     lines += [
         "    ];",

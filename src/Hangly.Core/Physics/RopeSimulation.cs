@@ -210,6 +210,45 @@ public sealed partial class RopeSimulation
     }
 
     /// <summary>Wakes the rope so the next <see cref="Step"/> does work again.</summary>
+    /// <summary>
+    /// How far the lowest charm hangs to one side of the anchor, in points.
+    /// </summary>
+    /// <remarks>
+    /// Here so a caller that only wants to know which side the charm is on does not have
+    /// to take a <see cref="Snapshot"/> to find out. A snapshot allocates the points, the
+    /// charms and the beads; anything asking this question on every frame of a 120 Hz
+    /// loop cannot afford that, and counting swings is exactly such a caller.
+    /// </remarks>
+    public double CharmOffsetFromAnchor =>
+        Points.Length == 0 ? 0 : Points[^1].Position.X - Anchor.X;
+
+    /// <summary>Gives the charm a sideways shove, as though someone had flicked it.</summary>
+    /// <remarks>
+    /// The speed is not invented. It is the speed the charm would already be carrying at
+    /// the bottom of a swing released from <see cref="RopeConfiguration.InitialAngle"/> —
+    /// the same release the rope performs when it starts — so a push looks like the
+    /// launch rather than like a new number somebody chose. Written into the node's
+    /// history, because history is what Verlet reads as velocity.
+    /// </remarks>
+    /// <param name="direction">Positive pushes right, negative left.</param>
+    public void Push(double direction = 1)
+    {
+        if (Points.Length < 2 || direction == 0)
+        {
+            return;
+        }
+
+        double length = Configuration.TotalLength;
+        double speed = Math.Sqrt(
+            2 * Configuration.Gravity * length * (1 - Math.Cos(Configuration.InitialAngle)));
+
+        ref RopePoint charm = ref Points[^1];
+        charm.PreviousPosition = charm.Position
+            - new Vec2(Math.Sign(direction) * speed * Configuration.FixedTimeStep, 0);
+
+        Wake();
+    }
+
     public void Wake()
     {
         IsSleeping = false;

@@ -62,6 +62,9 @@ public sealed class OverlayWindow : IDisposable
     private Thread? thread;
     private volatile bool isRunning;
     private OverlaySettings? pending;
+    private int isNudged;
+    private long swings;
+    private int lastSide;
     private IReadOnlyList<CharmDescriptor>? pendingCharms;
 
     private OverlaySettings settings;
@@ -101,6 +104,24 @@ public sealed class OverlayWindow : IDisposable
     /// </remarks>
     public void SetCharms(IReadOnlyList<CharmDescriptor> charms) =>
         Interlocked.Exchange(ref pendingCharms, charms);
+
+    /// <summary>Takes the swings counted since the last time anyone asked.</summary>
+    /// <remarks>
+    /// Read-and-reset, because the caller's job is to add them to the stored total and a
+    /// counter that is read twice would be counted twice. Kept in memory and flushed
+    /// rarely on purpose: a settings write per swing would be a write every half second
+    /// for as long as the rope is moving.
+    /// </remarks>
+    public long TakeSwings() => Interlocked.Exchange(ref swings, 0);
+
+    /// <summary>Gives the rope a push, from anywhere.</summary>
+    /// <remarks>
+    /// The About page's secret button does this: macOS describes it as "Reveals one of
+    /// the app's secrets, and pushes the rope", so the push is half the feature. Handed
+    /// over as a flag rather than applied, because the solver belongs to the frame loop
+    /// and this is called from the window the person is clicking in.
+    /// </remarks>
+    public void Nudge() => isNudged = 1;
 
     /// <summary>Starts the frame loop, which is also what creates the window.</summary>
     public void Begin()
@@ -166,6 +187,12 @@ public sealed class OverlayWindow : IDisposable
                 if (Interlocked.Exchange(ref pending, null) is OverlaySettings updated)
                 {
                     ApplyOnLoop(updated);
+                }
+
+                if (Interlocked.Exchange(ref isNudged, 0) == 1)
+                {
+                    rope.Push();
+                    Draw();
                 }
 
                 clock.Advance();
@@ -260,6 +287,7 @@ public sealed class OverlayWindow : IDisposable
     {
         PollPointer();
         rope.Step(deltaTime);
+        CountSwings();
 
         // A settled rope is a still image. Stop redrawing it, and drop the tick rate —
         // the clock keeps running because the same tick is what notices the cursor
@@ -270,6 +298,36 @@ public sealed class OverlayWindow : IDisposable
         {
             Draw();
         }
+    }
+
+    /// <summary>One swing is one crossing of the vertical, which is what a pendulum does.</summary>
+    private void CountSwings()
+    {
+        // The last node, not a snapshot. Snapshot() allocates the points, the charms and
+        // the beads every time it is called, and this runs on every tick of a 120 Hz
+        // loop — which is the allocation-per-frame that the layered surface was carefully
+        // built to avoid. The lowest charm hangs on the last node, so its position is
+        // already here for nothing.
+        // Against the anchor rather than the canvas centre: they are the same point
+        // today, and the day they stop being the same this still counts swings.
+        double offset = rope.CharmOffsetFromAnchor;
+
+        // A dead band, so a charm resting a hair off centre does not tick over forever
+        // on floating-point noise. A fiftieth of the rope is well inside the smallest
+        // swing anyone can see and well outside that noise.
+        double band = rope.Configuration.TotalLength / 50;
+        int side = offset > band ? 1 : offset < -band ? -1 : 0;
+        if (side == 0)
+        {
+            return;
+        }
+
+        if (lastSide != 0 && side != lastSide)
+        {
+            Interlocked.Increment(ref swings);
+        }
+
+        lastSide = side;
     }
 
     private void Draw() => surface.Present(

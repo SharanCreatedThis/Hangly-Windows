@@ -59,6 +59,15 @@ public static class AppInfo
 
     public static string CoffeeUrl => "https://www.sharancreatedthis.in/coffee";
 
+    /// <summary>Where "Suggest a charm" writes to.</summary>
+    /// <remarks>
+    /// The address is the one the macOS build names in its own menu item, "Suggest a
+    /// charm to the creator (swarnsharan@gmail.com)", so both platforms land in the same
+    /// inbox rather than in two.
+    /// </remarks>
+    public static string SuggestMailUrl =>
+        "mailto:swarnsharan@gmail.com?subject=Hangly%20charm%20suggestion";
+
     private static string? Metadata(string key) => Self
         .GetCustomAttributes<AssemblyMetadataAttribute>()
         .FirstOrDefault(attribute => attribute.Key == key)

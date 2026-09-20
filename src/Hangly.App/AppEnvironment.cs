@@ -43,6 +43,9 @@ public sealed class AppEnvironment : IDisposable
 
     private TrayIcon? tray;
     private OverlayWindow? overlay;
+
+    /// <summary>The overlay, once it exists. Null before bootstrap and after quit.</summary>
+    public OverlayWindow? Overlay => overlay;
     private CharmArtworkCache? artwork;
     private IReadOnlyList<string> hanging = [];
 
