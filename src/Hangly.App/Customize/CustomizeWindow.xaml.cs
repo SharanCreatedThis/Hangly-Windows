@@ -695,10 +695,18 @@ public sealed partial class CustomizeWindow : Window
     private void OnInstagramClicked(object sender, RoutedEventArgs args) =>
         analytics.Track(Events.FollowInstagramClicked);
 
-    private void OnCoffeeClicked(object sender, RoutedEventArgs args)
+    private async void OnCoffeeClicked(object sender, RoutedEventArgs args)
     {
-        analytics.Track(Events.CoffeeSheetOpened("about"));
-        _ = Windows.System.Launcher.LaunchUriAsync(new Uri(AppInfo.CoffeeUrl));
+        try
+        {
+            await BuyCoffeeSheet.ShowAsync(Root, analytics, "about");
+        }
+        catch (Exception exception)
+        {
+            // A dialog that cannot open must not take the window with it: this is the
+            // one handler reached from a button that does nothing else.
+            Diagnostics.Failure("coffee sheet", exception);
+        }
     }
 
     private void OnCharmClicked(object sender, ItemClickEventArgs args)

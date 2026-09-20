@@ -55,7 +55,15 @@ public static class AppInfo
     public static string ReleaseNotesUrl =>
         "https://github.com/SharanCreatedThis/Hangly-Windows/releases";
 
-    public static string InstagramUrl => "https://www.instagram.com/sharancreatedthis";
+    /// <summary>
+    /// The creator's Instagram, spelled the way the macOS build spells it — its binary
+    /// carries "Opens https://instagram.com/sharan.created.this". The two platforms
+    /// pointed at different handles until this was checked against the shipping app.
+    /// </summary>
+    public static string InstagramUrl => "https://instagram.com/sharan.created.this";
+
+    /// <summary>The creator's UPI address, as the macOS build carries it.</summary>
+    public static string UpiId => "8870786087@yescred";
 
     public static string CoffeeUrl => "https://www.sharancreatedthis.in/coffee";
 

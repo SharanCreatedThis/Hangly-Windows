@@ -132,6 +132,18 @@
     <!-- Copied whole, exactly as the macOS bundle copies Assets/Charms. -->
     <Content Include="Assets/Charms/**" CopyToOutputDirectory="PreserveNewest" />
 
+    <!--
+      The creator's UPI code, the same file the macOS bundle ships in Resources.
+
+      None rather than Content, and that distinction is load-bearing. Listing it as
+      Content registers it with the PRI compiler, which already has a claim on this path
+      and answers with the PRI175 / PRI277 duplicate-resource pair — the same failure
+      hangly.ico caused. Nothing here needs it to be a PRI resource: the sheet loads it
+      from AppContext.BaseDirectory as a file, so all it has to do is land beside the
+      executable, which is exactly what None with a copy does.
+    -->
+    <None Include="Assets/CreatorUPIQR.png" CopyToOutputDirectory="PreserveNewest" />
+
     <!-- hangly.ico is deliberately NOT Content. ApplicationIcon already embeds it in the
          executable, and registering the same file as a resource as well gives the PRI
          compiler two entries for one path (PRI175 / PRI277). The tray reads the icon back

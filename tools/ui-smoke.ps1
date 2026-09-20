@@ -319,6 +319,33 @@ if ($about) {
         Check "About shows $stat" ([bool](ById $stat))
     }
 
+    # The coffee sheet: the QR, the address, the copy, and closing again.
+    $coffee = ById 'CoffeeButton'
+    if ($coffee) {
+        $coffee.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+        Start-Sleep -Seconds 3
+        Check 'the coffee sheet opens'        ([bool](ById 'CoffeeUpiId'))
+        Check 'the sheet shows the UPI id'    ((ById 'CoffeeUpiId').Current.Name -eq '8870786087@yescred')
+        Check 'the sheet offers to copy it'   ([bool](ById 'CoffeeCopyButton'))
+        Check 'the sheet offers the page'     ([bool](ById 'CoffeeOpenButton'))
+        Check 'the QR shipped with the build' (-not [bool](FindIn ([System.Windows.Automation.ControlType]::Text) 'QR code is missing'))
+
+        $copyButton = ById 'CoffeeCopyButton'
+        if ($copyButton) {
+            $copyButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+            Start-Sleep -Milliseconds 800
+            Add-Type -AssemblyName PresentationCore
+            Check 'copying puts the id on the clipboard' ([Windows.Clipboard]::GetText() -eq '8870786087@yescred')
+        }
+
+        $closeButton = FindIn ([System.Windows.Automation.ControlType]::Button) '^Close$'
+        if ($closeButton) {
+            $closeButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+            Start-Sleep -Seconds 2
+        }
+        Check 'closing the sheet dismisses it' (-not [bool](ById 'CoffeeUpiId'))
+    }
+
     $secretsBefore = [int](ById 'StatSecrets').Current.Name
     $secretButton = ById 'SecretButton'
     Check 'About offers the secret button' ([bool]$secretButton)
