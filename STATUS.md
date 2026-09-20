@@ -88,6 +88,11 @@ real machine — Windows 11 ARM64 at 200% scaling:
   over a thirty-second drag, allocation fell from 154 MB/s to 0.7 MB/s and gen-2
   collections from 1,040 to 7. What remains is memory bandwidth, and it is only spent
   while the rope is awake.
+- **Beads are drawn as ellipses, not as sprites cut from the artwork.** Their number,
+  size, position and weight are all measured from the artwork and are correct — the
+  solver carries exactly the beads the designer drew. What differs from macOS is only
+  how they are *painted*: a disc tinted with the cord's palette, rather than that part of
+  the SVG. It reads well because a bead is a bead, and it is a parity gap all the same.
 - **No settings UI at all.** Everything is changed through the tray menu or by editing
   `%LOCALAPPDATA%\Hangly\settings.json` by hand.
 
