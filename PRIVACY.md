@@ -31,11 +31,12 @@ fails is written to the local log and forgotten.
 | Charms | `charm_selected`, `charm_added`, `charm_removed`. Built-in charms are named by their catalogue id; a charm you made is reported as `custom`. |
 | Rope | `rope_count_changed`, `rope_style_changed`. |
 | Settings | `appearance_changed` — the **name** of the setting that moved, never its value. |
+| Imports | `charm_imported` and `charm_saved` — that a charm was imported, and nothing about the file. Not its name, not its size, not its contents. |
 | Links | `follow_instagram_clicked`, `coffee_sheet_opened`. |
 | With every event | `charm_count`, `active_charm_ids`, `rope_style`, `analytics_enabled`. |
 
-The vocabulary also contains names for features this build does not have yet — importing
-a charm, the collections browser, weather, the follow card, dropping a file on a charm.
+The vocabulary also contains names for features this build does not have yet — the
+collections browser, weather, the follow card, dropping a file on a charm.
 They are defined so that the two platforms report the same act under the same name when
 those features land. **Nothing this build cannot do is ever sent**, because the code that
 would send it does not exist yet.
@@ -78,6 +79,22 @@ The same panel shows, for this machine:
 
 It is in the app rather than behind a developer flag because the argument for collecting
 anything at all is that it can be inspected.
+
+## Charms you import
+
+A charm you import never leaves your machine. The drawing is copied into
+`%APPDATA%\Hangly\Charms\`, and that copy is the only one Hangly keeps.
+
+- **The file is not read for anything but drawing it.** It is rewritten into the subset of
+  SVG that draws — script, event handlers, embedded documents and anything referring to a
+  URL are removed before it is stored, so an imported drawing cannot ask Hangly to fetch
+  anything or run anything.
+- **Nothing about it is sent anywhere.** The analytics events above record *that* an
+  import happened. Not the file name, not its size, not its contents, not the name you
+  see in the Library.
+- **On the rope it is reported as the word `custom`**, as `PRIVACY.md` has always said.
+  The identifier Hangly gives it is random and local to this machine.
+- Deleting a charm in the Library deletes the copy.
 
 ## Updates
 

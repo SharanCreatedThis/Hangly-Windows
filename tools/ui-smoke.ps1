@@ -50,6 +50,26 @@ Start-Sleep -Milliseconds 800
 }
 '@ | Set-Content $settingsPath -Encoding UTF8
 
+# An imported charm, seeded straight into the store. The file dialog is a modal Win32
+# window that blocks the app's UI thread, which makes it awkward to drive reliably from
+# here; what this test is for is what the Library does with an import once it exists.
+$charms = Join-Path $env:APPDATA 'Hangly\Charms'
+Remove-Item $charms -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force -Path $charms | Out-Null
+$importId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+@'
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="#e67e22"/></svg>
+'@ | Set-Content (Join-Path $charms "$importId.svg") -Encoding UTF8
+@"
+[{"id":"$importId","name":"Smoke Charm","createdAt":"2026-01-01T00:00:00+00:00",
+  "imageFileName":"$importId.svg",
+  "metrics":{"mass":3,"radiusRatio":0.12,"knotInset":0.9},
+  "palette":{"primary":{"red":0.9,"green":0.49,"blue":0.13,"alpha":1},
+             "secondary":{"red":0.65,"green":0.35,"blue":0.09,"alpha":1},
+             "deep":{"red":0.4,"green":0.22,"blue":0.06,"alpha":1},
+             "light":{"red":0.95,"green":0.75,"blue":0.6,"alpha":1}}}]
+"@ | Set-Content (Join-Path $charms 'manifest.json') -Encoding UTF8
+
 Start-Process (Join-Path $App 'Hangly.exe')
 Start-Sleep -Seconds 10
 Check 'the app starts' ([bool](Get-Process Hangly -ErrorAction SilentlyContinue))
@@ -110,10 +130,29 @@ function FindIn($type, $pattern) {
   foreach ($e in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)) {
     if ($e.Current.Name -match $pattern) { return $e } }
   return $null }
+# Invoked through UI Automation rather than clicked at coordinates. The filter chips
+# scroll horizontally, and an element scrolled out of view reports a bounding rectangle of
+# NaN — which is not somewhere a mouse can be moved to.
 function ClickElement($e) {
-  $r = $e.Current.BoundingRectangle
-  ClickPoint ($r.X + $r.Width/2) ($r.Y + $r.Height/2) $false
-  Start-Sleep -Milliseconds 900 }
+  $done = $false
+  foreach ($pattern in @(
+      [System.Windows.Automation.InvokePattern]::Pattern,
+      [System.Windows.Automation.TogglePattern]::Pattern,
+      [System.Windows.Automation.SelectionItemPattern]::Pattern)) {
+    if ($done) { break }
+    try {
+      $p = $e.GetCurrentPattern($pattern)
+      if ($p -is [System.Windows.Automation.InvokePattern]) { $p.Invoke() }
+      elseif ($p -is [System.Windows.Automation.TogglePattern]) { $p.Toggle() }
+      else { $p.Select() }
+      $done = $true
+    } catch { }
+  }
+  if (-not $done) {
+    $r = $e.Current.BoundingRectangle
+    if (-not [double]::IsNaN($r.X)) { ClickPoint ($r.X + $r.Width/2) ($r.Y + $r.Height/2) $false }
+  }
+  Start-Sleep -Milliseconds 1000 }
 
 # --- the Library --------------------------------------------------------------------
 function CharmTiles {
@@ -127,7 +166,7 @@ function CharmTiles {
 }
 
 Check 'the Library page is the one that opens' ([bool](FindIn ([System.Windows.Automation.ControlType]::ListItem) '^Library$'))
-Check 'all eighty-one charms are shown' ((CharmTiles) -eq 81)
+Check 'every charm is shown, the import included' ((CharmTiles) -eq 82)
 foreach ($chip in 'All', 'Favourites', 'Recent', 'Protection') {
     Check "the $chip filter is offered" ([bool](FindIn ([System.Windows.Automation.ControlType]::Button) "^Show $chip$"))
 }
@@ -141,12 +180,12 @@ if ($search) {
     [System.Windows.Forms.SendKeys]::SendWait('glass')
     Start-Sleep -Seconds 2
     $narrowed = CharmTiles
-    Check 'searching narrows the grid'        ($narrowed -gt 0 -and $narrowed -lt 81)
+    Check 'searching narrows the grid'        ($narrowed -gt 0 -and $narrowed -lt 82)
     Check 'searching writes nothing to disk'  ((Get-Content $settingsPath -Raw) -eq $settingsBeforeSearch)
 
     [System.Windows.Forms.SendKeys]::SendWait('^a{BACKSPACE}')
     Start-Sleep -Seconds 2
-    Check 'clearing the search restores the grid' ((CharmTiles) -eq 81)
+    Check 'clearing the search restores the grid' ((CharmTiles) -eq 82)
 }
 
 $favouriteChip = FindIn ([System.Windows.Automation.ControlType]::Button) '^Show Favourites$'
@@ -169,11 +208,44 @@ if ($favouriteChip) {
     }
 }
 
+# --- imported charms -----------------------------------------------------------------
+Check 'the Library offers Import Charm' ([bool](FindIn ([System.Windows.Automation.ControlType]::Button) 'Import a charm'))
+
+$yours = FindIn ([System.Windows.Automation.ControlType]::Button) '^Show Yours$'
+Check 'an import gives the Library a Yours category' ([bool]$yours)
+if ($yours) {
+    ClickElement $yours
+    Check 'Yours shows the imported charm and nothing else' ((CharmTiles) -eq 1)
+    Check 'the imported charm is named' `
+        ([bool](FindIn ([System.Windows.Automation.ControlType]::ListItem) '^Smoke Charm$'))
+
+    $tile = FindIn ([System.Windows.Automation.ControlType]::ListItem) '^Smoke Charm$'
+    if ($tile) {
+        ClickElement $tile
+        Check 'an imported charm can be hung' ((Settings).overlay.charmIds -contains "custom:$importId")
+        Check 'an imported charm becomes recent' ((Settings).library.recentCharmIds -contains "custom:$importId")
+        Check 'Delete appears for an imported charm' `
+            ([bool](FindIn ([System.Windows.Automation.ControlType]::Button) 'Delete the selected imported charm'))
+
+        $delete = FindIn ([System.Windows.Automation.ControlType]::Button) 'Delete the selected imported charm'
+        if ($delete) {
+            ClickElement $delete
+            Check 'deleting removes it from disk' (-not (Test-Path (Join-Path $charms "$importId.svg")))
+            Check 'deleting takes it off the rope' (-not ((Settings).overlay.charmIds -contains "custom:$importId"))
+            Check 'deleting removes the Yours category' `
+                ($null -eq (FindIn ([System.Windows.Automation.ControlType]::Button) '^Show Yours$'))
+        }
+    }
+
+    $allChip = FindIn ([System.Windows.Automation.ControlType]::Button) '^Show All$'
+    if ($allChip) { ClickElement $allChip }
+}
+
 $categoryChip = FindIn ([System.Windows.Automation.ControlType]::Button) '^Show Protection$'
 if ($categoryChip) {
     ClickElement $categoryChip
     $inCategory = CharmTiles
-    Check 'a category shows some charms but not all' ($inCategory -gt 0 -and $inCategory -lt 81)
+    Check 'a category shows some charms but not all' ($inCategory -gt 0 -and $inCategory -lt 82)
     $allChip = FindIn ([System.Windows.Automation.ControlType]::Button) '^Show All$'
     if ($allChip) { ClickElement $allChip }
 }

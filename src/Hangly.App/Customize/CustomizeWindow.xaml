@@ -119,6 +119,28 @@
                     <!-- Search and the chips. A category is a filter, and a filter is one
                          click that leaves the charms where they are. -->
                     <StackPanel Grid.Row="2" Margin="0,0,0,12" Spacing="10">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button
+                                x:Name="ImportButton"
+                                AutomationProperties.Name="Import a charm"
+                                Click="OnImportClicked"
+                                Content="Import Charm…" />
+                            <Button
+                                x:Name="DeleteButton"
+                                AutomationProperties.Name="Delete the selected imported charm"
+                                Click="OnDeleteImportClicked"
+                                Content="Delete"
+                                Visibility="Collapsed" />
+                            <TextBlock
+                                x:Name="ImportMessage"
+                                VerticalAlignment="Center"
+                                AutomationProperties.AutomationId="ImportMessage"
+                                MaxWidth="480"
+                                Opacity="0.8"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+
                         <AutoSuggestBox
                             x:Name="SearchBox"
                             MaxWidth="420"

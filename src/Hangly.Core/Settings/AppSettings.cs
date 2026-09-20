@@ -119,9 +119,14 @@ public sealed record OverlaySettings
 
     private IReadOnlyList<string> ClampedCharmIds()
     {
+        // Well-formed rather than present. An imported charm is not in the catalogue and
+        // never will be, so checking the catalogue alone would have thrown the user's own
+        // charm off the rope the next time the document was read. Whether the import
+        // still exists is the app's question, not this one's — CharmLibrary falls back to
+        // the bead when a drawing has gone.
         List<string> ids = [.. CharmIds
             .Where(id => !string.IsNullOrWhiteSpace(id))
-            .Select(id => CharmCatalog.Contains(id) ? id : CharmCatalog.DefaultId)
+            .Select(id => CharmId.IsWellFormed(id) ? id : CharmCatalog.DefaultId)
             .Take(CharmStack.MaximumCount)];
 
         // A rope with nothing on it is not a state the app offers, so an empty or
@@ -235,11 +240,16 @@ public sealed record LibrarySettings
         return hash.ToHashCode();
     }
 
-    /// <summary>Drops ids the catalogue no longer knows, so a stale file cannot poison the grid.</summary>
+    /// <summary>Drops ids nothing could ever resolve, so a stale file cannot poison the grid.</summary>
+    /// <remarks>
+    /// Imported charms pass because their id has a recognisable shape. Dropping them here
+    /// would have quietly un-starred every charm somebody made, on the first read after
+    /// they made it.
+    /// </remarks>
     public LibrarySettings Clamped() => this with
     {
-        FavouriteCharmIds = [.. FavouriteCharmIds.Where(Models.CharmCatalog.Contains).Distinct(StringComparer.Ordinal)],
-        RecentCharmIds = [.. RecentCharmIds.Where(Models.CharmCatalog.Contains).Distinct(StringComparer.Ordinal).Take(RecentLimit)],
+        FavouriteCharmIds = [.. FavouriteCharmIds.Where(Models.CharmId.IsWellFormed).Distinct(StringComparer.Ordinal)],
+        RecentCharmIds = [.. RecentCharmIds.Where(Models.CharmId.IsWellFormed).Distinct(StringComparer.Ordinal).Take(RecentLimit)],
     };
 }
 

@@ -140,6 +140,54 @@ public static class Diagnostics
         }
     }
 
+    /// <summary>
+    /// Imports a file into a throwaway store and reports the outcome.
+    /// </summary>
+    /// <remarks>
+    /// A development switch. The store is a temporary directory, so running this never
+    /// adds anything to the charms the person actually has.
+    /// </remarks>
+    public static void CheckImport(string path)
+    {
+        try
+        {
+            string scratch = Path.Combine(
+                Path.GetTempPath(),
+                "hangly-import-check-" + Guid.NewGuid().ToString("N"));
+
+            var store = new Core.Import.CustomCharmStore(scratch);
+            Import.ImportOutcome outcome = Import.CharmImporter.Import(path, store);
+
+            Log($"import check '{Path.GetFileName(path)}': "
+                + $"{(outcome.IsAccepted ? "ACCEPTED" : "REFUSED")} — {outcome.Message}");
+
+            if (outcome.IsAccepted && outcome.Entry is not null)
+            {
+                string stored = File.ReadAllText(store.PathFor(outcome.Entry));
+                foreach (string forbidden in (string[])
+                    ["<script", "onload", "onclick", "foreignObject", "@import", "attacker.example", "file:///"])
+                {
+                    if (stored.Contains(forbidden, StringComparison.OrdinalIgnoreCase))
+                    {
+                        Log($"  LEAKED {forbidden}");
+                    }
+                }
+
+                Log($"  mass {outcome.Entry.Metrics.Mass:F2}, knot {outcome.Entry.Metrics.KnotInset:F2}, "
+                    + $"name '{outcome.Entry.Name}'");
+            }
+
+            if (Directory.Exists(scratch))
+            {
+                Directory.Delete(scratch, recursive: true);
+            }
+        }
+        catch (Exception exception)
+        {
+            Failure("import check", exception);
+        }
+    }
+
     private static void Write(string line)
     {
         try

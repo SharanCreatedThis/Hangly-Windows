@@ -8,6 +8,8 @@
 using Hangly.App.Overlay;
 using Hangly.App.Services;
 using Hangly.App.Analytics;
+using Hangly.App.Import;
+using Hangly.Core.Import;
 using Hangly.App.Tray;
 using Hangly.Core.Analytics;
 using Hangly.Core.Models;
@@ -44,6 +46,10 @@ public sealed class AppEnvironment : IDisposable
     private CharmArtworkCache? artwork;
     private IReadOnlyList<string> hanging = [];
 
+    /// <summary>The catalogue plus whatever has been imported. Rebuilt when that changes.</summary>
+    private CharmIndex index = new();
+    private CustomCharmStore? customCharms;
+
     /// <summary>
     /// What was last reported, so a change is reported once rather than on every save.
     /// </summary>
@@ -59,6 +65,14 @@ public sealed class AppEnvironment : IDisposable
     {
         this.store = store ?? new SettingsStore(SettingsStore.DefaultPath);
         this.launchAtLogin = launchAtLogin ?? new RegistryLaunchAtLogin();
+        // Not loaded here. Opening the imports folder and parsing its manifest costs
+        // every launch about thirty milliseconds, and most launches have nothing in it —
+        // a new install certainly does not. It is loaded the moment anything actually
+        // needs it: a custom charm on the rope, or the Library being opened.
+        if (this.store.Settings.Overlay.CharmIds.Any(Hangly.Core.Models.CharmId.IsCustom))
+        {
+            RebuildIndex();
+        }
 
         // PostHog when this build has a key, nothing when it does not. An app built
         // without one runs with no analytics at all, which is a supported state and the
@@ -183,6 +197,102 @@ public sealed class AppEnvironment : IDisposable
         }
     }
 
+    /// <summary>
+    /// Rebuilds the index from what is on disk, dropping imports whose drawing has gone.
+    /// </summary>
+    /// <summary>The imports, opening the folder the first time anything asks.</summary>
+    private CustomCharmStore CustomCharmsStore =>
+        customCharms ??= new CustomCharmStore(CustomCharmStore.DefaultDirectory);
+
+    private void RebuildIndex()
+    {
+        CustomCharmStore charms = CustomCharmsStore;
+        var projected = new List<Hangly.Core.Models.CharmCatalogEntry>(charms.Entries.Count);
+        foreach (CustomCharmEntry entry in charms.Entries)
+        {
+            projected.Add(entry.AsCatalogEntry(charms.PathFor(entry)));
+        }
+
+        index = new CharmIndex(projected);
+    }
+
+    /// <summary>
+    /// Imports a drawing, puts it on the cord, and tells the Library to show it.
+    /// </summary>
+    /// <remarks>
+    /// The two events fire in the macOS build's order and for its reasons: charm_imported
+    /// once the file has been read and accepted, charm_saved once it is stored. Neither
+    /// carries the file, its name or its size.
+    /// </remarks>
+    public ImportOutcome ImportCharm(string path)
+    {
+        ImportOutcome outcome = CharmImporter.Import(path, CustomCharmsStore);
+        if (!outcome.IsAccepted || outcome.Entry is null)
+        {
+            Diagnostics.Log($"import refused: {outcome.Message}");
+            return outcome;
+        }
+
+        analytics.Track(Events.CharmImported);
+        analytics.Track(Events.CharmSaved);
+        RebuildIndex();
+
+        Diagnostics.Log($"imported a charm; {CustomCharmsStore.Entries.Count} now");
+        return outcome;
+    }
+
+    /// <summary>
+    /// Deletes an import, and takes it off the rope and out of the Library with it.
+    /// </summary>
+    /// <remarks>
+    /// Wherever it was hanging the bead takes its place — in every place at once if the
+    /// same import was on the rope more than once — which is what the macOS build does.
+    /// </remarks>
+    public void DeleteCharm(Guid id)
+    {
+        string charmId = Hangly.Core.Models.CharmId.ForCustom(id);
+        CustomCharmsStore.Remove(id);
+        RebuildIndex();
+
+        store.Update(settings => settings with
+        {
+            Overlay = settings.Overlay with
+            {
+                CharmIds = [.. settings.Overlay.CharmIds.Select(
+                    existing => existing == charmId ? Hangly.Core.Models.CharmCatalog.DefaultId : existing)],
+            },
+            Library = settings.Library with
+            {
+                FavouriteCharmIds = [.. settings.Library.FavouriteCharmIds.Where(existing => existing != charmId)],
+                RecentCharmIds = [.. settings.Library.RecentCharmIds.Where(existing => existing != charmId)],
+            },
+        });
+
+        analytics.Track(Events.CharmRemoved(charmId));
+    }
+
+    /// <summary>
+    /// Everything the app can hang, for the Library to show.
+    /// </summary>
+    /// <remarks>
+    /// Asking for this is what loads the imports, if a charm on the rope has not already.
+    /// The Library is the first thing that asks, which is the right moment.
+    /// </remarks>
+    public CharmIndex Charms
+    {
+        get
+        {
+            if (customCharms is null)
+            {
+                RebuildIndex();
+            }
+
+            return index;
+        }
+    }
+
+    public CustomCharmStore CustomCharms => CustomCharmsStore;
+
     private void ShowOverlay()
     {
         if (overlay is not null)
@@ -202,7 +312,7 @@ public sealed class AppEnvironment : IDisposable
             store.Settings.Overlay,
             rope,
             renderer,
-            CharmLibrary.Resolve(artwork, hanging));
+            CharmLibrary.Resolve(artwork, index, hanging));
         Diagnostics.Log("overlay window constructed");
 
         // Returns as soon as the frame loop is running. The window itself is created on
@@ -251,7 +361,7 @@ public sealed class AppEnvironment : IDisposable
             // nothing to rebuild and the window comes back where it was left.
             if (customize is null)
             {
-                customize = new Customize.CustomizeWindow(store, launchAtLogin, analytics);
+                customize = new Customize.CustomizeWindow(store, launchAtLogin, analytics, this);
                 Diagnostics.Log("customize window created");
             }
 
@@ -291,7 +401,7 @@ public sealed class AppEnvironment : IDisposable
         {
             ReportCharmChange(hanging, settings.Overlay.CharmIds);
             hanging = [.. settings.Overlay.CharmIds];
-            overlay?.SetCharms(CharmLibrary.Resolve(artwork, hanging));
+            overlay?.SetCharms(CharmLibrary.Resolve(artwork, index, hanging));
         }
 
         if (reported.RopeStyle != settings.Overlay.RopeStyle)

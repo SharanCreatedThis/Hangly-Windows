@@ -15,6 +15,9 @@ namespace Hangly.Core.Tests;
 /// </summary>
 public class CharmLibraryTests
 {
+    /// <summary>Nothing imported, so the index is exactly the catalogue.</summary>
+    private static readonly CharmIndex Index = new();
+
     [Fact(DisplayName = "Every charm has the Library facts it is shown with")]
     public void MetadataIsComplete()
     {
@@ -42,7 +45,7 @@ public class CharmLibraryTests
     {
         foreach (CharmCategory category in CharmCatalog.Categories)
         {
-            Assert.NotEmpty(CharmSearch.Apply(CharmFilter.Category(category.Id), "", [], []));
+            Assert.NotEmpty(CharmSearch.Apply(Index, CharmFilter.Category(category.Id), "", [], []));
         }
     }
 
@@ -59,38 +62,38 @@ public class CharmLibraryTests
     [InlineData("maneki", "manekiNeko")]
     public void SearchFoldsAccents(string query, string expected)
     {
-        IReadOnlyList<CharmCatalogEntry> found = CharmSearch.Apply(CharmFilter.All, query, [], []);
+        IReadOnlyList<CharmCatalogEntry> found = CharmSearch.Apply(Index, CharmFilter.All, query, [], []);
         Assert.Contains(expected, found.Select(charm => charm.Id));
     }
 
     [Fact(DisplayName = "Search reaches the tags and the region, not only the name")]
     public void SearchReachesEverything()
     {
-        Assert.Contains("nazar", CharmSearch.Apply(CharmFilter.All, "glass", [], []).Select(c => c.Id));
-        Assert.Contains("nazar", CharmSearch.Apply(CharmFilter.All, "turkey", [], []).Select(c => c.Id));
+        Assert.Contains("nazar", CharmSearch.Apply(Index, CharmFilter.All, "glass", [], []).Select(c => c.Id));
+        Assert.Contains("nazar", CharmSearch.Apply(Index, CharmFilter.All, "turkey", [], []).Select(c => c.Id));
     }
 
     [Fact(DisplayName = "Search is case-blind")]
     public void SearchIgnoresCase() => Assert.Equal(
-        CharmSearch.Apply(CharmFilter.All, "HAMSA", [], []).Select(c => c.Id),
-        CharmSearch.Apply(CharmFilter.All, "hamsa", [], []).Select(c => c.Id));
+        CharmSearch.Apply(Index, CharmFilter.All, "HAMSA", [], []).Select(c => c.Id),
+        CharmSearch.Apply(Index, CharmFilter.All, "hamsa", [], []).Select(c => c.Id));
 
     [Fact(DisplayName = "An empty query is not a filter")]
     public void EmptyQueryShowsEverything()
     {
-        Assert.Equal(81, CharmSearch.Apply(CharmFilter.All, "", [], []).Count);
-        Assert.Equal(81, CharmSearch.Apply(CharmFilter.All, "   ", [], []).Count);
+        Assert.Equal(81, CharmSearch.Apply(Index, CharmFilter.All, "", [], []).Count);
+        Assert.Equal(81, CharmSearch.Apply(Index, CharmFilter.All, "   ", [], []).Count);
     }
 
     [Fact(DisplayName = "A query nothing matches returns nothing, rather than everything")]
     public void NoMatchesIsEmpty() =>
-        Assert.Empty(CharmSearch.Apply(CharmFilter.All, "zzzznotacharm", [], []));
+        Assert.Empty(CharmSearch.Apply(Index, CharmFilter.All, "zzzznotacharm", [], []));
 
     [Fact(DisplayName = "Favourites show only what was starred")]
     public void FavouritesFilter()
     {
         IReadOnlyList<CharmCatalogEntry> found =
-            CharmSearch.Apply(CharmFilter.Favourites, "", ["hamsa", "daruma"], []);
+            CharmSearch.Apply(Index, CharmFilter.Favourites, "", ["hamsa", "daruma"], []);
 
         Assert.Equal(["daruma", "hamsa"], found.Select(c => c.Id).Order());
     }
@@ -100,7 +103,7 @@ public class CharmLibraryTests
     public void RecentsKeepOrder()
     {
         IReadOnlyList<CharmCatalogEntry> found =
-            CharmSearch.Apply(CharmFilter.Recent, "", [], ["daruma", "nazar", "hamsa"]);
+            CharmSearch.Apply(Index, CharmFilter.Recent, "", [], ["daruma", "nazar", "hamsa"]);
 
         Assert.Equal(["daruma", "nazar", "hamsa"], found.Select(c => c.Id));
     }
@@ -109,7 +112,7 @@ public class CharmLibraryTests
     public void SearchCombinesWithFilter()
     {
         IReadOnlyList<CharmCatalogEntry> found =
-            CharmSearch.Apply(CharmFilter.Favourites, "hamsa", ["hamsa", "daruma"], []);
+            CharmSearch.Apply(Index, CharmFilter.Favourites, "hamsa", ["hamsa", "daruma"], []);
 
         CharmCatalogEntry only = Assert.Single(found);
         Assert.Equal("hamsa", only.Id);
@@ -210,8 +213,8 @@ public class CharmLibraryTests
     public void SearchDoesNotTouchSettings()
     {
         var before = new AppSettings();
-        _ = CharmSearch.Apply(CharmFilter.All, "nazar", [], []);
-        _ = CharmSearch.Apply(CharmFilter.Category("protection"), "glass", ["hamsa"], ["daruma"]);
+        _ = CharmSearch.Apply(Index, CharmFilter.All, "nazar", [], []);
+        _ = CharmSearch.Apply(Index, CharmFilter.Category("protection"), "glass", ["hamsa"], ["daruma"]);
 
         Assert.Equal(before, new AppSettings());
     }

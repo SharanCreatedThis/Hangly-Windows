@@ -259,6 +259,58 @@ reports "You must install .NET to run this application" while `dotnet --info` wo
 Use `--duration` rather than killing the collector: a collector killed mid-write leaves a
 truncated CSV.
 
+### Custom charm import
+
+macOS imports **photographs** — PNG, JPEG, WebP, HEIC — and the hard part of
+`CharmImageProcessor` is deciding which pixels are the subject, using Vision's subject
+lifting with a flood fill behind it. Windows has no equivalent of that, and this build
+imports **SVG** instead, where the question does not arise: a vector drawing already says
+which pixels are ink.
+
+So the two platforms accept different files. That is the deviation, and it is not a small
+one — a macOS user imports a photo of their cat, and a Windows user cannot yet.
+
+Everything after the input is reproduced rather than reinvented, because those parts are
+arithmetic rather than platform:
+
+| | |
+|---|---|
+| Mass | `2.0 + 3.2 × density`, clamped to 2.0–4.5, with the same framing correction so re-framing a drawing does not change what it weighs |
+| Palette | derived from the average colour by the same four proportions |
+| Naming | the file stem, underscores and hyphens to spaces, falling back to "Custom Charm" |
+| Manifest | the same fields in the same order — id, name, createdAt, imageFileName, metrics, palette |
+| Repairs at load | an entry whose drawing is gone is dropped; a drawing with no entry is re-registered |
+| Deleting | the bead takes its place wherever it hung, and it leaves favourites |
+| Analytics | `charm_imported` then `charm_saved`, in that order, for the same reasons |
+
+Two things the Windows build does that macOS does not, and one it does not do:
+
+- **Beads come from the splitter.** A shipped charm's artwork is a cord, some beads and a
+  charm, and the catalogue says how many parts are beads. An import is a subject on its
+  own, so it declares zero beads — which is what stops the splitter reading the top of
+  somebody's drawing as a bead and hanging the rest underneath.
+- **The file is sanitised.** An SVG is a document, not a picture: it can carry script,
+  fetch remote resources and declare entities that expand until the machine gives up.
+  `SvgSanitizer` rewrites it into the subset that draws. macOS has no equivalent because a
+  PNG cannot ask for anything.
+- **There is no Studio.** macOS routes every interactive import through it so nothing
+  reaches the library unseen. Here an import goes straight in, and the Library is where
+  you look at it.
+
+### Two Windows things that had to be worked out rather than ported
+
+**`FileOpenPicker` does not work in this app.** WinUI's picker was tried first, with
+`InitializeWithWindow` as the documentation requires for an app with no package identity.
+It logged that it was opening, showed no window, and never returned — no dialog, no
+exception. `GetOpenFileNameW` has no such opinion and is what the app uses.
+
+**An id had to become a shape.** Until imports, every charm id was a catalogue id, and the
+settings document leaned on that: an id it did not recognise was replaced with the bead,
+and an unrecognised favourite was dropped. An imported charm is not in the catalogue and
+never will be. macOS does not have this problem because its identifier is an enum of two
+cases; `CharmId` is the same idea in the id itself — `custom:` and a UUID — which the
+settings layer can recognise without knowing which imports exist.
+
 ## 5. Suggested order of work
 
 1. ~~**Get it to compile**, on Windows.~~ Done.

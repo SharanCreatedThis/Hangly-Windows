@@ -29,14 +29,20 @@ public static class CharmLibrary
     private static readonly Rect WholeArtwork = new(0, 0, 1, 1);
 
     /// <summary>Resolves the ids on the cord, in order, into drawable charms.</summary>
+    /// <remarks>
+    /// The index rather than the catalogue, so an imported charm resolves like any other.
+    /// An id naming an import whose drawing has gone falls back to the bead, which is
+    /// what stops a deleted charm leaving the rope bare.
+    /// </remarks>
     public static IReadOnlyList<CharmDescriptor> Resolve(
         CharmArtworkCache artwork,
+        CharmIndex index,
         IReadOnlyList<string> ids)
     {
         var charms = new List<CharmDescriptor>(ids.Count);
         foreach (string id in ids)
         {
-            charms.Add(Describe(artwork, CharmCatalog.Find(id)));
+            charms.Add(Describe(artwork, index.Find(id)));
         }
 
         // Settings clamping guarantees at least one, but this is the last place before
@@ -44,7 +50,7 @@ public static class CharmLibrary
         // should have to reason about.
         if (charms.Count == 0)
         {
-            charms.Add(Describe(artwork, CharmCatalog.Find(CharmCatalog.DefaultId)));
+            charms.Add(Describe(artwork, index.Find(CharmCatalog.DefaultId)));
         }
 
         return charms;

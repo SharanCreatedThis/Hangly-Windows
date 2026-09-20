@@ -46,6 +46,17 @@ internal static class Program
             return;
         }
 
+        // Runs a file through the real importer and says what happened, without a window
+        // and without touching the user's charms. The rejection paths are the ones worth
+        // exercising on real files — a hostile SVG is not something to hand-write a
+        // fixture for when the actual file is right there.
+        int check = Array.IndexOf(args, "--check-import");
+        if (check >= 0 && check + 1 < args.Length)
+        {
+            Diagnostics.CheckImport(args[check + 1]);
+            return;
+        }
+
         XamlGeneratedProgram.XamlGeneratedMain();
     }
 }

@@ -96,9 +96,11 @@ public static class CharmSearch
     /// <summary>
     /// The charms matching a filter and a query, in catalogue order.
     /// </summary>
+    /// <param name="index">The catalogue plus whatever has been imported.</param>
     /// <param name="favourites">Ids the user has starred.</param>
     /// <param name="recent">Ids most recently hung, newest first.</param>
     public static IReadOnlyList<CharmCatalogEntry> Apply(
+        CharmIndex index,
         CharmFilter filter,
         string query,
         IReadOnlyCollection<string> favourites,
@@ -106,18 +108,18 @@ public static class CharmSearch
     {
         IEnumerable<CharmCatalogEntry> charms = filter switch
         {
-            CharmFilter.Favourite => CharmCatalog.All.Where(charm => favourites.Contains(charm.Id)),
+            CharmFilter.Favourite => index.All.Where(charm => favourites.Contains(charm.Id)),
 
             // Recents keep their own order — most recent first — because that order is
             // the whole information in the list.
             CharmFilter.Recently => recent
-                .Where(CharmCatalog.Contains)
-                .Select(CharmCatalog.Find),
+                .Where(index.Contains)
+                .Select(index.Find),
 
-            CharmFilter.OfCategory category => CharmCatalog.All
+            CharmFilter.OfCategory category => index.All
                 .Where(charm => charm.CategoryId == category.Id),
 
-            _ => CharmCatalog.All,
+            _ => index.All,
         };
 
         string folded = Fold(query.Trim());

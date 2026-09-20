@@ -6,7 +6,9 @@
 //
 
 using Hangly.App.Services;
+using Hangly.App.Import;
 using Hangly.Core.Analytics;
+using Hangly.Core.Import;
 using Hangly.Core.Models;
 using Hangly.Core.Settings;
 using Microsoft.UI.Xaml;
@@ -38,6 +40,7 @@ public sealed partial class CustomizeWindow : Window
     private readonly SettingsStore store;
     private readonly ILaunchAtLogin launchAtLogin;
     private readonly AnalyticsManager analytics;
+    private readonly AppEnvironment environment;
     private readonly List<CharmTile> tiles = [];
     private readonly Dictionary<string, CharmTile> tilesById = new(StringComparer.Ordinal);
     private readonly List<Button> slots = [];
@@ -45,6 +48,7 @@ public sealed partial class CustomizeWindow : Window
 
     private CharmFilter filter = CharmFilter.All;
     private string query = string.Empty;
+    private string? selectedCharmId;
 
     private bool isClosingForReal;
     private bool isLoading;
@@ -52,11 +56,16 @@ public sealed partial class CustomizeWindow : Window
     /// <summary>Which charm on the cord a click in the grid replaces.</summary>
     private int selectedSlot;
 
-    public CustomizeWindow(SettingsStore store, ILaunchAtLogin launchAtLogin, AnalyticsManager analytics)
+    public CustomizeWindow(
+        SettingsStore store,
+        ILaunchAtLogin launchAtLogin,
+        AnalyticsManager analytics,
+        AppEnvironment environment)
     {
         this.store = store;
         this.launchAtLogin = launchAtLogin;
         this.analytics = analytics;
+        this.environment = environment;
 
         // Held for the whole of construction, and dropped by Load's finally.
         //
@@ -162,15 +171,39 @@ public sealed partial class CustomizeWindow : Window
     /// </remarks>
     private void BuildCharmGrid()
     {
-        foreach (CharmCatalogEntry entry in CharmCatalog.All)
-        {
-            var tile = new CharmTile(entry);
-            tiles.Add(tile);
-            tilesById[entry.Id] = tile;
-        }
-
+        RebuildTiles();
         BuildFilterChips();
         ShowResults();
+    }
+
+    /// <summary>
+    /// One tile per charm the app knows about, shipped or imported.
+    /// </summary>
+    /// <remarks>
+    /// Tiles for charms that are already here are kept rather than remade, so importing
+    /// does not re-decode eighty-one thumbnails to add one.
+    /// </remarks>
+    private void RebuildTiles()
+    {
+        tiles.Clear();
+        foreach (CharmCatalogEntry entry in environment.Charms.All)
+        {
+            if (!tilesById.TryGetValue(entry.Id, out CharmTile? tile))
+            {
+                tile = new CharmTile(entry);
+                tilesById[entry.Id] = tile;
+            }
+
+            tiles.Add(tile);
+        }
+
+        // A tile whose charm has been deleted must not linger in the dictionary, or the
+        // next import of the same id would show the old drawing.
+        var live = environment.Charms.All.Select(entry => entry.Id).ToHashSet(StringComparer.Ordinal);
+        foreach (string stale in tilesById.Keys.Where(id => !live.Contains(id)).ToList())
+        {
+            tilesById.Remove(stale);
+        }
     }
 
     /// <summary>All, the two saved sets, then every category.</summary>
@@ -179,7 +212,7 @@ public sealed partial class CustomizeWindow : Window
         AddChip("All", CharmFilter.All);
         AddChip("Favourites", CharmFilter.Favourites);
         AddChip("Recent", CharmFilter.Recent);
-        foreach (CharmCategory category in CharmCatalog.Categories)
+        foreach (CharmCategory category in environment.Charms.Categories)
         {
             AddChip(category.Name, CharmFilter.Category(category.Id));
         }
@@ -217,6 +250,7 @@ public sealed partial class CustomizeWindow : Window
     {
         AppSettings settings = store.Settings;
         IReadOnlyList<CharmCatalogEntry> matches = CharmSearch.Apply(
+            environment.Charms,
             filter,
             query,
             settings.Library.FavouriteCharmIds,
@@ -319,8 +353,20 @@ public sealed partial class CustomizeWindow : Window
         }
     }
 
+    /// <summary>Which heading a charm is shown under.</summary>
+    /// <remarks>
+    /// Built-ins are grouped by the pack directory their artwork already sits in. An
+    /// import is not in that folder at all — its file name is an absolute path with no
+    /// forward slashes in it — so asking the path would have filed every imported charm
+    /// under "Classics &amp; Collection", which it did until this was watched happening.
+    /// </remarks>
     private static string PackOf(CharmCatalogEntry entry)
     {
+        if (Hangly.Core.Models.CharmId.IsCustom(entry.Id))
+        {
+            return Hangly.Core.Models.CharmIndex.CustomCategory.Name;
+        }
+
         int slash = entry.FileName.LastIndexOf('/');
         return slash < 0 ? "Classics & Collection" : entry.FileName[..slash];
     }
@@ -391,7 +437,7 @@ public sealed partial class CustomizeWindow : Window
         {
             var button = new Button
             {
-                Content = $"{index + 1}. {CharmCatalog.Find(ids[index]).DisplayName}",
+                Content = $"{index + 1}. {environment.Charms.Find(ids[index]).DisplayName}",
                 Tag = index,
             };
             button.Click += OnSlotClicked;
@@ -534,6 +580,8 @@ public sealed partial class CustomizeWindow : Window
             return;
         }
 
+        UpdateDeleteButton(tile.Id);
+
         store.Update(settings =>
         {
             var ids = settings.Overlay.CharmIds.ToList();
@@ -658,6 +706,120 @@ public sealed partial class CustomizeWindow : Window
         // confirmation: cord, size and position go back, your charms stay.
         IReadOnlyList<string> keep = Overlay.CharmIds;
         store.UpdateOverlay(_ => new OverlaySettings { CharmIds = keep });
+    }
+
+    /// <summary>Only an imported charm can be deleted, so the button only appears for one.</summary>
+    private void UpdateDeleteButton(string charmId)
+    {
+        selectedCharmId = charmId;
+        DeleteButton.Visibility = Hangly.Core.Models.CharmId.IsCustom(charmId)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
+    private void OnImportClicked(object sender, RoutedEventArgs args)
+    {
+        try
+        {
+            Import();
+        }
+        catch (Exception exception)
+        {
+            Services.Diagnostics.Failure("import", exception);
+            ImportMessage.Text = "That charm couldn't be imported.";
+        }
+    }
+
+    private void Import()
+    {
+        string? path = Interop.FileDialog.OpenFile(
+            WinRT.Interop.WindowNative.GetWindowHandle(this),
+            "Import a charm",
+            ("SVG drawings", "*.svg"));
+
+        Services.Diagnostics.Log($"import: chose {path ?? "nothing"}");
+        if (path is null)
+        {
+            return;
+        }
+
+        ImportOutcome outcome = environment.ImportCharm(path);
+        ImportMessage.Text = outcome.Message;
+
+        if (!outcome.IsAccepted || outcome.Entry is null)
+        {
+            return;
+        }
+
+        // Shown straight away, without a restart: the tiles are rebuilt, the chips get
+        // "Yours" if this was the first one, and the new charm goes on the cord.
+        RebuildTiles();
+        RebuildChips();
+        filter = CharmFilter.Category(Hangly.Core.Models.CharmIndex.CustomCategoryId);
+        HighlightChips();
+        UpdateDeleteButton(outcome.Entry.CharmId);
+
+        // The chips scroll, and "Yours" is at the far end of them — so the one chip that
+        // just became relevant is the one that would be off the edge.
+        chips.LastOrDefault()?.StartBringIntoView();
+
+        store.Update(settings =>
+        {
+            var ids = settings.Overlay.CharmIds.ToList();
+            if (selectedSlot >= 0 && selectedSlot < ids.Count)
+            {
+                ids[selectedSlot] = outcome.Entry.CharmId;
+            }
+
+            return settings with
+            {
+                Overlay = settings.Overlay with { CharmIds = ids },
+                Library = settings.Library.WithRecent(outcome.Entry.CharmId),
+            };
+        });
+
+        ShowResults();
+    }
+
+    private void OnDeleteImportClicked(object sender, RoutedEventArgs args)
+    {
+        if (selectedCharmId is not string id || !Hangly.Core.Models.CharmId.IsCustom(id))
+        {
+            return;
+        }
+
+        CustomCharmEntry? entry = environment.CustomCharms.Entries
+            .FirstOrDefault(candidate => candidate.CharmId == id);
+
+        if (entry is null)
+        {
+            return;
+        }
+
+        environment.DeleteCharm(entry.Id);
+        ImportMessage.Text = $"“{entry.Name}” was deleted.";
+        selectedCharmId = null;
+        DeleteButton.Visibility = Visibility.Collapsed;
+
+        RebuildTiles();
+        RebuildChips();
+        if (filter is CharmFilter.OfCategory category
+            && category.Id == Hangly.Core.Models.CharmIndex.CustomCategoryId
+            && environment.Charms.Custom.Count == 0)
+        {
+            filter = CharmFilter.All;
+        }
+
+        HighlightChips();
+        ShowResults();
+    }
+
+    /// <summary>Rebuilds the chips, because "Yours" appears and disappears with the imports.</summary>
+    private void RebuildChips()
+    {
+        chips.Clear();
+        FilterChips.Children.Clear();
+        BuildFilterChips();
     }
 
     private void OnStoreChanged(AppSettings settings) => Load();

@@ -7,7 +7,7 @@ a project convinces itself it is nearly finished.
 - **Build:** green. All three CI jobs pass on `windows-latest`.
 - **Runs:** yes — Windows 11 ARM64 at 200%. The rope hangs on the desktop, is transparent,
   and can be thrown.
-- **Features:** roughly 66% ported. Charms, the Library, customization, About and analytics are in.
+- **Features:** roughly 71% ported. Charms, the Library, importing your own, customization, About and analytics are in.
 
 ---
 
@@ -15,8 +15,8 @@ a project convinces itself it is nearly finished.
 
 | Job | Result |
 |---|---|
-| Solver and models (tests) | ✅ 137 / 137 passing on Windows |
-| Customize window (UI smoke) | ✅ 53 / 53 checks, driven through UI Automation in the VM |
+| Solver and models (tests) | ✅ 179 / 179 passing on Windows |
+| Customize window (UI smoke) | ✅ 63 / 63 checks, driven through UI Automation in the VM |
 | App — `win-x64` Release | ✅ builds and publishes |
 | App — `win-arm64` Release | ✅ builds and publishes |
 
@@ -76,6 +76,10 @@ real machine — Windows 11 ARM64 at 200% scaling:
   places, materials and tags and folds accents so *pancha* finds *Pánchángjié*, filter
   chips for favourites, recents and all fourteen categories, starring, and an empty state
   that says which nothing it is.
+- **Importing your own charm**: an SVG is checked, stripped of everything that is not
+  drawing, measured by the same splitter the shipped charms use, and stored beside the
+  settings where an update cannot reach it. It searches, stars, goes in recents, hangs in
+  a stack of three and works with every cord.
 - **About**, with the app icon read back out of the executable, the version and build, the
   copyright, links to the website, GitHub, the release notes and Instagram, and the
   coffee button.
@@ -108,7 +112,10 @@ real machine — Windows 11 ARM64 at 200% scaling:
   solver carries exactly the beads the designer drew. What differs from macOS is only
   how they are *painted*: a disc tinted with the cord's palette, rather than that part of
   the SVG. It reads well because a bead is a bead, and it is a parity gap all the same.
-- **Create is not ported.** No importing your own charm, and no Studio.
+- **Imports are SVG only.** macOS imports photographs; this build does not. See
+  PORTING.md — it is the largest single parity gap left.
+- **There is no Studio**, and no macOS-style "open it in the Studio before it lands"
+  step: an import goes straight into the Library.
 
 ## 4. What remains to be ported
 
@@ -127,7 +134,7 @@ Ordered by what unblocks the most.
 
 ## 5. Completion
 
-**Roughly 66%** by weighted line count of the macOS source.
+**Roughly 71%** by weighted line count of the macOS source.
 
 That number understates progress in one way and overstates it in another, and both are
 worth saying:
@@ -144,7 +151,7 @@ worth saying:
 | Physics | ~100% |
 | App shell and services | ~40% |
 | Models | ~60% |
-| Views | ~48% |
+| Views | ~52% |
 
 ## 6. Distribution
 
@@ -233,7 +240,8 @@ runs on the ARM64 guest at 200%.
 | | Wall clock | App internal |
 |---|---|---|
 | Before the Library | 317 ms | 236 ms |
-| After | 341 ms | 255 ms |
+| After the Library | 341 ms | 255 ms |
+| After custom import | 331 ms | 268 ms |
 
 **A real regression of about 19 ms, or 8%.** It is the generated catalogue getting bigger:
 every charm now carries its region, description and tags, and the whole table is built the
@@ -244,6 +252,27 @@ generated table that nothing touches until the Library opens, and 19 ms on a 255
 startup does not yet pay for a second table. Written down here so that if startup ever
 does matter, the first place to look is known rather than guessed at.
 
+Custom import added another **13 ms**, and would have added 31 ms: opening the imports
+folder and parsing its manifest happened on every launch until it was made lazy. It now
+happens only when a custom charm is on the rope or the Library is opened, so a person who
+has imported nothing pays nothing for the feature. The 13 ms that remains was not
+attributed to a specific cause — it is small, the medians are tight, and guessing at it
+would be worse than saying so.
+
+### Custom charm import, verified
+
+| | |
+|---|---|
+| A valid SVG imports and appears without a restart | ✅ |
+| Hostile SVG accepted as a drawing, with script, handlers, `foreignObject`, `@import` and external references stripped | ✅ 6 removals, and a check that none reached disk |
+| XXE / entity-expansion refused outright | ✅ the DTD is prohibited |
+| Empty, zero-byte, non-SVG and oversize files refused with a plain message | ✅ |
+| Survives a restart, and an **installer upgrade** | ✅ file, manifest and settings all intact |
+| Hangs in a stack of three, with any cord, under the real solver | ✅ screenshotted |
+| Searchable, favouritable, recent, in its own "Yours" category | ✅ |
+| Deleting removes the file, the rope reference and the favourite | ✅ |
+| Same behaviour on **x64** under emulation | ✅ identical accept/reject on all six files |
+
 ### Known differences from macOS
 
 | | |
@@ -252,6 +281,8 @@ does matter, the first place to look is known rather than guessed at.
 | Transport | Hand-written against PostHog's capture endpoint rather than their SDK. The macOS build wraps the SDK behind the same provider seam; here the wrapper was the whole job, and a file this size can be read to check what leaves |
 | No batching | Each event is its own request. macOS lets the SDK queue; at a handful of events per session there is nothing to gain and a queue is something to lose on a crash |
 | Events defined but never fired | `charm_imported`, `charm_saved`, `charm_reordered`, `weather_effect_toggled`, `collection_opened`, `collection_charm_selected`, `follow_popup_*`, `airdrop_*`, `coffee_copy_upi`, `coffee_qr_viewed` — the features do not exist yet. Named now so both platforms report the same act under the same name later |
+| Import input format | **SVG here, photographs on macOS.** The biggest gap in this milestone; see PORTING.md |
+| Import review step | macOS opens every interactive import in the Studio first. Here it goes straight into the Library |
 | About page | One page, not the macOS four-band layout: no statistics, no secrets button, no creator card, no in-app release-notes or coffee sheets — both links open a browser |
 | Library layout | A grid with chips above it. macOS has hero cards for the collections, a detail panel describing the charm you are reading about, a tag cloud, and a rope shelf with its own swatches — none of which are here. Choosing a charm hangs it; there is no "read about it without hanging it" |
 | Charm metadata | macOS keeps physics in the Swift catalogue and Library facts in `CharmLibrary.json`. Here the generator merges both into one table by id, so a charm is described in exactly one place |
@@ -269,8 +300,9 @@ describes ships, not after.
 
 What remains for v1, in the order that unblocks the most:
 
-1. **Custom charm import** — the drag-and-drop half of what macOS does with AirDrop.
-2. **Weather and seasons.**
+1. **Raster import** — the formats macOS actually accepts, and drag-and-drop from
+   Explorer. The SVG path is done; the photograph path is the gap.
+2. **Weather and seasons**, if they are kept at all — see the roadmap reassessment.
 3. **Sound**, the welcome flow, the follow card, and the tray artwork.
 4. **Packaging, signing and the v0.9.0 pre-release**, which is blocked on SignPath
    answering whether a pre-release satisfies "already released".
