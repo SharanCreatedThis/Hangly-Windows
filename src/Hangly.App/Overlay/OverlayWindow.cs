@@ -375,12 +375,17 @@ public static class OverlayMetrics
     /// <para><b>Why the width is not just <c>BaseWidth × room.Width</c>.</b> It was, and
     /// the rope swung out of the window. <c>CanvasScale</c> grows the width with the charm
     /// size alone, which is the room a <em>hanging</em> charm needs and not the room a
-    /// swinging one sweeps: the rope is released at <c>InitialAngle</c> and carries that
-    /// excursion either side of the anchor for as long as it takes to settle. At the
-    /// shipped values that is 92 points of swing plus the charm's own reach against 110
-    /// points of half-canvas, so the charm was clipped by the window edge on every launch
-    /// and after every drag. Measured in EnvelopeTests, which is also what fails if these
-    /// proportions are changed without meaning to.</para>
+    /// moving one sweeps.</para>
+    ///
+    /// <para>The limit is the <em>drag</em>, not the swing. A released rope only carries
+    /// <c>InitialAngle</c> either side of the anchor, and sizing for that was the first
+    /// attempt and was still wrong: a person can pull the charm anywhere within
+    /// <c>MaximumReachRatio</c> of the cord above it, which is very nearly a full circle
+    /// around the anchor, and being cut in half at the end of a drag is exactly as wrong
+    /// as being cut in half mid-swing. So the half-width is the reach the drag clamp
+    /// allows plus the widest the lowest charm can be drawn. Measured in EnvelopeTests,
+    /// which walks the whole drag circle and is what fails if these proportions change
+    /// without meaning to.</para>
     ///
     /// <para>Every term comes from the solver's own numbers, so there is nothing here to
     /// keep in step by hand. The height is untouched: it was already correct, because
@@ -391,12 +396,12 @@ public static class OverlayMetrics
         Size room = RopeConfiguration.Layout.CanvasScale(charmSize, ropeLength);
         double height = BaseHeight * room.Height;
 
-        // How far the charm's centre travels from the anchor, released at the angle the
-        // solver starts it at. `unit` in RopeConfiguration.Fitted always works out to
-        // BaseHeight, because the canvas is BaseHeight × room.Height and it divides by
-        // room.Height — so the rope's length in points is this, with no fitting to do.
+        // How far the charm's centre can get from the anchor. `unit` in
+        // RopeConfiguration.Fitted always works out to BaseHeight, because the canvas is
+        // BaseHeight × room.Height and it divides by room.Height — so the rope's length in
+        // points is this, with no fitting to do. The drag clamp is what bounds it.
         double rope = BaseHeight * RopeConfiguration.Layout.LengthFraction * ropeLength;
-        double swing = rope * Math.Sin(RopeConfiguration.Default.InitialAngle);
+        double swing = rope * RopeConfiguration.Default.MaximumReachRatio;
 
         // What the lowest charm reaches past its own centre. CharmStackLayout caps its
         // radius at the headroom below the rope divided by the halo extent, and that

@@ -15,7 +15,7 @@ a project convinces itself it is nearly finished.
 
 | Job | Result |
 |---|---|
-| Solver and models (tests) | ✅ 423 / 423 passing on Windows |
+| Solver and models (tests) | ✅ 666 / 666 passing on Windows |
 | Customize window (UI smoke) | ✅ 63 / 63 checks, driven through UI Automation in the VM |
 | App — `win-x64` Release | ✅ builds and publishes |
 | App — `win-arm64` Release | ✅ builds and publishes |
@@ -58,11 +58,15 @@ were. Full write-up in PORTING.md §3.
   while the surface was at the display's DPI, so at 200% each source pixel was drawn to
   four. Sized in device pixels now. Measured at the same on-screen size, mean gradient
   across the shield went from 24.3 to 36.6 per pixel and the peak from 121 to 397.
-- **The rope swung out of its own window.** The canvas was narrower than the swing
-  envelope, and `Resize` flung the rope whenever the anchor moved — 236 points of
-  excursion on a 220-point canvas at launch. The canvas is now derived from the envelope,
-  and a re-fit translates the rope with its anchor instead of yanking it. `EnvelopeTests`
-  covers all ten rope styles × one to three charms × both sliders at 0.5, 1.0 and 2.0.
+- **The rope swung out of its own window.** The canvas was narrower than the envelope,
+  and `Resize` flung the rope whenever the anchor moved — 236 points of excursion on a
+  220-point canvas at launch. The canvas is now derived from the **drag** reach, which is
+  what bounds how far the charm can go: sizing for the release angle was a first attempt
+  and still left the charm cut in half at the end of a drag. A re-fit translates the rope
+  with its anchor instead of yanking it. `EnvelopeTests` covers all ten rope styles × one
+  to three charms × both sliders at 0.5, 1.0 and 2.0, for both the release-and-settle and
+  the full drag circle. Cost: idle is unchanged; a sustained drag goes from 9.4% to 19.8%
+  of one core at the shipped settings, 27.9% at both sliders maxed.
 
 ---
 

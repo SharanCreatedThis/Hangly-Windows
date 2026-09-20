@@ -347,6 +347,21 @@ intermittent:
    counted at all. `OverlayMetrics.CanvasSize` now takes the wider of the two. Every term
    is derived from the solver's constants, so there is nothing to keep in step by hand.
 
+   *Sizing for the release angle was not enough, and that was a second mistake.* The
+   first fix used `totalLength × sin(initialAngle)` — the arc a *released* rope swings
+   through. But the charm is draggable, and `ReachableTarget` clamps the held node to
+   `MaximumReachRatio` (0.98) of the cord above it, which is very nearly a full circle
+   around the anchor. A charm cut in half at the end of a drag is exactly as wrong as one
+   cut in half mid-swing, so the half-width is the drag reach, not the swing reach:
+   307 points at the shipped settings against the 156 the release angle asks for.
+   `EnvelopeTests` now walks the whole drag circle in two-degree steps as well as running
+   the release and settle.
+
+   A window this wide does not need capping to the display. `ScreenPlacement.ClampAnchorPoint`
+   already keeps the *anchor* on screen rather than the whole window — it says so, and for
+   this reason — and the charm follows the cursor, which cannot leave the display. A canvas
+   wider than the screen therefore always covers wherever the charm can be taken.
+
 2. *The rope was flung every time it was re-fitted.* `Resize` moved the anchor and left
    the rope where it was, so the next step pinned node zero to the new place and the
    constraint solver whipped that displacement down the chain. At launch the anchor moves
@@ -365,11 +380,25 @@ intermittent:
 settle, asserting no charm is ever drawn outside the canvas. Before the fix the worst case
 needed 1.70× the half-width it had; after, the worst needs 0.86× of it.
 
-**The cost, stated plainly.** The overlay is wider: 623×720 device pixels at the shipped
-settings against 440×720, so the layered-window read-back goes from 1.27 MB to 1.79 MB per
-drawn frame, and at both sliders maxed from 5.5 MB to 7.7 MB. Startup is unchanged —
-271 ms median over five launches against a 268 ms baseline. A settled rope still presents
-nothing at all, which is what keeps the larger surface from mattering.
+**The cost, stated plainly.** The overlay is much wider, because it now holds the drag
+envelope rather than the swing envelope. Measured on the VM at 200%, Leather, charm size
+1.4, rope length 1 — the same settings on either side of the change:
+
+| | window | per present | idle | dragging |
+|---|---|---|---|---|
+| Swing-sized | 724 × 806 | 2.23 MB | 0.5% of one core | 9.4% of one core |
+| Drag-sized | 1329 × 806 | 4.09 MB | 0.3% of one core | 19.8% of one core |
+
+At both sliders maxed the surface is 2456 × 1433 (13.4 MB) and a sustained drag costs
+27.9% of one core. Startup is unchanged at 271 ms median.
+
+The shape of that is the important part: **idle is flat**. A settled rope presents nothing
+at all, so the larger surface costs nothing until someone actually grabs the charm, and the
+cost while they are holding it scales with the surface as you would expect. The read-back
+per drawn frame is the term that grows, which is the known price of the layered-window
+approach over a composition swapchain — see the note on `LayeredOverlaySurface`. If the
+drag cost ever becomes the thing that matters, that is the trade to revisit, not the
+canvas size.
 
 **One thing that is still an assumption.** `OverlayMetrics.BaseWidth` and `BaseHeight`
 (220 × 360 points) entered the port in its first commit with no recorded source, and

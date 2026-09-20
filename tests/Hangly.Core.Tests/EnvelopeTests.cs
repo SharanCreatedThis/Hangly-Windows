@@ -32,7 +32,7 @@ public class EnvelopeTests
     {
         Size room = RopeConfiguration.Layout.CanvasScale(charmSize, ropeLength);
         double rope = BaseHeight * RopeConfiguration.Layout.LengthFraction * ropeLength;
-        double swing = rope * Math.Sin(RopeConfiguration.Default.InitialAngle);
+        double swing = rope * RopeConfiguration.Default.MaximumReachRatio;
         double reach = BaseHeight * RopeConfiguration.Layout.TailFraction * charmSize
             / RopeConfiguration.Layout.CharmHaloExtent;
 
@@ -119,6 +119,55 @@ public class EnvelopeTests
         Assert.True(
             right <= canvas.Width,
             $"clipped {right - canvas.Width:F1}pt off the right of a {canvas.Width:F0}pt canvas");
+    }
+
+    [Theory(DisplayName = "No charm is ever dragged outside the canvas")]
+    [MemberData(nameof(Combinations))]
+    public void DragStaysInsideTheCanvas(RopeStyle style, int charmCount, double charmSize, double ropeLength)
+    {
+        Size canvas = Canvas(charmSize, ropeLength);
+        RopeSimulation rope = Hang(charmCount, charmSize, ropeLength, style);
+        rope.Step(Frame120);
+
+        // The drag clamps the held node to MaximumReachRatio of the cord above it, so the
+        // charm can be taken anywhere on that circle — far outside the arc a released rope
+        // swings through. Walking the whole circle is what makes this the real envelope
+        // rather than the one the launch animation happens to use.
+        CharmPlacement lowest = rope.Snapshot().Charms[^1];
+        Assert.True(rope.BeginDrag(lowest.Center), "the lowest charm could not be grabbed");
+
+        double left = double.MaxValue;
+        double right = double.MinValue;
+
+        for (int degree = 0; degree <= 360; degree += 2)
+        {
+            double radians = degree * Math.PI / 180;
+
+            // Pulled well past the reach limit on purpose: the clamp is the thing under
+            // test, so the target has to be outside it for the clamp to be what stops it.
+            var target = new Vec2(
+                rope.Anchor.X + (Math.Cos(radians) * canvas.Width * 2),
+                rope.Anchor.Y + (Math.Sin(radians) * canvas.Width * 2));
+
+            rope.UpdateDrag(target, Vec2.Zero);
+            for (int tick = 0; tick < 4; tick++)
+            {
+                rope.Step(Frame120);
+            }
+
+            foreach (CharmPlacement charm in rope.Snapshot().Charms)
+            {
+                left = Math.Min(left, charm.Center.X - charm.Radius);
+                right = Math.Max(right, charm.Center.X + charm.Radius);
+            }
+        }
+
+        rope.EndDrag();
+
+        Assert.True(left >= 0, $"dragged {-left:F1}pt off the left of a {canvas.Width:F0}pt canvas");
+        Assert.True(
+            right <= canvas.Width,
+            $"dragged {right - canvas.Width:F1}pt off the right of a {canvas.Width:F0}pt canvas");
     }
 
     [Fact(DisplayName = "Re-fitting a rope to a wider canvas moves it rather than flinging it")]
