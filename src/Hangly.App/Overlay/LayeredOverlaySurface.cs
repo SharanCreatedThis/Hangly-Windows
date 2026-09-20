@@ -266,6 +266,28 @@ internal sealed class LayeredOverlaySurface : IDisposable
     public void Show()
     {
         NativeMethods.ShowWindow(handle, NativeMethods.SwShowna);
+        RaiseToTop(NativeMethods.SwpShowwindow);
+    }
+
+    /// <summary>Puts the window back at the top of the topmost band.</summary>
+    /// <remarks>
+    /// <b>Why this has to be said more than once.</b> It used to be said exactly once, at
+    /// <see cref="Show"/>, and the charm ended up behind other windows. WS_EX_TOPMOST puts
+    /// a window in the topmost band; it does not keep it at the top <em>of</em> that band.
+    /// Anything else that goes topmost afterwards — a media player pinned on top, an
+    /// installer, a game going full screen, and on Windows 11 a fair amount of shell UI —
+    /// is inserted above, and nothing ever moves us back.
+    ///
+    /// <para>The macOS panel has no equivalent problem because <c>.statusBar</c> is a
+    /// numbered level: everything at a lower level is below it by definition, for as long
+    /// as it exists. Windows has no numbered levels, so the only way to hold that position
+    /// is to keep asking for it.</para>
+    ///
+    /// <para>SWP_NOACTIVATE throughout, so re-asserting never steals focus — which is the
+    /// thing that would make this cure worse than the disease.</para>
+    /// </remarks>
+    public void RaiseToTop(uint extraFlags = 0)
+    {
         NativeMethods.SetWindowPos(
             handle,
             NativeMethods.HwndTopmost,
@@ -274,7 +296,7 @@ internal sealed class LayeredOverlaySurface : IDisposable
             0,
             0,
             NativeMethods.SwpNomove | NativeMethods.SwpNosize
-                | NativeMethods.SwpNoactivate | NativeMethods.SwpShowwindow);
+                | NativeMethods.SwpNoactivate | extraFlags);
     }
 
     private static void RegisterClass()

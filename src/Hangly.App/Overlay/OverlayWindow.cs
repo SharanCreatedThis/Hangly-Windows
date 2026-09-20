@@ -64,8 +64,12 @@ public sealed class OverlayWindow : IDisposable
     private OverlaySettings? pending;
     private int isNudged;
     private long swings;
+    private long lastRaise;
     private int lastSide;
     private IReadOnlyList<CharmDescriptor>? pendingCharms;
+
+    /// <summary>How often the overlay reclaims the top of the z-order, in milliseconds.</summary>
+    private const long TopmostIntervalMs = 1000;
 
     private OverlaySettings settings;
     private bool isClickThrough = true;
@@ -195,6 +199,7 @@ public sealed class OverlayWindow : IDisposable
                     Draw();
                 }
 
+                HoldTopmost();
                 clock.Advance();
             }
         }
@@ -207,6 +212,29 @@ public sealed class OverlayWindow : IDisposable
             clock.Stop();
             surface.Dispose();
         }
+    }
+
+    /// <summary>Re-asserts the window's place above everything, about once a second.</summary>
+    /// <remarks>
+    /// Once a second rather than once a frame. The z-order only changes when something
+    /// else claims the top, which is a human-scale event, and the same reasoning that
+    /// guards the click-through style write applies here: talking to the window manager
+    /// at 120 Hz to say nothing is measurable on a settled overlay.
+    ///
+    /// <para>The clock is <see cref="Environment.TickCount64"/> rather than a
+    /// <c>Stopwatch</c> because this does not need to be accurate, only bounded, and the
+    /// frame loop must not take a dependency that can block.</para>
+    /// </remarks>
+    private void HoldTopmost()
+    {
+        long now = Environment.TickCount64;
+        if (now - lastRaise < TopmostIntervalMs)
+        {
+            return;
+        }
+
+        lastRaise = now;
+        surface.RaiseToTop();
     }
 
     private static void PumpMessages()
@@ -389,10 +417,20 @@ public sealed class OverlayWindow : IDisposable
 
         isClickThrough = enabled;
         uint style = NativeMethods.GetExtendedStyle(surface.Handle);
+        if (style == 0)
+        {
+            // Zero means the read failed, and writing it back would strip layered,
+            // topmost, tool-window and no-activate in one go — which is every property
+            // the overlay depends on. Better to stay click-through than to do that.
+            Diagnostics.Log("could not read the overlay's extended style; leaving it alone");
+            return;
+        }
+
         style = enabled
             ? style | NativeMethods.WsExTransparent
             : style & ~NativeMethods.WsExTransparent;
         NativeMethods.SetExtendedStyle(surface.Handle, style);
+        surface.RaiseToTop();
     }
 
     public void Dispose()
