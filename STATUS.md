@@ -69,10 +69,12 @@ real machine — Windows 11 ARM64 at 200% scaling:
   transparency, click-through, dragging and the tray menu have all been watched working on
   Windows 11 ARM64 at 200%. None of it has been seen at 100%, on x64, on a second display,
   or across a DPI change — and the overlay recomputes its scale only when it repositions.
-- **A presented frame costs a read-back.** `UpdateLayeredWindow` wants the pixels in
-  system memory, and Win2D will only hand them over as a fresh array, so every drawn
-  frame allocates about a megabyte. Nothing is drawn at all once the rope sleeps, which
-  is why this has not mattered yet; it has not been profiled during a sustained drag.
+- **A presented frame costs a read-back**, and that is now the honest cost rather than a
+  suspected one. `UpdateLayeredWindow` wants the pixels in system memory, so each drawn
+  frame is two 1.27 MB copies out of the render target. It allocates nothing: profiled
+  over a thirty-second drag, allocation fell from 154 MB/s to 0.7 MB/s and gen-2
+  collections from 1,040 to 7. What remains is memory bandwidth, and it is only spent
+  while the rope is awake.
 - **One charm exists**, the plain bead, wired by `BuiltInCharms` as an explicit bootstrap.
 - **No beads are drawn on any charm**, because every charm in the real catalogue derives
   its beads by splitting its own artwork into regions, and that splitter is not ported.

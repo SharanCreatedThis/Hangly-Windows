@@ -174,7 +174,92 @@ magnitude, and the solver compares against it on nearly every line. It is define
 
 ---
 
-## 4. Suggested order of work
+## 4. Running it, from a Mac
+
+This port is developed on a Mac against a Windows 11 ARM64 guest in Parallels Desktop.
+Everything below was learned by getting it wrong first, and none of it is discoverable
+from the code.
+
+**The one that costs an afternoon:** `prlctl exec` without `--current-user` runs as
+**SYSTEM, in session 0**. Commands succeed, exit codes are real, logs get written — and a
+GUI process started that way is launched into a desktop nobody can see. Hangly has no
+taskbar button by design, so this is indistinguishable from the app failing to start.
+
+```sh
+prlctl list -a                                    # find the VM name
+prlctl exec "Windows 11" --current-user <command> # session 1, the desktop you can see
+```
+
+Check it is doing what you think: `--current-user` reports `USERNAME=<you>` and
+`SessionId=1`; without it, the machine account and session 0.
+
+### The guest's layout
+
+Nothing here is installed by an installer, so it can be rebuilt on a fresh VM in minutes.
+
+| | |
+|---|---|
+| .NET SDK | `C:\dotnet` — from `https://dot.net/v1/dotnet-install.ps1`, `-Channel 9.0 -Architecture arm64`. No Visual Studio: WinUI's XAML compiler and the Windows App SDK build targets all arrive through NuGet. |
+| Source | `C:\src\Hangly` — mirrored from the Mac with `robocopy /MIR`, excluding `.git`, `bin`, `obj` |
+| Published app | `C:\hangly\app` |
+| Startup log | `%LOCALAPPDATA%\Hangly\hangly.log` |
+| Settings | `%LOCALAPPDATA%\Hangly\settings.json` |
+
+**Build and run from `C:\`, never from the share.** The Parallels share mounts at
+`C:\Mac\Home` (and `Z:`), and it exposes only Desktop, Documents and Downloads — a file
+written anywhere else on the Mac is simply not there. More importantly it is a UNC path,
+and WinUI's resource loading is unreliable from one. Mirror to `C:\src` and publish to
+`C:\hangly\app`.
+
+**Kill the app before publishing.** A running Hangly holds `Hangly.dll` open and the
+publish fails ten retries later with MSB3027, which reads like a build error and is not.
+
+The loop is about a minute:
+
+```powershell
+Stop-Process -Name Hangly -Force -ErrorAction SilentlyContinue
+robocopy \\Mac\Home\Documents\Hangly-Windows C:\src\Hangly /MIR /XD .git bin obj
+C:\dotnet\dotnet.exe publish C:\src\Hangly\src\Hangly.App\Hangly.App.csproj `
+  -c Release -r win-arm64 -p:Platform=ARM64 -o C:\hangly\app
+Start-Process C:\hangly\app\Hangly.exe
+```
+
+### Seeing it
+
+`screencapture` on the Mac captures the Mac, and needs Screen Recording permission that a
+terminal may not have. Capture **inside the guest** instead, with
+`System.Drawing.Graphics.CopyFromScreen` over `SystemInformation.VirtualScreen`, and write
+the PNG into `C:\Mac\Home\Documents\...` to read it from the Mac.
+
+Call `SetProcessDPIAware()` first. PowerShell is not DPI-aware, so at 200% the virtual
+screen comes back in logical pixels and the shot lands cropped to a quarter of the desk.
+
+**Transparency and smoothness cannot be judged from a log.** Four fatal bugs and one wrong
+window layer all passed a green build. Screenshot it.
+
+### Driving it
+
+The overlay polls the cursor rather than handling mouse messages — a click-through window
+receives none — so nothing short of moving the real pointer exercises the path a user
+takes. `SetCursorPos` plus `mouse_event` is the whole of it.
+
+The tray menu is a `TrackPopupMenu` popup. It does **not** publish its items to UI
+Automation the way a XAML menu does, so drive it with the keyboard: find the tray icon
+through UI Automation (match the name exactly and only in the bottom strip of the screen,
+or File Explorer's refresh button will match "Hangly" for a folder of that name), open the
+overflow chevron only if the icon is not already showing, right-click, then arrow keys and
+Enter.
+
+### Measuring it
+
+`dotnet-counters` needs `DOTNET_ROOT=C:\dotnet` and that directory on `PATH`, because it
+is a framework-dependent tool and the runtime is not where it expects. Without them it
+reports "You must install .NET to run this application" while `dotnet --info` works fine.
+
+Use `--duration` rather than killing the collector: a collector killed mid-write leaves a
+truncated CSV.
+
+## 5. Suggested order of work
 
 1. ~~**Get it to compile**, on Windows.~~ Done.
 2. ~~**Get one charm on screen**, and confirm the window is genuinely transparent and
