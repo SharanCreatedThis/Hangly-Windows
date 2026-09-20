@@ -64,6 +64,11 @@
                         <SymbolIcon Symbol="View" />
                     </muxc:NavigationViewItem.Icon>
                 </muxc:NavigationViewItem>
+                <muxc:NavigationViewItem Content="About" Tag="about">
+                    <muxc:NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="Help" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
             </muxc:NavigationView.MenuItems>
 
             <Grid>
@@ -174,6 +179,104 @@
                         </StackPanel>
 
                         <Button x:Name="ResetButton" Click="OnReset" Content="Restore defaults" />
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- About -->
+                <ScrollViewer x:Name="AboutPage" Visibility="Collapsed">
+                    <StackPanel Margin="24,16,24,24" MaxWidth="640" HorizontalAlignment="Left" Spacing="18">
+
+                        <StackPanel Orientation="Horizontal" Spacing="16">
+                            <Image
+                                x:Name="AppIcon"
+                                Width="72"
+                                Height="72"
+                                VerticalAlignment="Top" />
+                            <StackPanel Spacing="2">
+                                <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Hangly" />
+                                <TextBlock
+                                    x:Name="VersionLine"
+                                    Opacity="0.8"
+                                    Style="{StaticResource BodyTextBlockStyle}" />
+                                <TextBlock
+                                    x:Name="CopyrightLine"
+                                    Opacity="0.7"
+                                    Style="{StaticResource CaptionTextBlockStyle}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <TextBlock
+                            Opacity="0.8"
+                            Style="{StaticResource BodyTextBlockStyle}"
+                            TextWrapping="Wrap"
+                            Text="An ornament that hangs on your desktop. Made by hand, for no reason other than that it is nice to have something hanging there." />
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <HyperlinkButton x:Name="WebsiteLink" Content="Website" />
+                            <HyperlinkButton x:Name="GitHubLink" Content="GitHub" />
+                            <HyperlinkButton x:Name="ReleaseNotesLink" Content="Release notes" />
+                            <HyperlinkButton x:Name="InstagramLink" Content="Instagram" Click="OnInstagramClicked" />
+                        </StackPanel>
+
+                        <Button x:Name="CoffeeButton" Click="OnCoffeeClicked" Content="Buy the creator a coffee" />
+
+                        <!--
+                            The analytics section. PRIVACY.md promises this exists and says
+                            what it shows, so it is part of the argument for collecting
+                            anything at all rather than a debug panel.
+                        -->
+                        <muxc:Expander
+                            x:Name="AnalyticsSection"
+                            HorizontalAlignment="Stretch"
+                            Header="Anonymous analytics">
+                            <StackPanel Margin="0,8,0,0" Spacing="12">
+                                <ToggleSwitch
+                                    x:Name="AnalyticsToggle"
+                                    Header="Share anonymous analytics"
+                                    Toggled="OnAnalyticsToggled" />
+                                <TextBlock
+                                    Opacity="0.75"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    TextWrapping="Wrap"
+                                    Text="Counts which features are used, so Hangly can be made better. Never your name, your files, the weather city, or where your charm sits. Switching it off stops collection immediately and throws away the installation identifier." />
+
+                                <Grid ColumnSpacing="16" RowSpacing="6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Opacity="0.7" Text="Sharing" />
+                                    <TextBlock x:Name="AnalyticsState" Grid.Column="1" />
+
+                                    <TextBlock Grid.Row="1" Opacity="0.7" Text="Destination" />
+                                    <TextBlock x:Name="AnalyticsEndpoint" Grid.Row="1" Grid.Column="1" />
+
+                                    <TextBlock Grid.Row="2" Opacity="0.7" Text="Installation" />
+                                    <TextBlock
+                                        x:Name="AnalyticsIdentifier"
+                                        Grid.Row="2"
+                                        Grid.Column="1"
+                                        FontFamily="Consolas"
+                                        IsTextSelectionEnabled="True" />
+
+                                    <TextBlock Grid.Row="3" Opacity="0.7" Text="Last event" />
+                                    <TextBlock x:Name="AnalyticsLastEvent" Grid.Row="3" Grid.Column="1" />
+
+                                    <TextBlock Grid.Row="4" Opacity="0.7" Text="Events sent" />
+                                    <TextBlock x:Name="AnalyticsSentCount" Grid.Row="4" Grid.Column="1" />
+                                </Grid>
+
+                                <Button x:Name="RefreshAnalytics" Click="OnRefreshAnalytics" Content="Refresh" />
+                            </StackPanel>
+                        </muxc:Expander>
                     </StackPanel>
                 </ScrollViewer>
             </Grid>

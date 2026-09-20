@@ -130,6 +130,50 @@ public sealed record OverlaySettings
     }
 }
 
+/// <summary>What the app is allowed to say about itself, and to whom.</summary>
+/// <remarks>
+/// Its own section of the document rather than two loose fields, because
+/// <c>PRIVACY.md</c> describes this as one decision the user makes and the identifier as
+/// something that is discarded with it. Keeping them together is what makes
+/// <see cref="Forgotten"/> a single obvious operation instead of two that could drift.
+/// </remarks>
+public sealed record PrivacySettings
+{
+    /// <summary>On by default, and switchable off. PRIVACY.md says so in those words.</summary>
+    public bool AnalyticsEnabled { get; init; } = true;
+
+    /// <summary>
+    /// A random identifier made on this machine the first time anything is sent.
+    /// </summary>
+    /// <remarks>
+    /// Null until then, which is the normal state of an install that has never sent
+    /// anything, and null again the moment sharing is switched off. Not derived from
+    /// hardware, account or network — a fresh <see cref="Guid"/> and nothing else.
+    /// </remarks>
+    public Guid? AnonymousId { get; init; }
+
+    /// <summary>
+    /// The same settings with sharing off and the identifier thrown away.
+    /// </summary>
+    /// <remarks>
+    /// Discarding rather than keeping is the published promise: switching sharing back
+    /// on mints a new identifier, "so the two cannot be joined".
+    /// </remarks>
+    public PrivacySettings Forgotten() => this with { AnalyticsEnabled = false, AnonymousId = null };
+}
+
+/// <summary>Counts the app keeps about itself.</summary>
+/// <remarks>
+/// Counted whether or not analytics is on, because the follow card is scheduled off the
+/// same number and that has nothing to do with analytics.
+/// </remarks>
+public sealed record MilestoneSettings
+{
+    public int LaunchCount { get; init; }
+
+    public bool IsFirstLaunch => LaunchCount <= 1;
+}
+
 /// <summary>The whole settings document.</summary>
 public sealed record AppSettings
 {
@@ -145,7 +189,15 @@ public sealed record AppSettings
 
     public OverlaySettings Overlay { get; init; } = new();
 
-    public AppSettings Clamped() => this with { Overlay = Overlay.Clamped() };
+    public PrivacySettings Privacy { get; init; } = new();
+
+    public MilestoneSettings Milestones { get; init; } = new();
+
+    public AppSettings Clamped() => this with
+    {
+        Overlay = Overlay.Clamped(),
+        Milestones = Milestones with { LaunchCount = Math.Max(0, Milestones.LaunchCount) },
+    };
 
     /// <summary>The reader and writer both sides of persistence use.</summary>
     /// <remarks>

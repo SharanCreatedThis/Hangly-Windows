@@ -130,6 +130,59 @@ if ($appearance) {
     ([bool](FindIn ([System.Windows.Automation.ControlType]::Text) 'Charm size . 100%'))
 }
 
+# --- About and the analytics inspector -------------------------------------------
+$about = FindIn ([System.Windows.Automation.ControlType]::ListItem) '^About$'
+Check 'the About page is reachable' ([bool]$about)
+if ($about) {
+    ClickElement $about
+    Start-Sleep -Milliseconds 800
+
+    Check 'About shows the version and build'  ([bool](FindIn ([System.Windows.Automation.ControlType]::Text) 'Version \d+\.\d+\.\d+ \(build'))
+    Check 'About shows the copyright'          ([bool](FindIn ([System.Windows.Automation.ControlType]::Text) 'Copyright'))
+    # A HyperlinkButton is a Hyperlink to UI Automation, not a Button.
+    foreach ($link in 'Website', 'GitHub', 'Release notes', 'Instagram') {
+        Check "About links to $link" ([bool](FindIn ([System.Windows.Automation.ControlType]::Hyperlink) "^$link$"))
+    }
+    Check 'About offers the coffee button' ([bool](FindIn ([System.Windows.Automation.ControlType]::Button) 'Buy the creator a coffee'))
+
+    # The analytics section is collapsed until asked for.
+    $section = FindIn ([System.Windows.Automation.ControlType]::Group) 'Anonymous analytics'
+    if (-not $section) { $section = FindIn ([System.Windows.Automation.ControlType]::Button) 'Anonymous analytics' }
+    Check 'the analytics section exists' ([bool]$section)
+    if ($section) { ClickElement $section; Start-Sleep -Milliseconds 900 }
+
+    $toggle = FindIn ([System.Windows.Automation.ControlType]::Button) 'Share anonymous analytics'
+    Check 'the analytics toggle exists' ([bool]$toggle)
+
+    # PRIVACY.md promises each of these is shown. They are checked by reading them.
+    Check 'the inspector shows a masked identifier' `
+        ([bool](FindIn ([System.Windows.Automation.ControlType]::Text) '\u2022\u2022\u2022\u2022'))
+    Check 'the inspector shows the destination' `
+        ([bool](FindIn ([System.Windows.Automation.ControlType]::Text) 'No destination configured|Connected'))
+    # Any event name and a time, not app_launch specifically: the checks above this one
+    # change settings, and changing a setting is itself an event.
+    Check 'the inspector shows the last event' `
+        ([bool](FindIn ([System.Windows.Automation.ControlType]::Text) '^[a-z_]+ \u2014 \d\d:\d\d|nothing sent'))
+
+    if ($toggle) {
+        # A ToggleSwitch's clickable part is the switch, not the header its name comes
+        # from, so the pattern is used rather than a click in the middle of its box.
+        $toggle.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
+        Start-Sleep -Seconds 2
+        $off = Settings
+        Check 'switching analytics off is recorded'        ($off.privacy.analyticsEnabled -eq $false)
+        Check 'switching off discards the identifier'      ($null -eq $off.privacy.anonymousId)
+        Check 'the inspector forgets the last event'       ([bool](FindIn ([System.Windows.Automation.ControlType]::Text) 'nothing sent'))
+
+        $toggle.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
+        Start-Sleep -Seconds 2
+        $on = Settings
+        Check 'switching analytics back on is recorded'    ($on.privacy.analyticsEnabled -eq $true)
+        Check 'switching back on mints a new identifier'   ($null -ne $on.privacy.anonymousId)
+    }
+}
+
+Check 'the launch was counted' ((Settings).milestones.launchCount -ge 1)
 Check 'the overlay survived all of it' ([UI.N]::FindWindowByClass('HanglyOverlay', [IntPtr]::Zero) -ne [IntPtr]::Zero)
 Check 'the app survived all of it' ([bool](Get-Process Hangly -ErrorAction SilentlyContinue))
 

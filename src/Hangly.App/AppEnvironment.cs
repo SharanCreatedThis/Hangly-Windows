@@ -7,7 +7,9 @@
 
 using Hangly.App.Overlay;
 using Hangly.App.Services;
+using Hangly.App.Analytics;
 using Hangly.App.Tray;
+using Hangly.Core.Analytics;
 using Hangly.Core.Models;
 using Hangly.Core.Physics;
 using Hangly.Core.Settings;
@@ -34,17 +36,45 @@ public sealed class AppEnvironment : IDisposable
     private readonly SettingsStore store;
     private readonly ILaunchAtLogin launchAtLogin;
     private readonly RopeSimulation rope;
+    private readonly AnalyticsManager analytics;
+    private readonly IAnalyticsProvider analyticsProvider;
 
     private TrayIcon? tray;
     private OverlayWindow? overlay;
     private CharmArtworkCache? artwork;
     private IReadOnlyList<string> hanging = [];
+
+    /// <summary>
+    /// What was last reported, so a change is reported once rather than on every save.
+    /// </summary>
+    /// <remarks>
+    /// The store raises on every write, and a write happens for reasons that are not a
+    /// user changing anything — counting the launch is one. Comparing against what was
+    /// last reported is what keeps one act one event.
+    /// </remarks>
+    private OverlaySettings reported = new();
     private Customize.CustomizeWindow? customize;
 
     public AppEnvironment(SettingsStore? store = null, ILaunchAtLogin? launchAtLogin = null)
     {
         this.store = store ?? new SettingsStore(SettingsStore.DefaultPath);
         this.launchAtLogin = launchAtLogin ?? new RegistryLaunchAtLogin();
+
+        // PostHog when this build has a key, nothing when it does not. An app built
+        // without one runs with no analytics at all, which is a supported state and the
+        // default one.
+        analyticsProvider = AppInfo.HasAnalyticsDestination
+            ? new PostHogProvider(AppInfo.AnalyticsHost, AppInfo.AnalyticsKey)
+            : new NoOpAnalyticsProvider();
+
+        analytics = new AnalyticsManager(
+            this.store,
+            analyticsProvider,
+            AppInfo.AnalyticsHost,
+            AppInfo.HasAnalyticsDestination,
+            AppInfo.Version,
+            AppInfo.BuildNumber,
+            AppInfo.WindowsVersion);
 
         OverlaySettings settings = this.store.Settings.Overlay;
         rope = new RopeSimulation(
@@ -87,6 +117,14 @@ public sealed class AppEnvironment : IDisposable
 
         store.Changed += OnSettingsChanged;
 
+        // After the tray and before the overlay: starting it counts the launch, which
+        // the follow card is scheduled off and which has nothing to do with whether
+        // anything is sent.
+        reported = store.Settings.Overlay;
+        analytics.Start();
+        Diagnostics.Log(
+            $"analytics {(analytics.IsEnabled ? "on" : "off")}; {analytics.Connection.Summary}");
+
         if (store.Settings.Overlay.IsEnabled)
         {
             // Not wrapped. If the overlay cannot be created there is nothing left worth
@@ -96,6 +134,52 @@ public sealed class AppEnvironment : IDisposable
         else
         {
             Diagnostics.Log("overlay disabled in settings; tray only");
+        }
+    }
+
+    /// <summary>Reports charms coming and going, and the count changing.</summary>
+    private void ReportCharmChange(IReadOnlyList<string> before, IReadOnlyList<string> after)
+    {
+        if (before.Count != after.Count)
+        {
+            analytics.Track(Events.RopeCountChanged(after.Count));
+        }
+
+        foreach (string id in after.Except(before, StringComparer.Ordinal))
+        {
+            analytics.Track(Events.CharmSelected(id));
+            analytics.Track(Events.CharmAdded(id));
+        }
+
+        foreach (string id in before.Except(after, StringComparer.Ordinal))
+        {
+            analytics.Track(Events.CharmRemoved(id));
+        }
+    }
+
+    /// <summary>
+    /// Reports which setting moved, and never what it moved to.
+    /// </summary>
+    /// <remarks>
+    /// The name of the setting is the whole payload. A value here would describe the
+    /// person's screen — how large their charm is, where it sits — which PRIVACY.md says
+    /// is never sent.
+    /// </remarks>
+    private void ReportAppearanceChanges(OverlaySettings before, OverlaySettings after)
+    {
+        foreach ((string name, bool changed) in (ReadOnlySpan<(string, bool)>)
+        [
+            ("charm_size", before.CharmSize != after.CharmSize),
+            ("rope_length", before.RopeLength != after.RopeLength),
+            ("opacity", before.Opacity != after.Opacity),
+            ("anchor", before.Anchor != after.Anchor),
+            ("overlay_visible", before.IsEnabled != after.IsEnabled),
+        ])
+        {
+            if (changed)
+            {
+                analytics.Track(Events.AppearanceChanged(name));
+            }
         }
     }
 
@@ -167,7 +251,7 @@ public sealed class AppEnvironment : IDisposable
             // nothing to rebuild and the window comes back where it was left.
             if (customize is null)
             {
-                customize = new Customize.CustomizeWindow(store, launchAtLogin);
+                customize = new Customize.CustomizeWindow(store, launchAtLogin, analytics);
                 Diagnostics.Log("customize window created");
             }
 
@@ -205,9 +289,18 @@ public sealed class AppEnvironment : IDisposable
         // charms actually changed rather than on every slider move.
         if (artwork is not null && !hanging.SequenceEqual(settings.Overlay.CharmIds, StringComparer.Ordinal))
         {
+            ReportCharmChange(hanging, settings.Overlay.CharmIds);
             hanging = [.. settings.Overlay.CharmIds];
             overlay?.SetCharms(CharmLibrary.Resolve(artwork, hanging));
         }
+
+        if (reported.RopeStyle != settings.Overlay.RopeStyle)
+        {
+            analytics.Track(Events.RopeStyleChanged(settings.Overlay.RopeStyle));
+        }
+
+        ReportAppearanceChanges(reported, settings.Overlay);
+        reported = settings.Overlay;
 
         overlay?.Apply(settings.Overlay);
     }
@@ -279,6 +372,9 @@ public sealed class AppEnvironment : IDisposable
     /// </summary>
     private void Quit()
     {
+        // Said before the window goes, so the goodbye is sent while there is still a
+        // process to send it from.
+        analytics.Stop();
         customize?.AllowClose();
         customize = null;
         Application.Current.Exit();
@@ -287,6 +383,7 @@ public sealed class AppEnvironment : IDisposable
     public void Dispose()
     {
         store.Changed -= OnSettingsChanged;
+        (analyticsProvider as IDisposable)?.Dispose();
         HideOverlay();
         tray?.Dispose();
         tray = null;

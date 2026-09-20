@@ -7,7 +7,7 @@ a project convinces itself it is nearly finished.
 - **Build:** green. All three CI jobs pass on `windows-latest`.
 - **Runs:** yes — Windows 11 ARM64 at 200%. The rope hangs on the desktop, is transparent,
   and can be thrown.
-- **Features:** roughly half ported. All eighty-one charms are in, drawing, and choosable.
+- **Features:** roughly 58% ported. Charms, customization, About and analytics are in.
 
 ---
 
@@ -15,8 +15,8 @@ a project convinces itself it is nearly finished.
 
 | Job | Result |
 |---|---|
-| Solver and models (tests) | ✅ 92 / 92 passing on Windows |
-| Customize window (UI smoke) | ✅ 16 / 16 checks, driven through UI Automation in the VM |
+| Solver and models (tests) | ✅ 114 / 114 passing on Windows |
+| Customize window (UI smoke) | ✅ 35 / 35 checks, driven through UI Automation in the VM |
 | App — `win-x64` Release | ✅ builds and publishes |
 | App — `win-arm64` Release | ✅ builds and publishes |
 
@@ -72,6 +72,12 @@ real machine — Windows 11 ARM64 at 200% scaling:
   rest is laid out as the designer drew it. Charms are drawn cropped to their measured
   body, and their beads ride the cord as the solver's own particles.
 - **One, two or three charms** chosen from the tray or the Customize window.
+- **About**, with the app icon read back out of the executable, the version and build, the
+  copyright, links to the website, GitHub, the release notes and Instagram, and the
+  coffee button.
+- **Analytics**, with the macOS build's event names exactly, and the inspector
+  `PRIVACY.md` promises: whether sharing is on, where it would go, the installation
+  identifier masked, the last event, and how many have been sent.
 - The **Customize window**: a WinUI settings window with a charm picker showing all
   eighty-one as artwork grouped by pack, the number on the cord, the cord itself with its
   description, size, reach and opacity, where it hangs, and the two behaviour switches.
@@ -98,10 +104,8 @@ real machine — Windows 11 ARM64 at 200% scaling:
   solver carries exactly the beads the designer drew. What differs from macOS is only
   how they are *painted*: a disc tinted with the cord's palette, rather than that part of
   the SVG. It reads well because a bead is a bead, and it is a parity gap all the same.
-- **Customize has two pages, not four.** Library and Create are not ported: no charm
-  search, no favourites, no importing your own. About is not there either, so there is no
-  in-app version, no release notes and no analytics inspector — the last of which
-  PRIVACY.md promises, and which therefore has to exist before analytics does.
+- **Customize has three pages, not four.** Library and Create are not ported: no charm
+  search, no favourites, no importing your own.
 
 ## 4. What remains to be ported
 
@@ -110,7 +114,6 @@ Ordered by what unblocks the most.
 | Subsystem | Swift lines | Notes |
 |---|---:|---|
 | **Customize: Library page** | ~1,800 | Search, categories, favourites. The picker exists; the browser does not. |
-| **Customize: About page** | ~900 | Version, release notes, the analytics inspector PRIVACY.md promises. |
 | **Charm Library** | ~1,800 | Browser, search, categories, favourites. |
 | **Charm Studio** | ~2,400 | Editor, pipeline, undo stack. **Deferred: explicitly out of scope for v1.** |
 | **Custom charm import** | ~1,200 | Image processor, store, dialogs. |
@@ -122,7 +125,7 @@ Ordered by what unblocks the most.
 
 ## 5. Completion
 
-**Roughly 50%** by weighted line count of the macOS source.
+**Roughly 58%** by weighted line count of the macOS source.
 
 That number understates progress in one way and overstates it in another, and both are
 worth saying:
@@ -139,7 +142,7 @@ worth saying:
 | Physics | ~100% |
 | App shell and services | ~40% |
 | Models | ~60% |
-| Views | ~30% |
+| Views | ~38% |
 
 ## 6. Distribution
 
@@ -188,20 +191,51 @@ guest cost an incident once already and is not worth a second:
 | **Windows 10 1809**, the floor the manifest declares | ❌ never tried. Either test it or raise the floor; claiming it is the one option that is not available |
 | A DPI change *while running* | ❌ and expected to be wrong — nothing handles `WM_DPICHANGED`, so `scale` is stale until something repositions the window |
 
-The Customize window is covered by `tools/ui-smoke.ps1`, which drives the built app
-through UI Automation inside the guest and checks the settings file afterwards. It is not
-part of CI — CI has no desktop — so it is a command somebody runs, and the rhythm is to
-run it whenever that window changes.
+Customize, About and analytics are covered by `tools/ui-smoke.ps1`, which drives the
+built app through UI Automation inside the guest and checks the settings file afterwards.
+It is not part of CI — CI has no desktop — so it is a command somebody runs, and the
+rhythm is to run it whenever any of that changes.
+
+### Analytics, verified
+
+| | |
+|---|---|
+| Launches with sharing **off**: nothing captured, no identifier minted | ✅ |
+| Launches with sharing **on**: identifier minted, two events, no more | ✅ |
+| The launch is counted either way | ✅ |
+| No duplicate events — `Start` is idempotent | ✅ asserted in tests; inspector read 2 after launch |
+| No event spam: forty seconds idle, no events and no rewrite of the settings file | ✅ |
+| The toggle switches off, discards the identifier and zeroes the counters | ✅ |
+| Switching back on mints a **different** identifier | ✅ |
+| No property describing the desktop appears on any event | ✅ asserted against a recording provider |
+
+### Known differences from macOS
+
+| | |
+|---|---|
+| `macos_version` → `windows_version` | The same key holding a different kind of number would make the two datasets disagree about what the word means |
+| Transport | Hand-written against PostHog's capture endpoint rather than their SDK. The macOS build wraps the SDK behind the same provider seam; here the wrapper was the whole job, and a file this size can be read to check what leaves |
+| No batching | Each event is its own request. macOS lets the SDK queue; at a handful of events per session there is nothing to gain and a queue is something to lose on a crash |
+| Events defined but never fired | `charm_imported`, `charm_saved`, `charm_reordered`, `weather_effect_toggled`, `collection_opened`, `collection_charm_selected`, `follow_popup_*`, `airdrop_*`, `coffee_copy_upi`, `coffee_qr_viewed` — the features do not exist yet. Named now so both platforms report the same act under the same name later |
+| About page | One page, not the macOS four-band layout: no statistics, no secrets button, no creator card, no in-app release-notes or coffee sheets — both links open a browser |
 
 ## 8. Next milestone
 
-The customization workflow is complete: a stranger can install Hangly, open Customize,
-pick any of the eighty-one charms, decide how many hang, choose a cord, and have all of it
-still there next launch.
+Everything a person does with Hangly day to day now exists: install it, pick a charm,
+decide how many hang, choose a cord, see what it is collecting and switch that off.
 
-What it is missing before it can be called finished is the **About page** — version,
-release notes, and the analytics inspector. That last one is not a nicety: PRIVACY.md
-promises that *Customize → About → Analytics* shows what is being collected, so it has to
-exist before analytics does, not after.
+`PRIVACY.md` is in this repository and describes this build rather than the macOS one,
+including the features it does not have. It should be updated **before** anything it
+describes ships, not after.
+
+What remains for v1, in the order that unblocks the most:
+
+1. **Library** — search, categories, favourites. Eighty-one charms in one grid is fine;
+   it will not be at a hundred and eighty.
+2. **Custom charm import** — the drag-and-drop half of what macOS does with AirDrop.
+3. **Weather and seasons.**
+4. **Sound**, the welcome flow, the follow card, and the tray artwork.
+5. **Packaging, signing and the v0.9.0 pre-release**, which is blocked on SignPath
+   answering whether a pre-release satisfies "already released".
 
 **Charm Studio is deferred — explicitly out of scope for v1.**

@@ -6,6 +6,7 @@
 //
 
 using Hangly.App.Services;
+using Hangly.Core.Analytics;
 using Hangly.Core.Models;
 using Hangly.Core.Settings;
 using Microsoft.UI.Xaml;
@@ -35,6 +36,7 @@ public sealed partial class CustomizeWindow : Window
 {
     private readonly SettingsStore store;
     private readonly ILaunchAtLogin launchAtLogin;
+    private readonly AnalyticsManager analytics;
     private readonly List<CharmTile> tiles = [];
     private readonly List<Button> slots = [];
 
@@ -44,10 +46,11 @@ public sealed partial class CustomizeWindow : Window
     /// <summary>Which charm on the cord a click in the grid replaces.</summary>
     private int selectedSlot;
 
-    public CustomizeWindow(SettingsStore store, ILaunchAtLogin launchAtLogin)
+    public CustomizeWindow(SettingsStore store, ILaunchAtLogin launchAtLogin, AnalyticsManager analytics)
     {
         this.store = store;
         this.launchAtLogin = launchAtLogin;
+        this.analytics = analytics;
 
         // Held for the whole of construction, and dropped by Load's finally.
         //
@@ -68,10 +71,16 @@ public sealed partial class CustomizeWindow : Window
         BuildCharmGrid();
         BuildRopeChoices();
         BuildAnchorChoices();
+        BuildAbout();
         Load();
 
         store.Changed += OnStoreChanged;
-        Closed += (_, _) => store.Changed -= OnStoreChanged;
+        analytics.Changed += OnAnalyticsChanged;
+        Closed += (_, _) =>
+        {
+            store.Changed -= OnStoreChanged;
+            analytics.Changed -= OnAnalyticsChanged;
+        };
     }
 
     /// <summary>Opens at a size the charm grid reads well at.</summary>
@@ -273,9 +282,96 @@ public sealed partial class CustomizeWindow : Window
 
     private void OnSectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
-        bool appearance = (args.SelectedItem as NavigationViewItem)?.Tag as string == "appearance";
-        CharmsPage.Visibility = appearance ? Visibility.Collapsed : Visibility.Visible;
-        AppearancePage.Visibility = appearance ? Visibility.Visible : Visibility.Collapsed;
+        string page = (args.SelectedItem as NavigationViewItem)?.Tag as string ?? "charms";
+        CharmsPage.Visibility = page == "charms" ? Visibility.Visible : Visibility.Collapsed;
+        AppearancePage.Visibility = page == "appearance" ? Visibility.Visible : Visibility.Collapsed;
+        AboutPage.Visibility = page == "about" ? Visibility.Visible : Visibility.Collapsed;
+
+        if (page == "about")
+        {
+            LoadAnalytics();
+        }
+    }
+
+    /// <summary>The parts of About that never change while the window is open.</summary>
+    private void BuildAbout()
+    {
+        // The same icon the executable carries, so there is one image and not two that
+        // could drift. Extracted to a file once because XAML loads images by URI.
+        string? icon = AppIconImage.Path();
+        if (icon is not null)
+        {
+            AppIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(icon));
+        }
+
+        VersionLine.Text = $"Version {AppInfo.Version} (build {AppInfo.BuildNumber})";
+        CopyrightLine.Text = AppInfo.Copyright;
+
+        WebsiteLink.NavigateUri = new Uri(AppInfo.WebsiteUrl);
+        GitHubLink.NavigateUri = new Uri(AppInfo.GitHubUrl);
+        ReleaseNotesLink.NavigateUri = new Uri(AppInfo.ReleaseNotesUrl);
+        InstagramLink.NavigateUri = new Uri(AppInfo.InstagramUrl);
+    }
+
+    /// <summary>
+    /// The analytics inspector.
+    /// </summary>
+    /// <remarks>
+    /// PRIVACY.md says this shows whether sharing is on, whether a destination is
+    /// configured and which, the installation identifier masked, and the last event sent
+    /// and when. It is in the app rather than behind a developer flag because the
+    /// argument for collecting anything at all is that it can be inspected.
+    /// </remarks>
+    private void LoadAnalytics()
+    {
+        bool wasLoading = isLoading;
+        isLoading = true;
+        try
+        {
+            AnalyticsToggle.IsOn = analytics.IsEnabled;
+            AnalyticsState.Text = analytics.IsEnabled ? "On" : "Off";
+            AnalyticsEndpoint.Text = analytics.Connection.Summary;
+            AnalyticsIdentifier.Text = analytics.MaskedIdentifier ?? "none yet";
+            AnalyticsLastEvent.Text = analytics.LastEventName is null
+                ? "nothing sent"
+                : $"{analytics.LastEventName} — {analytics.LastEventAt:HH:mm:ss}";
+            AnalyticsSentCount.Text = analytics.SentCount.ToString(
+                System.Globalization.CultureInfo.CurrentCulture);
+        }
+        finally
+        {
+            isLoading = wasLoading;
+        }
+    }
+
+    private void OnAnalyticsChanged()
+    {
+        if (AboutPage.Visibility == Visibility.Visible)
+        {
+            LoadAnalytics();
+        }
+    }
+
+    private void OnAnalyticsToggled(object sender, RoutedEventArgs args)
+    {
+        if (isLoading)
+        {
+            return;
+        }
+
+        analytics.SetEnabled(AnalyticsToggle.IsOn);
+        LoadAnalytics();
+    }
+
+    private void OnRefreshAnalytics(object sender, RoutedEventArgs args) => LoadAnalytics();
+
+    private void OnInstagramClicked(object sender, RoutedEventArgs args) =>
+        analytics.Track(Events.FollowInstagramClicked);
+
+    private void OnCoffeeClicked(object sender, RoutedEventArgs args)
+    {
+        analytics.Track(Events.CoffeeSheetOpened("about"));
+        _ = Windows.System.Launcher.LaunchUriAsync(new Uri(AppInfo.CoffeeUrl));
     }
 
     private void OnCharmClicked(object sender, ItemClickEventArgs args)
