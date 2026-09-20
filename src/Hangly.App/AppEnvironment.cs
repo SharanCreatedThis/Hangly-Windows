@@ -55,6 +55,8 @@ public sealed class AppEnvironment : IDisposable
         // Launch at login is reconciled rather than trusted: the user can have removed
         // the entry while Hangly was not running, so the stored flag is corrected from
         // the system before anything reads it.
+        Diagnostics.Log($"bootstrap starting; settings at {SettingsStore.DefaultPath}");
+
         bool actuallyEnabled = launchAtLogin.IsEnabled;
         if (actuallyEnabled != store.Settings.LaunchAtLogin)
         {
@@ -65,12 +67,17 @@ public sealed class AppEnvironment : IDisposable
         {
             MenuBuilder = BuildMenu,
         };
+        Diagnostics.Log("tray icon registered");
 
         store.Changed += OnSettingsChanged;
 
         if (store.Settings.Overlay.IsEnabled)
         {
             ShowOverlay();
+        }
+        else
+        {
+            Diagnostics.Log("overlay disabled in settings; tray only");
         }
     }
 
@@ -81,12 +88,43 @@ public sealed class AppEnvironment : IDisposable
             return;
         }
 
-        var device = CanvasDevice.GetSharedDevice();
+        CanvasDevice device = CreateDevice();
+        Diagnostics.Log("canvas device created");
+
         artwork = new CharmArtworkCache(device, CharmArtworkCache.DefaultDirectory);
         var renderer = new RopeRenderer(artwork);
 
         overlay = new OverlayWindow(store.Settings.Overlay, rope, renderer, BuiltInCharms.Default);
+        Diagnostics.Log("overlay window constructed");
+
         overlay.Begin();
+        Diagnostics.Log("overlay window shown");
+    }
+
+    /// <summary>A Win2D device, in software if the hardware will not give one.</summary>
+    /// <remarks>
+    /// Win2D wants a Direct3D 11 device, and there are real machines that cannot provide
+    /// one: a virtual GPU under a hypervisor, a remote desktop session, a driver that has
+    /// just been reset. On those, asking for the shared hardware device throws and takes
+    /// the whole app down before anything has been drawn — which looks, to the person who
+    /// double-clicked it, exactly like nothing happening.
+    ///
+    /// <para>The software renderer is slower and entirely adequate for a rope: this is a
+    /// few hundred stroked segments, not a game. Falling back is strictly better than
+    /// refusing to start, so the failure is logged and the app carries on.</para>
+    /// </remarks>
+    private static CanvasDevice CreateDevice()
+    {
+        try
+        {
+            return CanvasDevice.GetSharedDevice();
+        }
+        catch (Exception exception)
+        {
+            Diagnostics.Failure("hardware canvas device", exception);
+            Diagnostics.Log("falling back to the software renderer");
+            return new CanvasDevice(forceSoftwareRenderer: true);
+        }
     }
 
     private void HideOverlay()
