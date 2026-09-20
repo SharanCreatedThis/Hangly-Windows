@@ -111,12 +111,32 @@ public sealed class AppEnvironment : IDisposable
     {
         if (!Onboarding.WelcomeWindow.IsNeeded(store.Settings))
         {
+            ShowFollowIfDue();
             return;
         }
 
         var welcome = new Onboarding.WelcomeWindow(store);
+
+        // The follow card waits for onboarding to finish rather than racing it: IsDue
+        // refuses while a name is still owed, so asking again once the welcome window
+        // closes is what gets the order right on a first run.
+        welcome.Closed += (_, _) => ShowFollowIfDue();
         welcome.Activate();
         Diagnostics.Log("welcome card shown");
+    }
+
+    /// <summary>Shows the follow card when it is due.</summary>
+    public void ShowFollowIfDue()
+    {
+        if (!Onboarding.FollowPrompt.IsDue(store.Settings))
+        {
+            return;
+        }
+
+        var prompt = new Onboarding.FollowPrompt(store, analytics);
+        prompt.Activate();
+        prompt.Shown();
+        Diagnostics.Log("follow card shown");
     }
 
     public void Bootstrap()

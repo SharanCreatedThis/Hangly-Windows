@@ -345,6 +345,14 @@ public sealed record AppSettings
     /// <summary>Whether the follow card has been shown at all.</summary>
     public bool HasSeenFollowPrompt { get; init; }
 
+    /// <summary>Which launch the follow card was last shown at.</summary>
+    /// <remarks>
+    /// macOS calls this <c>followPromptShownAtLaunch</c>, and it is what turns "maybe
+    /// later" into a real answer rather than a synonym for "no": the card comes back a
+    /// set number of launches after the one it was last shown at, and not before.
+    /// </remarks>
+    public int FollowPromptShownAtLaunch { get; init; }
+
     /// <summary>Whether the person asked not to be shown it again.</summary>
     /// <remarks>
     /// Separate from <see cref="HasSeenFollowPrompt"/> on purpose, which is how macOS

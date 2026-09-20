@@ -15,7 +15,7 @@ a project convinces itself it is nearly finished.
 
 | Job | Result |
 |---|---|
-| Solver and models (tests) | ✅ 682 / 682 passing on Windows |
+| Solver and models (tests) | ✅ 687 / 687 passing on Windows |
 | Customize window (UI smoke) | ✅ 81 / 81 checks, driven through UI Automation in the VM |
 | App — `win-x64` Release | ✅ builds and publishes |
 | App — `win-arm64` Release | ✅ builds and publishes |
@@ -297,7 +297,7 @@ would be worse than saying so.
 | `macos_version` → `windows_version` | The same key holding a different kind of number would make the two datasets disagree about what the word means |
 | Transport | Hand-written against PostHog's capture endpoint rather than their SDK. The macOS build wraps the SDK behind the same provider seam; here the wrapper was the whole job, and a file this size can be read to check what leaves |
 | No batching | Each event is its own request. macOS lets the SDK queue; at a handful of events per session there is nothing to gain and a queue is something to lose on a crash |
-| Events defined but never fired | `charm_imported`, `charm_saved`, `charm_reordered`, `collection_charm_selected`, `follow_popup_*`, `airdrop_*` — the features do not exist yet. Named now so both platforms report the same act under the same name later |
+| Events defined but never fired | `charm_imported`, `charm_saved`, `charm_reordered`, `collection_charm_selected`, `airdrop_*` — the features do not exist yet. Named now so both platforms report the same act under the same name later |
 | Import input format | **SVG here, photographs on macOS.** The biggest gap in this milestone; see PORTING.md |
 | Import review step | macOS opens every interactive import in the Studio first. Here it goes straight into the Library |
 | About page | One page, not the macOS four-band layout: no statistics, no secrets button, no creator card, no in-app release-notes or coffee sheets — both links open a browser |
