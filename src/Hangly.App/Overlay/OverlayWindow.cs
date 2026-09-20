@@ -199,9 +199,11 @@ public sealed class OverlayWindow : IDisposable
     {
         settings = updated;
         rope.SetStyle(updated.RopeStyle);
+
+        // Reposition fits the rope to the new canvas and to both sliders together, so
+        // there is nothing to set afterwards. Setting them one at a time after the resize
+        // is what fitted the rope to a length nobody had asked for on the way past.
         Reposition();
-        rope.SetCharmSize(updated.CharmSize, CanvasSize);
-        rope.SetRopeLength(updated.RopeLength, CanvasSize);
 
         // Drawn immediately, and not left to the next tick. A settled rope is not redrawn
         // at all, so a new cord colour or a new opacity would otherwise sit unseen until
@@ -238,7 +240,7 @@ public sealed class OverlayWindow : IDisposable
             (int)Math.Round(frame.Height),
             scale);
 
-        rope.Resize(CanvasSize);
+        rope.Fit(CanvasSize, settings.CharmSize, settings.RopeLength);
     }
 
     /// <summary>
@@ -369,10 +371,40 @@ public static class OverlayMetrics
     /// <remarks>
     /// Read straight from the solver's own layout table rather than restated here, so the
     /// window and the rope cannot disagree about how much room a charm needs.
+    ///
+    /// <para><b>Why the width is not just <c>BaseWidth × room.Width</c>.</b> It was, and
+    /// the rope swung out of the window. <c>CanvasScale</c> grows the width with the charm
+    /// size alone, which is the room a <em>hanging</em> charm needs and not the room a
+    /// swinging one sweeps: the rope is released at <c>InitialAngle</c> and carries that
+    /// excursion either side of the anchor for as long as it takes to settle. At the
+    /// shipped values that is 92 points of swing plus the charm's own reach against 110
+    /// points of half-canvas, so the charm was clipped by the window edge on every launch
+    /// and after every drag. Measured in EnvelopeTests, which is also what fails if these
+    /// proportions are changed without meaning to.</para>
+    ///
+    /// <para>Every term comes from the solver's own numbers, so there is nothing here to
+    /// keep in step by hand. The height is untouched: it was already correct, because
+    /// <c>TailFraction</c> is exactly the room the lowest charm and its halo hang in.</para>
     /// </remarks>
     public static Size CanvasSize(double charmSize, double ropeLength)
     {
         Size room = RopeConfiguration.Layout.CanvasScale(charmSize, ropeLength);
-        return new Size(BaseWidth * room.Width, BaseHeight * room.Height);
+        double height = BaseHeight * room.Height;
+
+        // How far the charm's centre travels from the anchor, released at the angle the
+        // solver starts it at. `unit` in RopeConfiguration.Fitted always works out to
+        // BaseHeight, because the canvas is BaseHeight × room.Height and it divides by
+        // room.Height — so the rope's length in points is this, with no fitting to do.
+        double rope = BaseHeight * RopeConfiguration.Layout.LengthFraction * ropeLength;
+        double swing = rope * Math.Sin(RopeConfiguration.Default.InitialAngle);
+
+        // What the lowest charm reaches past its own centre. CharmStackLayout caps its
+        // radius at the headroom below the rope divided by the halo extent, and that
+        // headroom is TailFraction of the canvas — so this is the widest any charm on
+        // this canvas can be drawn, whatever artwork it carries.
+        double reach = BaseHeight * RopeConfiguration.Layout.TailFraction * charmSize
+            / RopeConfiguration.Layout.CharmHaloExtent;
+
+        return new Size(Math.Max(BaseWidth * room.Width, 2 * (swing + reach)), height);
     }
 }

@@ -45,7 +45,8 @@ public sealed record CharmDescriptor(
 ///
 /// <para>The cache is keyed on the charm and the rounded pixel size, so a charm that is
 /// growing as it fades in rasterises once per whole pixel it passes through rather than
-/// once per frame, and a settled rope rasterises nothing at all.</para>
+/// once per frame, and a settled rope rasterises nothing at all. That size is in device
+/// pixels, which is also what keys one display's rasters apart from another's.</para>
 ///
 /// <para>The same folder of SVGs the macOS bundle carries is copied into the output
 /// directory by the project file. Neither build has its own copy of the artwork.</para>
@@ -74,7 +75,15 @@ public sealed class CharmArtworkCache : IDisposable
             return;
         }
 
-        int pixels = (int)Math.Round(placement.Radius * 2);
+        // Rasterised in *device* pixels, not in the points the session is measured in.
+        // The drawing session works in DIPs and the surface behind it is at the display's
+        // DPI, so a bitmap sized in points is stretched by the DPI factor on its way to
+        // the screen: at 200% every source pixel was drawn to four, which is why the
+        // artwork read as soft on exactly the displays that should have shown it best.
+        // The cord and the beads never had this because they are strokes, resolved at the
+        // target's resolution — only the artwork went through a fixed-size raster.
+        double density = session.Dpi / 96.0;
+        int pixels = (int)Math.Round(placement.Radius * 2 * density);
         if (pixels <= 0)
         {
             return;

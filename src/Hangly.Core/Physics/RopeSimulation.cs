@@ -293,6 +293,23 @@ public sealed partial class RopeSimulation
     }
 
     /// <summary>
+    /// Fits the rope to a canvas and to the person's two sliders in one step.
+    /// </summary>
+    /// <remarks>
+    /// The three belong together. <see cref="Resize"/> re-fits from
+    /// <see cref="CharmSize"/> and <see cref="RopeLength"/> as they stand, so resizing
+    /// first and setting the sliders afterwards fits the rope twice — once to numbers
+    /// nobody asked for — and the charm visibly moves through the wrong position on the
+    /// way to the right one.
+    /// </remarks>
+    public void Fit(Size canvasSize, double charmSize, double ropeLength)
+    {
+        CharmSize = charmSize;
+        RopeLength = ropeLength;
+        Resize(canvasSize);
+    }
+
+    /// <summary>
     /// Re-fits the rope to a new canvas without discarding its motion, so changing the
     /// overlay scale makes the rope swing rather than snap.
     /// </summary>
@@ -305,8 +322,13 @@ public sealed partial class RopeSimulation
             CharmSize,
             RopeLength);
 
-        bool needsRebuild = Points.Length != fitted.PointCount;
+        // A rope that has not started has no motion to preserve, so it is laid out on the
+        // new canvas rather than moved onto it. That is the difference between the overlay
+        // fitting its rope for the first time and the person dragging a slider: the first
+        // is a construction, the second is a change to something already swinging.
+        bool needsRebuild = Points.Length != fitted.PointCount || !IsRunning;
 
+        Vec2 previousAnchor = Anchor;
         Configuration = fitted;
         Anchor = fitted.Anchor(canvasSize);
         RefreshLayout();
@@ -317,7 +339,29 @@ public sealed partial class RopeSimulation
         }
         else
         {
-            // The anchor moved, so the rope has somewhere to swing to.
+            // The whole rope travels with the anchor, history included.
+            //
+            // Without this the anchor teleports and the rope does not: the next step pins
+            // node zero to the new place and the constraint solver whips that displacement
+            // down the chain, which reads as the charm being flung. It was worth 236 points
+            // of excursion on a canvas 220 wide — the rope left the window on launch, when
+            // the overlay is first fitted to its canvas, and again on every turn of the
+            // size slider, which moves the anchor by half of what the canvas grew.
+            //
+            // Translating by the delta is what keeps this a *move* rather than a yank:
+            // every node keeps its offset from the anchor and its offset from its own
+            // previous position, so the velocity Verlet reads out of that history is
+            // exactly what it was and a rope that was mid-swing stays mid-swing.
+            Vec2 shift = Anchor - previousAnchor;
+            if (shift != Vec2.Zero)
+            {
+                for (int index = 0; index < Points.Length; index++)
+                {
+                    Points[index].Position += shift;
+                    Points[index].PreviousPosition += shift;
+                }
+            }
+
             RebuildBeads(preservingMotion: true);
             Wake();
         }

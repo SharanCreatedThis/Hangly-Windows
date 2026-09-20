@@ -15,7 +15,7 @@ a project convinces itself it is nearly finished.
 
 | Job | Result |
 |---|---|
-| Solver and models (tests) | ✅ 179 / 179 passing on Windows |
+| Solver and models (tests) | ✅ 423 / 423 passing on Windows |
 | Customize window (UI smoke) | ✅ 63 / 63 checks, driven through UI Automation in the VM |
 | App — `win-x64` Release | ✅ builds and publishes |
 | App — `win-arm64` Release | ✅ builds and publishes |
@@ -47,6 +47,22 @@ real machine — Windows 11 ARM64 at 200% scaling:
   name for `Shell_NotifyIconW`, and a `NOTIFYICONDATA` declared short enough that the
   shell refused it silently — and both are fixed.
 - **SkiaSharp's native binary on ARM64.** Loads, and rasterises the charm.
+
+### Two rendering defects, found by looking and fixed
+
+Both shipped green. Neither was caught by the test suite or by CI, and both were reported
+as the Windows build looking worse than macOS rather than as bugs — which is what they
+were. Full write-up in PORTING.md §3.
+
+- **Artwork was soft on every display above 100%.** Charm rasters were sized in points
+  while the surface was at the display's DPI, so at 200% each source pixel was drawn to
+  four. Sized in device pixels now. Measured at the same on-screen size, mean gradient
+  across the shield went from 24.3 to 36.6 per pixel and the peak from 121 to 397.
+- **The rope swung out of its own window.** The canvas was narrower than the swing
+  envelope, and `Resize` flung the rope whenever the anchor moved — 236 points of
+  excursion on a 220-point canvas at launch. The canvas is now derived from the envelope,
+  and a re-fit translates the rope with its anchor instead of yanking it. `EnvelopeTests`
+  covers all ten rope styles × one to three charms × both sliders at 0.5, 1.0 and 2.0.
 
 ---
 

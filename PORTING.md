@@ -311,6 +311,75 @@ never will be. macOS does not have this problem because its identifier is an enu
 cases; `CharmId` is the same idea in the id itself — `custom:` and a UUID — which the
 settings layer can recognise without knowing which imports exist.
 
+### Two rendering defects that were shipped, and what they were
+
+Both were reported as "Windows looks worse than macOS" and both turned out to be
+correctness bugs rather than taste. They are recorded here because both were invisible
+to the test suite and to CI, and one of them had been in the port since the first commit.
+
+**Charm artwork was rasterised in points, not pixels.** `CharmArtworkCache` sized its
+raster from the charm's radius, which the solver states in points, and handed the result
+to a drawing session measured in DIPs over a surface at the display's DPI. On a 100%
+display those are the same number and the artwork was correct. On anything above it the
+bitmap was stretched on the way to the screen — at 200%, one source pixel per four device
+pixels, which is what made the metal on Captain America's shield read as mush. The cord
+and the beads were never affected because they are strokes, resolved by Direct2D at the
+target's own resolution; only the artwork went through a fixed-size raster, which is why
+the defect looked like an artwork problem rather than a scaling one.
+
+The fix is one line — the raster is sized in device pixels, `radius × 2 × Dpi / 96` — and
+the destination rectangle stays in points, so Direct2D composes the bitmap's scale with
+the target's DPI transform and samples one source pixel per device pixel. The cache key
+is the pixel size, so it already tells one display's rasters from another's.
+
+Measured on the same charm at the same on-screen size (110px across the red ring, 192 dpi):
+mean absolute gradient across the shield rose from 24.3 to 36.6 per pixel, and the peak
+from 121 to 397. The artwork itself was never the limit — the SVGs carry raster payloads
+around 492×556, far more than the ~200px the charm is drawn at.
+
+**The rope swung out of its own window.** Two separate causes, which is why it looked
+intermittent:
+
+1. *The canvas was too narrow for the swing.* `Layout.canvasScale` grows the canvas width
+   with the charm size alone — the room a *hanging* charm needs. A swinging one sweeps
+   `totalLength × sin(initialAngle)` either side of the anchor, which at the shipped
+   values is 92 points against 110 points of half-canvas before the charm's own radius is
+   counted at all. `OverlayMetrics.CanvasSize` now takes the wider of the two. Every term
+   is derived from the solver's constants, so there is nothing to keep in step by hand.
+
+2. *The rope was flung every time it was re-fitted.* `Resize` moved the anchor and left
+   the rope where it was, so the next step pinned node zero to the new place and the
+   constraint solver whipped that displacement down the chain. At launch the anchor moves
+   from `(0, 0)` to the middle of the canvas, and the charm was thrown 236 points sideways
+   on a canvas 220 wide — it left the window before it ever settled. The same thing
+   happened, smaller, on every turn of the size slider. `Resize` now translates the rope
+   and its Verlet history with the anchor, which preserves velocity exactly, and rebuilds
+   outright when the rope has not started, because then there is no motion to preserve.
+
+   A third contributor sat behind the same call: the overlay resized first and set the two
+   sliders afterwards, so a rope at length 1.5 was briefly fitted at length 1. `Fit` does
+   all three together and the overlay uses it.
+
+`EnvelopeTests` is the guard: every rope style, one to three charms, and both sliders at
+0.5, 1.0 and 2.0 — 270 combinations, each stepped through twelve seconds of release and
+settle, asserting no charm is ever drawn outside the canvas. Before the fix the worst case
+needed 1.70× the half-width it had; after, the worst needs 0.86× of it.
+
+**The cost, stated plainly.** The overlay is wider: 623×720 device pixels at the shipped
+settings against 440×720, so the layered-window read-back goes from 1.27 MB to 1.79 MB per
+drawn frame, and at both sliders maxed from 5.5 MB to 7.7 MB. Startup is unchanged —
+271 ms median over five launches against a 268 ms baseline. A settled rope still presents
+nothing at all, which is what keeps the larger surface from mattering.
+
+**One thing that is still an assumption.** `OverlayMetrics.BaseWidth` and `BaseHeight`
+(220 × 360 points) entered the port in its first commit with no recorded source, and
+`reference/swift/` carries the physics and the models but not the view layer, so there is
+nothing in the repository to check them against. The height is demonstrably right — the
+layout fractions divide 360 exactly, and `TailFraction` is precisely the room the lowest
+charm and its halo need. The width is now derived rather than trusted, so it no longer
+matters what the original number was; but if the macOS overlay turns out to be a different
+width, that is worth reconciling, and the deviation is deliberate and documented here.
+
 ## 5. Suggested order of work
 
 1. ~~**Get it to compile**, on Windows.~~ Done.
