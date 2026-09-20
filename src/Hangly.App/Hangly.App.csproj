@@ -42,6 +42,13 @@
     <SelfContained>true</SelfContained>
     <PublishSingleFile>false</PublishSingleFile>
 
+    <!--
+      Velopack needs to run before XAML starts, so the generated entry point is renamed
+      rather than removed and Program.cs calls it. See Program.cs for why the order
+      matters.
+    -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+
     <ApplicationIcon>Assets/hangly.ico</ApplicationIcon>
     <AssemblyName>Hangly</AssemblyName>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -65,6 +72,10 @@
          with the same primitives — paths, strokes, dashes, gradients and layers — so
          the renderer transcribes rather than reinvents. -->
     <PackageReference Include="Microsoft.Graphics.Win2D" Version="1.4.0" />
+
+    <!-- The updater. Only the runtime half lives here; the vpk CLI that builds releases
+         is a developer tool and is not referenced by the app. -->
+    <PackageReference Include="Velopack" Version="1.2.0" />
 
     <!-- SVG is the charm artwork's source format on both platforms. Svg.Skia rasterises
          it at the exact size each frame needs, which is what the macOS VectorImage does

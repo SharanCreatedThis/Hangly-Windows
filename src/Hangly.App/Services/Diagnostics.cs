@@ -30,8 +30,14 @@ public static class Diagnostics
     private static bool installed;
 
     /// <summary>Where the log goes. Beside the settings, so there is one folder to ask for.</summary>
+    /// <remarks>
+    /// Roaming for the same reason the settings are: <c>%LOCALAPPDATA%\Hangly</c> is
+    /// Velopack's install directory, and an install clears it. A log that an installer
+    /// deletes is a log that is missing exactly when someone needs it — the install that
+    /// went wrong is the one you want to read about.
+    /// </remarks>
     public static string LogPath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "Hangly",
         "hangly.log");
 

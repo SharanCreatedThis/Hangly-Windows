@@ -69,6 +69,10 @@ real machine — Windows 11 ARM64 at 200% scaling:
   transparency, click-through, dragging and the tray menu have all been watched working on
   Windows 11 ARM64 at 200%. None of it has been seen at 100%, on x64, on a second display,
   or across a DPI change — and the overlay recomputes its scale only when it repositions.
+- **Nothing is packaged or signed yet.** Velopack produces an installer that installs and
+  runs — measured, not assumed — but no release has been cut, no feed is hosted, and
+  SignPath has not been applied to. `Docs/DISTRIBUTION.md` has the decisions and the
+  numbers.
 - **A presented frame costs a read-back**, and that is now the honest cost rather than a
   suspected one. `UpdateLayeredWindow` wants the pixels in system memory, so each drawn
   frame is two 1.27 MB copies out of the render target. It allocates nothing: profiled
@@ -91,7 +95,7 @@ Ordered by what unblocks the most.
 | **Artwork splitter** | ~400 | Derives each charm's beads from its SVG regions. Required before any charm but the bead has its beads. |
 | **Customize window** | ~4,500 | The whole settings UI. The largest single piece, and the one with the most room to be a Windows app rather than a translated Mac one. |
 | **Charm Library** | ~1,800 | Browser, search, categories, favourites. |
-| **Charm Studio** | ~2,400 | Editor, pipeline, undo stack. |
+| **Charm Studio** | ~2,400 | Editor, pipeline, undo stack. **Deferred: explicitly out of scope for v1.** |
 | **Custom charm import** | ~1,200 | Image processor, store, dialogs. |
 | **Weather** | ~700 | Open-Meteo client, moods, effects. |
 | **Seasons** | ~600 | Seasonal packs and the coordinator. |
@@ -120,7 +124,21 @@ worth saying:
 | Models | ~25% |
 | Views | ~8% |
 
-## 6. Next milestone
+## 6. Distribution
+
+Decided and documented in `Docs/DISTRIBUTION.md`; measured on win-arm64 at 0.9.0.
+
+| | |
+|---|---|
+| Velopack packages self-contained win-arm64 WinUI | ✅ installs, runs, renders |
+| Installer download | 120.8 MB (from a 400.1 MB payload) |
+| Delta to the next version | 0.2 MB |
+| Settings survive installing over an existing copy | ✅ once moved out of the install directory |
+| Signing | not started — SignPath needs a released artifact first |
+| Trimming | not started |
+| x64 package | never built |
+
+## 7. Next milestone
 
 The previous milestone — *confirm the overlay is genuinely transparent and genuinely
 click-through* — is met. It cost a rewrite of the window layer rather than a fix, which is

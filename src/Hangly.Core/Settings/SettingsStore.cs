@@ -41,9 +41,18 @@ public sealed class SettingsStore
     /// <summary>Whether the document on disk was unreadable and had to be replaced.</summary>
     public bool WasRecovered { get; private set; }
 
-    /// <summary>The default location: one file per user, alongside the app's own data.</summary>
+    /// <summary>The default location: one file per user, outside anything an installer owns.</summary>
+    /// <remarks>
+    /// Roaming, and deliberately <b>not</b> <c>%LOCALAPPDATA%\Hangly</c>, which is where
+    /// Velopack installs the application. That was measured rather than reasoned about:
+    /// installing over an existing copy cleared the directory and took the settings file
+    /// with it. Preferences do not live inside the program that reads them.
+    ///
+    /// <para>A user who chooses a different install directory moves the program and not
+    /// this, which is the other half of the same argument.</para>
+    /// </remarks>
     public static string DefaultPath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "Hangly",
         "settings.json");
 

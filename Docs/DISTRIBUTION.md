@@ -1,0 +1,185 @@
+# Distribution
+
+How a Windows copy of Hangly is built, packaged, installed, updated and signed — and
+which of those are decided, which are measured, and which are still open.
+
+Nothing here is implemented as a release process yet. The application is *architected*
+for it: every decision below is either already reflected in the code or is a number the
+release workflow will need. Publishing itself comes later.
+
+---
+
+## 1. The shape
+
+| | |
+|---|---|
+| Channel | Direct download from the website, as on macOS. No Microsoft Store. |
+| Installer | Velopack — one tool produces the installer, the update feed and the deltas |
+| Signing | SignPath Foundation (free, open-source). No paid certificate, ever. |
+| Packaged? | No. Unpackaged, self-contained, per-user. |
+
+The Store is not a target, so nothing here is shaped by packaging identity, and
+`WindowsPackageType=None` stays. `EnableMsixTooling` stays regardless — it owns PRI
+generation and the compiled XAML lives inside the PRI, so removing it produces an app
+with no XAML at all. That is not a packaging decision; it is load-bearing.
+
+---
+
+## 2. Velopack
+
+### Where the app installs
+
+Velopack installs per-user, with no elevation, to:
+
+```
+%LOCALAPPDATA%\Hangly\
+    Hangly.exe          a stub that launches the current version
+    Update.exe          the updater
+    current\            the application
+    packages\           the downloaded package for the installed version
+```
+
+Per-user and unelevated is the right default for an ornament: it means a stranger can
+install it without an administrator, and uninstall removes one directory.
+
+### Where the app's own data lives
+
+```
+%APPDATA%\Hangly\
+    settings.json
+    hangly.log
+```
+
+**Roaming, and deliberately not `%LOCALAPPDATA%\Hangly`.** That is Velopack's install
+directory, and installing over an existing copy clears it. This was measured, not
+reasoned about: the first spike installed over a running copy and the settings file was
+gone afterwards — not moved, not backed up, gone. Preferences do not live inside the
+program that reads them.
+
+It is verified rather than assumed. A settings file written with a recognisable value,
+an install of a later version over the top, and the same value still there afterwards and
+still being read by the app.
+
+There is no migration from the old location and there does not need to be: nothing has
+ever been released, so no copy of Hangly for Windows has ever written one.
+
+### Versions and channels
+
+| | |
+|---|---|
+| Scheme | SemVer, `MAJOR.MINOR.PATCH`, matching the macOS build's user-facing version |
+| Channel | one per architecture: `win-arm64`, `win-x64` |
+| Feed | `releases.{channel}.json` plus `.nupkg` files, served as static files |
+
+One channel per architecture, because a channel is a single line of releases and an ARM64
+machine must never be offered an x64 package. The channel name is part of the feed's file
+name, so the two live side by side in one directory.
+
+The feed is **static files over HTTPS**. There is no server component, which is what keeps
+the update check anonymous: it is a plain GET for a file, exactly as Sparkle's appcast is
+on macOS. See §4.
+
+### Sizes, measured
+
+Measured on win-arm64, 0.9.0, before any trimming:
+
+| | |
+|---|---|
+| Published payload | 400.1 MB across 610 files |
+| Installer download | **120.8 MB** |
+| Installed on disk | 407.5 MB |
+| Delta to next version | **0.2 MB** |
+
+Two things follow. The first download is 120.8 MB rather than 400 MB, because the
+installer is compressed — the 400 MB figure is the on-disk number, not the number that
+decides whether somebody waits. And every update after the first is a fifth of a
+megabyte, so payload size is a first-impression problem only.
+
+Most of the 400 MB is satellite locale directories (`af-ZA`, `am-ET`, `ar-SA`, …) and
+unused runtime. Trimming is tracked in §5 and has not been done.
+
+---
+
+## 3. Signing
+
+SignPath Foundation signs open-source releases at no cost. Their conditions, from their
+own terms:
+
+- an OSI-approved licence with no commercial dual-licensing — **MIT, present as a
+  `LICENSE` file**;
+- a public repository — **yes**;
+- the project must **already be released in the form that should be signed**;
+- actively maintained, functionality described on its download page;
+- no malware or security-circumvention tools;
+- the binary must be a verifiable automated build from the source in that repository,
+  which for GitHub means the SignPath GitHub App is installed and the artifact is a
+  workflow artifact rather than something uploaded by a token holder;
+- **every release needs manual approval** before it is signed.
+
+The last two shape the release workflow: signing is a step *inside* the GitHub Actions
+run that produced the artifact, and a human approves it. `vpk pack` already has the seam
+for it — `--signTemplate` takes a command with `{{file}}` substituted, and when it is
+absent the pack logs exactly what it skipped:
+
+```
+[WRN] No signing parameters provided, 289 file(s) will not be signed.
+```
+
+So signing drops into the existing pack step rather than restructuring it.
+
+**Open question — does a GitHub pre-release satisfy "already released"?** SignPath's terms
+and their GitHub integration documentation are both silent on pre-releases. This is not
+something to assume in either direction; it needs asking them directly before the release
+plan depends on the answer.
+
+### What users see before reputation exists
+
+SignPath issues **OV** certificates. Since 2024 an EV certificate no longer bypasses
+SmartScreen either, so nothing cheaper is being settled for — but signing is not instant
+trust:
+
+- A signed download from a publisher with no history still shows *"Windows protected your
+  PC"*, with the verified publisher name displayed.
+- Reputation accrues against a consistent signing identity, across versions, as downloads
+  accumulate. Microsoft gives no threshold and describes it as weeks.
+- An unsigned download shows the same warning but with no publisher name, and builds no
+  reputation at all — every new version starts from zero.
+
+The download page should say so plainly rather than promise a clean install on day one.
+
+---
+
+## 4. The privacy promise
+
+`PRIVACY.md` on macOS says the update check "carries no identifier". Velopack honours
+that, and it was checked rather than assumed — from their FAQ:
+
+> "The Velopack runtime library and the binaries shipped with your application
+> (Setup.exe, Update.exe) collect no telemetry, analytics, or tracking data."
+
+With a static feed there is nothing for an identifier to be sent *to*: the check is a GET
+for `releases.win-arm64.json`, and the server sees a request for a file with an IP
+address, as any web request does.
+
+One scoped exception, which does not touch the promise: the `vpk` command-line tool
+performs its own update check when it runs. That is a developer tool on a developer's
+machine and is never shipped to a user.
+
+---
+
+## 5. Still open
+
+- **Trimming.** 400 MB on disk, mostly locale satellites and unused runtime. The safe
+  wins go first. `PublishTrimmed` is *not* safe here without proof: WinUI and Win2D reach
+  for types through reflection and COM activation, and a trimmed build that launches
+  correctly can still fail on a path nobody exercised until a user did. Anything trimmed
+  must be exercised through the whole app in the VM, not merely launched.
+- **x64.** Everything measured here is ARM64. The x64 package has never been built or
+  installed.
+- **Launch at login across an update.** Reconciled from the registry at startup, and the
+  registry entry names a path. Velopack's stub at `%LOCALAPPDATA%\Hangly\Hangly.exe` is
+  stable across versions where `current\` is not, so the entry should point at the stub —
+  unverified.
+- **Uninstall.** Removes the install directory. It does not remove `%APPDATA%\Hangly`,
+  so settings survive an uninstall/reinstall. Whether that is wanted is a decision.
+- **Where the feed is hosted.** Static files; the host is not chosen.
