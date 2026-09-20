@@ -147,6 +147,62 @@ public static class Diagnostics
     /// A development switch. The store is a temporary directory, so running this never
     /// adds anything to the charms the person actually has.
     /// </remarks>
+    /// <summary>
+    /// Sends one real event and writes the payload and the response to the log.
+    /// </summary>
+    /// <remarks>
+    /// Uses the settings the person actually has — their name, their installation
+    /// identifier — because a payload built from invented values would not answer the
+    /// question being asked, which is what this copy of Hangly sends about this person.
+    /// It respects the analytics toggle: with sharing off it reports that and sends
+    /// nothing.
+    /// </remarks>
+    public static void CheckAnalytics()
+    {
+        try
+        {
+            var store = new Core.Settings.SettingsStore(Core.Settings.SettingsStore.DefaultPath);
+            Log($"analytics check: sharing is {(store.Settings.Privacy.AnalyticsEnabled ? "on" : "off")}");
+            Log($"analytics check: name is '{store.Settings.DisplayName}'");
+
+            if (!store.Settings.Privacy.AnalyticsEnabled)
+            {
+                Log("analytics check: nothing sent, because sharing is off");
+                return;
+            }
+
+            if (!AppInfo.HasAnalyticsDestination)
+            {
+                Log("analytics check: no key in this build, so there is nowhere to send");
+                return;
+            }
+
+            using var provider = new Analytics.PostHogProvider(AppInfo.AnalyticsHost, AppInfo.AnalyticsKey);
+            var manager = new Core.Analytics.AnalyticsManager(
+                store,
+                provider,
+                AppInfo.AnalyticsHost,
+                AppInfo.HasAnalyticsDestination,
+                AppInfo.Version,
+                AppInfo.BuildNumber,
+                AppInfo.WindowsVersion);
+
+            manager.Start();
+
+            (string payload, int status) = provider
+                .CheckAsync(Core.Analytics.Events.AppLaunch)
+                .GetAwaiter()
+                .GetResult();
+
+            Log($"analytics check: HTTP {status}");
+            Log($"analytics check payload: {payload}");
+        }
+        catch (Exception exception)
+        {
+            Failure("analytics check", exception);
+        }
+    }
+
     public static void CheckImport(string path)
     {
         try

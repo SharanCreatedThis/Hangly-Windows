@@ -172,6 +172,11 @@ public sealed class AnalyticsManager
             properties.TryAdd(key, value);
         }
 
+        // Read fresh every time, so a name corrected on the Appearance page reaches the
+        // project with the next event rather than the next launch.
+        properties["user_name"] = AnalyticsValue.Of(store.Settings.DisplayName);
+        provider.SetPersonProperties(PersonProperties());
+
         provider.Capture(new AnalyticsEvent(analyticsEvent.Name, properties));
 
         LastEventName = analyticsEvent.Name;
@@ -218,6 +223,7 @@ public sealed class AnalyticsManager
     private void StartProvider()
     {
         provider.Start(CurrentIdentifier(), SuperProperties());
+        provider.SetPersonProperties(PersonProperties());
         Connection = hasDestination ? AnalyticsConnection.Connected(host) : AnalyticsConnection.NoDestination;
         Changed?.Invoke();
     }
@@ -235,17 +241,60 @@ public sealed class AnalyticsManager
             ?? identifier.ToString("D", System.Globalization.CultureInfo.InvariantCulture);
     }
 
-    /// <summary>Facts about the build and the machine. No account, no name, no location.</summary>
+    /// <summary>
+    /// Facts about the build, the machine and the person, attached to every event.
+    /// </summary>
+    /// <remarks>
+    /// <b>The name is here deliberately, and it is the only personal thing in the whole
+    /// payload.</b> It is typed during onboarding and can be corrected on the Appearance
+    /// page; it is never read from the Windows account, the Microsoft account, the
+    /// computer name or any other part of the machine. PRIVACY.md says so in those terms.
+    ///
+    /// <para><c>os_version</c> and <c>windows_version</c> both carry the same string, on
+    /// purpose. macOS sends <c>macos_version</c>, so a query that wants "which OS version"
+    /// across both platforms needs a key that means the same thing on each, and a query
+    /// that wants Windows specifically still has the old one. Naming only one of them
+    /// would break one of those two questions.</para>
+    /// </remarks>
     private Dictionary<string, AnalyticsValue> SuperProperties() => new(StringComparer.Ordinal)
     {
+        ["user_name"] = AnalyticsValue.Of(store.Settings.DisplayName),
+        ["platform"] = AnalyticsValue.Of("windows"),
+        ["architecture"] = AnalyticsValue.Of(Architecture),
         ["app_version"] = AnalyticsValue.Of(appVersion),
         ["build_number"] = AnalyticsValue.Of(buildNumber),
-
-        // The macOS build sends this as macos_version. The same key with a Windows
-        // number in it would make the two datasets disagree about what the word means,
-        // so it is named for the platform it describes.
+        ["os_version"] = AnalyticsValue.Of(systemVersion),
         ["windows_version"] = AnalyticsValue.Of(systemVersion),
         ["analytics_enabled"] = AnalyticsValue.Of(IsEnabled),
+    };
+
+    /// <summary>Which silicon this copy is running on, as PostHog should see it.</summary>
+    private static string Architecture =>
+        System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture switch
+        {
+            System.Runtime.InteropServices.Architecture.Arm64 => "arm64",
+            System.Runtime.InteropServices.Architecture.X64 => "x64",
+            System.Runtime.InteropServices.Architecture.X86 => "x86",
+            var other => other.ToString().ToLowerInvariant(),
+        };
+
+    /// <summary>
+    /// The person-level properties, sent with every event so they stay current.
+    /// </summary>
+    /// <remarks>
+    /// PostHog reads <c>$set</c> off an event and applies it to the person the event
+    /// belongs to. Sending it every time rather than once is what makes a renamed person
+    /// actually rename: super properties are handed over when the provider starts, and a
+    /// name changed on the Appearance page afterwards would otherwise not reach the
+    /// project until the next launch.
+    /// </remarks>
+    public Dictionary<string, AnalyticsValue> PersonProperties() => new(StringComparer.Ordinal)
+    {
+        ["user_name"] = AnalyticsValue.Of(store.Settings.DisplayName),
+        ["platform"] = AnalyticsValue.Of("windows"),
+        ["architecture"] = AnalyticsValue.Of(Architecture),
+        ["app_version"] = AnalyticsValue.Of(appVersion),
+        ["os_version"] = AnalyticsValue.Of(systemVersion),
     };
 
     /// <summary>What is on the rope, which is the shape of how the app is used.</summary>

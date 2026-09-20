@@ -757,7 +757,37 @@
 
                                     <TextBlock Grid.Row="4" Opacity="0.7" Text="Events sent" />
                                     <TextBlock x:Name="AnalyticsSentCount" Grid.Row="4" Grid.Column="1" />
+
+                                    <TextBlock Grid.Row="5" Opacity="0.7" Text="Your name" />
+                                    <TextBlock
+                                        x:Name="AnalyticsUserName"
+                                        Grid.Row="5"
+                                        Grid.Column="1"
+                                        AutomationProperties.AutomationId="AnalyticsUserName" />
                                 </Grid>
+
+                                <!-- Exactly what leaves the machine, listed rather than
+                                     described. A privacy claim nobody can check is a
+                                     promise rather than a fact. -->
+                                <TextBlock
+                                    Margin="0,8,0,0"
+                                    Opacity="0.7"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="Every event carries these and nothing else:" />
+                                <TextBlock
+                                    x:Name="AnalyticsFields"
+                                    AutomationProperties.AutomationId="AnalyticsFields"
+                                    FontFamily="Consolas"
+                                    IsTextSelectionEnabled="True"
+                                    Opacity="0.85"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    TextWrapping="Wrap" />
+                                <TextBlock
+                                    MaxWidth="560"
+                                    Opacity="0.7"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="Never your files, their names, their contents, the folders they came from, your clipboard, your email, or your Windows account name."
+                                    TextWrapping="Wrap" />
 
                                 <Button x:Name="RefreshAnalytics" Click="OnRefreshAnalytics" Content="Refresh" />
                             </StackPanel>

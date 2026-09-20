@@ -29,6 +29,13 @@ public class AnalyticsTests : IDisposable
         return new SettingsStore(Path.Combine(directory, "settings.json"));
     }
 
+    /// <summary>A store that already holds these settings, for the identity tests.</summary>
+    private SettingsStore NewStore(AppSettings initial)
+    {
+        Directory.CreateDirectory(directory);
+        return new SettingsStore(Path.Combine(directory, "settings.json"), initial);
+    }
+
     private AnalyticsManager NewManager(SettingsStore store, bool hasDestination = true) =>
         new(store, provider, "eu.i.posthog.com", hasDestination, "2.0.0", "1", "10.0.26200");
 
@@ -328,5 +335,100 @@ public class AnalyticsTests : IDisposable
         ];
 
         Assert.Equal(expected, actual.Order().ToArray());
+    }
+
+    /// <summary>The identity properties, and the promise that nothing else joins them.</summary>
+    [Fact(DisplayName = "Every event carries the name, the platform and the architecture")]
+    public void IdentityTravelsWithEveryEvent()
+    {
+        var store = NewStore(new AppSettings
+        {
+            DisplayName = "Sharan",
+            Privacy = new PrivacySettings { AnalyticsEnabled = true },
+        });
+
+        AnalyticsManager manager = NewManager(store);
+        manager.Start();
+        manager.Track(Events.CharmSelected("nazar"));
+
+        AnalyticsEvent last = provider.Captured[^1];
+        Assert.Equal("Sharan", ((AnalyticsValue.Text)last.Properties["user_name"]).Value);
+
+        Assert.NotNull(provider.SuperProperties);
+        Assert.Equal("windows", ((AnalyticsValue.Text)provider.SuperProperties!["platform"]).Value);
+        Assert.True(provider.SuperProperties.ContainsKey("architecture"));
+        Assert.True(provider.SuperProperties.ContainsKey("os_version"));
+        Assert.True(provider.SuperProperties.ContainsKey("app_version"));
+
+        Assert.NotNull(provider.PersonProperties);
+        Assert.Equal("Sharan", ((AnalyticsValue.Text)provider.PersonProperties!["user_name"]).Value);
+    }
+
+    /// <summary>A corrected name reaches the project without a relaunch.</summary>
+    [Fact(DisplayName = "Renaming yourself renames you on the next event")]
+    public void RenamingTakesEffectImmediately()
+    {
+        var store = NewStore(new AppSettings
+        {
+            DisplayName = "Old",
+            Privacy = new PrivacySettings { AnalyticsEnabled = true },
+        });
+
+        AnalyticsManager manager = NewManager(store);
+        manager.Start();
+
+        store.Update(settings => settings with { DisplayName = "New" });
+        manager.Track(Events.CharmSelected("nazar"));
+
+        Assert.Equal("New", ((AnalyticsValue.Text)provider.Captured[^1].Properties["user_name"]).Value);
+        Assert.Equal("New", ((AnalyticsValue.Text)provider.PersonProperties!["user_name"]).Value);
+    }
+
+    /// <summary>The name is the only personal thing, and it is never taken from the machine.</summary>
+    [Fact(DisplayName = "No event carries anything read off the machine")]
+    public void NothingIsTakenFromTheMachine()
+    {
+        // A name that cannot coincide with this machine's own. Seeding it with something
+        // plausible made this pass or fail depending on whose account ran the suite --
+        // the first run failed because the tester's Windows account is also called
+        // Sharan, and a typed name that happens to match is not a leak.
+        var store = NewStore(new AppSettings
+        {
+            DisplayName = "Zephyr Quill",
+            Privacy = new PrivacySettings { AnalyticsEnabled = true },
+        });
+
+        AnalyticsManager manager = NewManager(store);
+        manager.Start();
+        manager.Track(Events.AirdropFileDropped(".png", 4096));
+        manager.Track(Events.CharmImported);
+
+        string[] forbidden =
+        [
+            Environment.UserName,
+            Environment.MachineName,
+            Environment.UserDomainName,
+        ];
+
+        foreach (AnalyticsEvent captured in provider.Captured)
+        {
+            foreach ((string key, AnalyticsValue value) in captured.Properties)
+            {
+                if (value is not AnalyticsValue.Text text)
+                {
+                    continue;
+                }
+
+                foreach (string secret in forbidden.Where(s => !string.IsNullOrEmpty(s)))
+                {
+                    Assert.False(
+                        text.Value.Contains(secret, StringComparison.OrdinalIgnoreCase),
+                        $"'{key}' carried something read off the machine");
+                }
+
+                // And no path separators, which is the shape a file path would have.
+                Assert.DoesNotContain(@":\", text.Value, StringComparison.Ordinal);
+            }
+        }
     }
 }

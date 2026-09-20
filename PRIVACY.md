@@ -7,10 +7,28 @@ This is the **Windows** build. It is a port of the macOS one and the promises ar
 same, but the two apps are not identical and this document describes what *this* one
 does. Where they differ, it says so.
 
-## Anonymous analytics
+## Analytics
 
 On by default, and switchable off in **Customize → About → Anonymous analytics**. Turning
 it off stops collection immediately and discards the installation identifier.
+
+### The name you give
+
+Hangly asks for a name the first time it runs, and will not go further without one. That
+name is sent with every analytics event while sharing is on.
+
+This is a change, and it is deliberate. Earlier versions of this document said Hangly
+never collects your name. That is no longer true and the sentence has been removed rather
+than softened.
+
+What has not changed is where the name comes from. **You type it.** Hangly does not read
+your Windows account name, your Microsoft account, your email address, your computer name,
+or any other part of the machine — there is no code in this build that could. You can
+change it whenever you like in **Customize → Appearance → Your name**, and the new one is
+used from the next event onward.
+
+If you would rather not send it, switch analytics off. The name stays on your machine and
+is still used to greet you.
 
 Events are sent to [PostHog](https://posthog.com) (US region). Nothing about analytics can
 delay, block or change what the app does: every send is fire-and-forget, and a send that
@@ -41,14 +59,50 @@ They are defined so that the two platforms report the same act under the same na
 those features land. **Nothing this build cannot do is ever sent**, because the code that
 would send it does not exist yet.
 
-The one deliberate difference from macOS: that build sends `macos_version`, and this one
-sends `windows_version`. The same key holding a different kind of number would make the
-two datasets disagree about what the word means.
+Both builds report into the same PostHog project and use the same event names, so a
+question asked of one can be asked of both.
+
+Two keys carry the operating system version, deliberately. macOS sends `macos_version`, so
+this build sends `windows_version` for anything asking about Windows specifically, and
+`os_version` as well for anything asking across both. Naming only one of them would break
+one of those two questions.
+
+### Exactly what a single event carries
+
+This is a real payload, taken from this build with `--check-analytics`:
+
+```json
+{
+  "event": "app_launch",
+  "distinct_id": "c4639c10-0bb3-4a15-9017-1b80c5c9ebc7",
+  "properties": {
+    "user_name": "Sharan",
+    "platform": "windows",
+    "architecture": "arm64",
+    "app_version": "2.0.0",
+    "build_number": "1",
+    "os_version": "10.0.26200.0",
+    "windows_version": "10.0.26200.0",
+    "analytics_enabled": true,
+    "charm_count": 2,
+    "active_charm_ids": ["Nazar boncuğu", "Hamsa"],
+    "rope_style": "Thread"
+  }
+}
+```
+
+The same list is on the About page, under **Anonymous analytics**, built from the code that
+sends it rather than typed out — so it cannot drift from what actually leaves.
 
 ### What is never sent
 
-- Your name, email address, or any account. Hangly has no accounts.
-- Images you import, or anything about them — not the file, its name, or its size.
+- Your email address, phone number, or any account. Hangly has no accounts.
+- Your Windows account name, Microsoft account, or computer name. The only name Hangly
+  holds is the one you typed.
+- Files you import: not the contents, not the markup, not the file name, not the folder
+  it came from, not the drive. A dropped file reports its extension and a size bucket, and
+  that is all.
+- Your clipboard.
 - Charms you make. They are reported as the word `custom`.
 - Your location.
 - Where your charm sits, how large it is, which display it is on, or anything else

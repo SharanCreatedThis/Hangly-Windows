@@ -780,6 +780,15 @@ public sealed partial class CustomizeWindow : Window
         {
             AnalyticsToggle.IsOn = analytics.IsEnabled;
             AnalyticsState.Text = analytics.IsEnabled ? "On" : "Off";
+            AnalyticsUserName.Text = store.Settings.DisplayName.Length > 0
+                ? store.Settings.DisplayName
+                : "(not set)";
+
+            // Built from the manager rather than typed here, so the list cannot drift
+            // from what is actually sent.
+            AnalyticsFields.Text = string.Join(
+                ", ",
+                analytics.PersonProperties().Keys.Concat(["install_id", "event name", "event properties"]).Distinct());
             AnalyticsEndpoint.Text = analytics.Connection.Summary;
             AnalyticsIdentifier.Text = analytics.MaskedIdentifier ?? "none yet";
             AnalyticsLastEvent.Text = analytics.LastEventName is null

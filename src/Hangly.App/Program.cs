@@ -57,6 +57,16 @@ internal static class Program
             return;
         }
 
+        // Sends one real event with the real key and reports the payload and the status
+        // code. The dashboard is not the only place a privacy claim should be checkable,
+        // and this is what makes "exactly this leaves the machine" a fact rather than a
+        // promise.
+        if (args.Contains("--check-analytics", StringComparer.Ordinal))
+        {
+            Diagnostics.CheckAnalytics();
+            return;
+        }
+
         XamlGeneratedProgram.XamlGeneratedMain();
     }
 }

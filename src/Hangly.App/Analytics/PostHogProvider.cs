@@ -42,6 +42,7 @@ public sealed class PostHogProvider : IAnalyticsProvider, IDisposable
     private readonly Uri endpoint;
 
     private Dictionary<string, object?> superProperties = [];
+    private Dictionary<string, object?> personProperties = [];
     private string distinctId = string.Empty;
     private bool isEnabled = true;
 
@@ -66,6 +67,12 @@ public sealed class PostHogProvider : IAnalyticsProvider, IDisposable
             StringComparer.Ordinal);
     }
 
+    public void SetPersonProperties(IReadOnlyDictionary<string, AnalyticsValue> properties) =>
+        personProperties = properties.ToDictionary(
+            pair => pair.Key,
+            pair => Unwrap(pair.Value),
+            StringComparer.Ordinal);
+
     public void Capture(AnalyticsEvent analyticsEvent)
     {
         if (!isEnabled || key.Length == 0 || distinctId.Length == 0)
@@ -81,6 +88,14 @@ public sealed class PostHogProvider : IAnalyticsProvider, IDisposable
         foreach ((string name, AnalyticsValue value) in analyticsEvent.Properties)
         {
             properties[name] = Unwrap(value);
+        }
+
+        // PostHog reads $set off an event and applies it to the person it belongs to, so
+        // sending it with every event is what keeps a renamed person renamed. It is the
+        // documented way to set person properties from a client that has no back end.
+        if (personProperties.Count > 0)
+        {
+            properties["$set"] = personProperties;
         }
 
         var payload = new Payload(key, analyticsEvent.Name, distinctId, properties);
@@ -113,16 +128,56 @@ public sealed class PostHogProvider : IAnalyticsProvider, IDisposable
             using HttpResponseMessage response =
                 await client.PostAsJsonAsync(endpoint, payload, Json).ConfigureAwait(false);
 
-            if (!response.IsSuccessStatusCode)
-            {
-                Diagnostics.Log($"analytics: {(int)response.StatusCode} for '{payload.Event}'");
-            }
+            // Logged either way. A privacy claim is easier to believe when the log says
+            // what left and what came back, and support questions about "is it even
+            // sending" answer themselves.
+            Diagnostics.Log($"analytics: {(int)response.StatusCode} for '{payload.Event}'");
         }
         catch (Exception exception)
         {
             // Deliberately not Failure(): a machine with no network is not a fault, and
             // a stack trace per event would bury the log it shares with startup.
             Diagnostics.Log($"analytics: '{payload.Event}' not sent ({exception.GetType().Name})");
+        }
+    }
+
+    /// <summary>Sends one event and reports exactly what happened, for verification.</summary>
+    /// <remarks>
+    /// The counterpart of <c>--check-import</c>: a way to see the real payload and the
+    /// real response without reading them out of a dashboard. Returns the JSON as it goes
+    /// on the wire and the status code that came back.
+    /// </remarks>
+    public async Task<(string Payload, int Status)> CheckAsync(AnalyticsEvent analyticsEvent)
+    {
+        var properties = new Dictionary<string, object?>(superProperties, StringComparer.Ordinal)
+        {
+            ["distinct_id"] = distinctId,
+        };
+
+        foreach ((string name, AnalyticsValue value) in analyticsEvent.Properties)
+        {
+            properties[name] = Unwrap(value);
+        }
+
+        if (personProperties.Count > 0)
+        {
+            properties["$set"] = personProperties;
+        }
+
+        var payload = new Payload(key, analyticsEvent.Name, distinctId, properties);
+        string json = JsonSerializer.Serialize(payload, Json);
+
+        try
+        {
+            using HttpResponseMessage response =
+                await client.PostAsJsonAsync(endpoint, payload, Json).ConfigureAwait(false);
+
+            return (json, (int)response.StatusCode);
+        }
+        catch (Exception exception)
+        {
+            Diagnostics.Log($"analytics check failed: {exception.GetType().Name}");
+            return (json, 0);
         }
     }
 

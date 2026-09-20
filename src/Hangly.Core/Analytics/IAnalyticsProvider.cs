@@ -22,6 +22,16 @@ public interface IAnalyticsProvider
     /// <param name="superProperties">Facts attached to every event from here on.</param>
     void Start(string distinctId, IReadOnlyDictionary<string, AnalyticsValue> superProperties);
 
+    /// <summary>
+    /// Person-level properties to attach to the next and every later event.
+    /// </summary>
+    /// <remarks>
+    /// Separate from the super properties because they are about the person rather than
+    /// the event, and because they can change while the app is running — a name corrected
+    /// on the Appearance page has to reach the project without a relaunch.
+    /// </remarks>
+    void SetPersonProperties(IReadOnlyDictionary<string, AnalyticsValue> properties);
+
     void Capture(AnalyticsEvent analyticsEvent);
 
     /// <summary>
@@ -42,6 +52,10 @@ public interface IAnalyticsProvider
 public sealed class NoOpAnalyticsProvider : IAnalyticsProvider
 {
     public void Start(string distinctId, IReadOnlyDictionary<string, AnalyticsValue> superProperties)
+    {
+    }
+
+    public void SetPersonProperties(IReadOnlyDictionary<string, AnalyticsValue> properties)
     {
     }
 
@@ -79,6 +93,12 @@ public sealed class RecordingAnalyticsProvider : IAnalyticsProvider
     public int StartCount { get; private set; }
 
     public int FlushCount { get; private set; }
+
+    /// <summary>The person properties last handed over, for tests to assert against.</summary>
+    public IReadOnlyDictionary<string, AnalyticsValue>? PersonProperties { get; private set; }
+
+    public void SetPersonProperties(IReadOnlyDictionary<string, AnalyticsValue> properties) =>
+        PersonProperties = properties;
 
     public void Start(string distinctId, IReadOnlyDictionary<string, AnalyticsValue> superProperties)
     {
