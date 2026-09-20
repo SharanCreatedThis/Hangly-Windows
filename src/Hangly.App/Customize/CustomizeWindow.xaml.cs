@@ -470,6 +470,7 @@ public sealed partial class CustomizeWindow : Window
             SizeSlider.Value = overlay.CharmSize;
             LengthSlider.Value = overlay.RopeLength;
             OpacitySlider.Value = overlay.Opacity;
+            DisplayNameBox.Text = store.Settings.DisplayName;
             UpdateSliderLabels();
 
             ShowToggle.IsOn = overlay.IsEnabled;
@@ -907,6 +908,30 @@ public sealed partial class CustomizeWindow : Window
         // this used to get wrong by duplicating the bottom charm on the way up.
         int wanted = CountChoice.SelectedIndex + 1;
         store.UpdateOverlay(overlay => overlay.WithStack(overlay.Stack.WithCount(wanted)));
+    }
+
+    /// <summary>
+    /// Keeps the name the person gave, letting them correct it.
+    /// </summary>
+    /// <remarks>
+    /// An empty box is not written. Onboarding refuses to finish without a name and this
+    /// is the same name, so clearing it here would leave the app in a state only the
+    /// welcome card is supposed to be able to produce.
+    /// </remarks>
+    private void OnDisplayNameChanged(object sender, TextChangedEventArgs args)
+    {
+        if (isLoading)
+        {
+            return;
+        }
+
+        string chosen = DisplayNameBox.Text.Trim();
+        if (chosen.Length == 0)
+        {
+            return;
+        }
+
+        store.Update(settings => settings with { DisplayName = chosen });
     }
 
     private void OnRopeChanged(object sender, SelectionChangedEventArgs args)

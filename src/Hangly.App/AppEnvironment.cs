@@ -102,6 +102,23 @@ public sealed class AppEnvironment : IDisposable
             timeProfile: RopeTimeProfileTable.ForDate(DateTimeOffset.Now));
     }
 
+    /// <summary>Shows the welcome card when onboarding has not been completed.</summary>
+    /// <remarks>
+    /// After the overlay, not before it: the card describes a charm hanging from the top
+    /// of the screen, and it should be describing one that is already there.
+    /// </remarks>
+    public void ShowWelcomeIfNeeded()
+    {
+        if (!Onboarding.WelcomeWindow.IsNeeded(store.Settings))
+        {
+            return;
+        }
+
+        var welcome = new Onboarding.WelcomeWindow(store);
+        welcome.Activate();
+        Diagnostics.Log("welcome card shown");
+    }
+
     public void Bootstrap()
     {
         // Launch at login is reconciled rather than trusted: the user can have removed

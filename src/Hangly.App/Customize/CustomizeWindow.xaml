@@ -497,6 +497,27 @@
                             Style="{StaticResource TitleTextBlockStyle}"
                             Text="Appearance" />
 
+                        <!-- The name given at onboarding, changeable here. A name
+                             someone is asked for once and can never correct is a name
+                             they will resent. -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Your name" />
+                            <TextBox
+                                x:Name="DisplayNameBox"
+                                MaxWidth="320"
+                                HorizontalAlignment="Left"
+                                AutomationProperties.AutomationId="DisplayNameBox"
+                                AutomationProperties.Name="Your name"
+                                MaxLength="40"
+                                TextChanged="OnDisplayNameChanged" />
+                            <TextBlock
+                                MaxWidth="480"
+                                Opacity="0.7"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="Sent with usage data while that is switched on. Hangly never reads your Windows or Microsoft account name."
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+
                         <StackPanel Spacing="6">
                             <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Cord" />
                             <ComboBox

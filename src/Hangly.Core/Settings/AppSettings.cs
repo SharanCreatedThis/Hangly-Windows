@@ -312,11 +312,46 @@ public sealed record AppSettings
     /// Written on every save so a future migration can be deliberate rather than
     /// archaeological.
     /// </summary>
+    /// <summary>The longest a name is kept, in characters.</summary>
+    /// <remarks>
+    /// Generous for a name and far short of anything that could carry a payload. A field
+    /// whose contents are sent with every analytics event should have a bound that is
+    /// stated rather than implied.
+    /// </remarks>
+    public const int DisplayNameLimit = 40;
+
     public int SchemaVersion { get; init; } = 1;
 
     public bool LaunchAtLogin { get; init; }
 
     public bool HasSeenWelcome { get; init; }
+
+    /// <summary>
+    /// The display name the person gave during onboarding.
+    /// </summary>
+    /// <remarks>
+    /// <b>User-provided, and the only name this app ever holds.</b> It is typed into the
+    /// welcome window; it is not read from the Windows account, the OS user name, or any
+    /// other part of the machine, and there is no code here that could. PRIVACY.md says so
+    /// in those terms, because the distinction between a name someone chose to give and a
+    /// name taken from their computer is the whole of the difference.
+    ///
+    /// <para>Empty until onboarding finishes, and onboarding does not finish without it.
+    /// Changeable afterwards on the Appearance page, because a name someone is asked for
+    /// once and can never correct is a name they will resent.</para>
+    /// </remarks>
+    public string DisplayName { get; init; } = string.Empty;
+
+    /// <summary>Whether the follow card has been shown at all.</summary>
+    public bool HasSeenFollowPrompt { get; init; }
+
+    /// <summary>Whether the person asked not to be shown it again.</summary>
+    /// <remarks>
+    /// Separate from <see cref="HasSeenFollowPrompt"/> on purpose, which is how macOS
+    /// models it too: "seen once" and "do not ask again" are different answers, and a
+    /// card that treats them the same either nags or never returns.
+    /// </remarks>
+    public bool IsFollowPromptSilenced { get; init; }
 
     public OverlaySettings Overlay { get; init; } = new();
 
@@ -329,6 +364,9 @@ public sealed record AppSettings
     public AppSettings Clamped() => this with
     {
         Overlay = Overlay.Clamped(),
+        DisplayName = DisplayName.Trim() is { Length: > 0 } trimmed
+            ? trimmed[..Math.Min(trimmed.Length, DisplayNameLimit)]
+            : string.Empty,
         Milestones = Milestones with
         {
             LaunchCount = Math.Max(0, Milestones.LaunchCount),
