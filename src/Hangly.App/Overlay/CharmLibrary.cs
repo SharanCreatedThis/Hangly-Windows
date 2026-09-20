@@ -74,6 +74,7 @@ public static class CharmLibrary
             CharmCatalog.MetricsFor(entry, regions),
             entry.Palette,
             CharmCatalog.BeadsFor(entry, regions),
-            regions?.Body ?? WholeArtwork);
+            regions?.Body ?? WholeArtwork,
+            regions?.Beads ?? []);
     }
 }

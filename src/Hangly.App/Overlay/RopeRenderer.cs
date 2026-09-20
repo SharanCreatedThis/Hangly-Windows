@@ -197,29 +197,75 @@ public sealed class RopeRenderer
         return builder;
     }
 
+    /// <summary>The beads on the cord, drawn from the artwork they were measured in.</summary>
+    /// <remarks>
+    /// Each bead is a region of its charm's own SVG. The splitter already measured those
+    /// rectangles — it is how the solver knows a bead's size, place and weight — and this
+    /// used to throw them away and fill an ellipse instead, which is why a Nazar's three
+    /// gold beads arrived as one flat oval: they touch, so they are one measured run, and
+    /// only the artwork knows there are three of them in it.
+    ///
+    /// <para>The ellipse survives as the fallback for a charm whose artwork could not be
+    /// split — an import with no measured beads, or an asset that does not match what the
+    /// catalogue claims. Those have no bead artwork to draw, and a drawn bead is better
+    /// than a gap in the cord.</para>
+    /// </remarks>
     private void DrawBeads(CanvasDrawingSession session, RopeSnapshot snapshot, RopeAppearance appearance)
     {
+        // Beads arrive grouped by the charm that threads them, in the order that charm's
+        // regions were measured, so the run of each owner counts its own way through.
+        int ordinal = 0;
+        int owner = -1;
+
         foreach (BeadPlacement bead in snapshot.Beads)
         {
-            CharmPalette palette = appearance.BeadTint ?? appearance.Palette;
-            var center = ToVector(bead.Position);
+            if (bead.Owner != owner)
+            {
+                owner = bead.Owner;
+                ordinal = 0;
+            }
 
-            session.FillEllipse(
-                center,
-                (float)(bead.Size.Width / 2),
-                (float)(bead.Size.Height / 2),
-                ToColor(palette.Primary, 1));
+            CharmDescriptor? charm = bead.Owner >= 0 && bead.Owner < Charms.Count
+                ? Charms[bead.Owner]
+                : null;
 
-            // One highlight up and left of centre, which is where the light is in every
-            // piece of this artwork.
-            session.FillEllipse(
-                new System.Numerics.Vector2(
-                    center.X - (float)(bead.Size.Width * 0.16),
-                    center.Y - (float)(bead.Size.Height * 0.18)),
-                (float)(bead.Size.Width * 0.18),
-                (float)(bead.Size.Height * 0.16),
-                ToColor(palette.Light, 0.75));
+            if (charm is not null && ordinal < charm.BeadRegions.Count)
+            {
+                artwork.DrawBead(session, charm, bead, charm.BeadRegions[ordinal]);
+            }
+            else
+            {
+                DrawPlainBead(session, appearance, bead);
+            }
+
+            ordinal++;
         }
+    }
+
+    /// <summary>A bead for a charm whose artwork could not be measured.</summary>
+    private static void DrawPlainBead(
+        CanvasDrawingSession session,
+        RopeAppearance appearance,
+        BeadPlacement bead)
+    {
+        CharmPalette palette = appearance.BeadTint ?? appearance.Palette;
+        var center = ToVector(bead.Position);
+
+        session.FillEllipse(
+            center,
+            (float)(bead.Size.Width / 2),
+            (float)(bead.Size.Height / 2),
+            ToColor(palette.Primary, 1));
+
+        // One highlight up and left of centre, which is where the light is in every
+        // piece of this artwork.
+        session.FillEllipse(
+            new System.Numerics.Vector2(
+                center.X - (float)(bead.Size.Width * 0.16),
+                center.Y - (float)(bead.Size.Height * 0.18)),
+            (float)(bead.Size.Width * 0.18),
+            (float)(bead.Size.Height * 0.16),
+            ToColor(palette.Light, 0.75));
     }
 
     private void DrawCharms(CanvasDrawingSession session, RopeSnapshot snapshot)
@@ -229,16 +275,16 @@ public sealed class RopeRenderer
             CharmPlacement placement = snapshot.Charms[index];
             CharmDescriptor? descriptor = index < Charms.Count ? Charms[index] : null;
 
-            // The ambient halo, which is what CharmHaloExtent sizes the canvas for.
-            if (descriptor is not null)
-            {
-                session.FillEllipse(
-                    ToVector(placement.Center),
-                    (float)(placement.Radius * RopeConfiguration.Layout.CharmHaloExtent),
-                    (float)(placement.Radius * RopeConfiguration.Layout.CharmHaloExtent),
-                    ToColor(descriptor.Palette.Light, 0.06));
-            }
-
+            // There used to be an ambient halo here: a filled disc of 1.7 radii at 6%
+            // alpha in the charm's own light colour. It is gone, and nothing replaces it
+            // in that role, because the original has no such thing. What it actually did
+            // was put a hard-edged circle behind every charm — visible in every screenshot
+            // of this build and in none of macOS. The depth it was reaching for is the
+            // drop shadow, which CharmArtworkCache now casts from the artwork's alpha.
+            //
+            // CharmHaloExtent still sizes the canvas. That is a separate job: it is the
+            // headroom the layout reserves below the lowest charm, and the shadow and the
+            // swing both need it.
             artwork.Draw(session, descriptor, placement);
         }
     }
