@@ -37,12 +37,12 @@ public static class CharmLibrary
     public static IReadOnlyList<CharmDescriptor> Resolve(
         CharmArtworkCache artwork,
         CharmIndex index,
-        IReadOnlyList<string> ids)
+        IReadOnlyList<RopeCharm> places)
     {
-        var charms = new List<CharmDescriptor>(ids.Count);
-        foreach (string id in ids)
+        var charms = new List<CharmDescriptor>(places.Count);
+        foreach (RopeCharm place in places)
         {
-            charms.Add(Describe(artwork, index.Find(id)));
+            charms.Add(Describe(artwork, index.Find(place.Id), place.Size));
         }
 
         // Settings clamping guarantees at least one, but this is the last place before
@@ -50,13 +50,13 @@ public static class CharmLibrary
         // should have to reason about.
         if (charms.Count == 0)
         {
-            charms.Add(Describe(artwork, index.Find(CharmCatalog.DefaultId)));
+            charms.Add(Describe(artwork, index.Find(CharmCatalog.DefaultId), 1));
         }
 
         return charms;
     }
 
-    private static CharmDescriptor Describe(CharmArtworkCache artwork, CharmCatalogEntry entry)
+    private static CharmDescriptor Describe(CharmArtworkCache artwork, CharmCatalogEntry entry, double size)
     {
         CharmArtworkRegions? regions = artwork.Measure(entry);
         if (regions is null)
@@ -71,7 +71,10 @@ public static class CharmLibrary
             entry.Id,
             entry.DisplayName,
             entry.FileName,
-            CharmCatalog.MetricsFor(entry, regions),
+            // The place's own trim, applied here so nothing downstream has to carry it:
+            // the solver is handed metrics that already describe the charm at the size it
+            // will be drawn, which is what keeps its swing and its picture in agreement.
+            CharmCatalog.MetricsFor(entry, regions).Scaled(size),
             entry.Palette,
             CharmCatalog.BeadsFor(entry, regions),
             regions?.Body ?? WholeArtwork,

@@ -159,3 +159,27 @@ public sealed class CollectionCard
 
     public Visibility ThirdVisibility => Third is null ? Visibility.Collapsed : Visibility.Visible;
 }
+
+/// <summary>One place on the rope, as the reorder strip shows it.</summary>
+/// <remarks>
+/// The macOS counterpart is <c>RopeSlotTile</c>, and its strip reorders by dragging —
+/// <c>RopeSlotDropDelegate</c> is the other half. A WinUI <c>ListView</c> with
+/// <c>CanReorderItems</c> does the same job without the drop logic being written here,
+/// which is why the places are a list rather than the row of buttons they used to be.
+/// </remarks>
+public sealed class SlotTile
+{
+    public SlotTile(int index, string name, Microsoft.UI.Xaml.Media.ImageSource? image)
+    {
+        Index = index;
+        Name = name;
+        Image = image;
+    }
+
+    /// <summary>Where this place sat when the strip was built, from the anchor down.</summary>
+    public int Index { get; }
+
+    public string Name { get; }
+
+    public Microsoft.UI.Xaml.Media.ImageSource? Image { get; }
+}

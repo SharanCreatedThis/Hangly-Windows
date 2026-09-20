@@ -301,7 +301,91 @@
                             <x:String>2</x:String>
                             <x:String>3</x:String>
                         </muxc:RadioButtons>
-                        <StackPanel x:Name="SlotButtons" Orientation="Horizontal" Spacing="8" />
+                        <!--
+                            The places on the rope. A ListView rather than a row of
+                            buttons because reordering is a drag on macOS, and a ListView
+                            is the one WinUI control that does drag-reorder without the
+                            drop logic being written here.
+                        -->
+                        <muxc:ListView
+                            x:Name="SlotList"
+                            AllowDrop="True"
+                            AutomationProperties.Name="Charms on the cord, drag to reorder"
+                            CanDragItems="True"
+                            CanReorderItems="True"
+                            IsItemClickEnabled="True"
+                            ItemClick="OnSlotItemClicked"
+                            ReorderMode="Enabled"
+                            SelectionMode="Single">
+                            <muxc:ListView.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <muxc:ItemsStackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </muxc:ListView.ItemsPanel>
+                            <muxc:ListView.ItemTemplate>
+                                <DataTemplate x:DataType="local:SlotTile">
+                                    <StackPanel Width="96" Padding="4" Spacing="2">
+                                        <Image
+                                            Width="52"
+                                            Height="52"
+                                            HorizontalAlignment="Center"
+                                            Source="{x:Bind Image, Mode=OneWay}"
+                                            Stretch="Uniform" />
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            MaxLines="1"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Text="{x:Bind Name, Mode=OneWay}"
+                                            TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </muxc:ListView.ItemTemplate>
+                        </muxc:ListView>
+
+                        <!--
+                            Explicit move controls beside the drag.
+
+                            macOS reorders by dragging and so does this, but a drag is the
+                            only way it offers, and a drag cannot be done from the keyboard
+                            or verified by a test. These buttons do the same thing through
+                            the same path, which is what makes reordering something this
+                            build can promise rather than hope for.
+                        -->
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button
+                                x:Name="MoveUpButton"
+                                AutomationProperties.AutomationId="MoveUpButton"
+                                AutomationProperties.Name="Move this charm up the cord"
+                                Click="OnMoveSlotUp"
+                                Content="Move up" />
+                            <Button
+                                x:Name="MoveDownButton"
+                                AutomationProperties.AutomationId="MoveDownButton"
+                                AutomationProperties.Name="Move this charm down the cord"
+                                Click="OnMoveSlotDown"
+                                Content="Move down" />
+                        </StackPanel>
+
+                        <!-- The chosen place's own size: a trim against the master
+                             slider, not a second copy of it. -->
+                        <StackPanel x:Name="SlotSizePanel" Spacing="2">
+                            <TextBlock
+                                x:Name="SlotSizeLabel"
+                                AutomationProperties.AutomationId="SlotSizeLabel"
+                                Style="{StaticResource CaptionTextBlockStyle}" />
+                            <Slider
+                                x:Name="SlotSizeSlider"
+                                Width="300"
+                                HorizontalAlignment="Left"
+                                AutomationProperties.AutomationId="SlotSizeSlider"
+                                AutomationProperties.Name="Size of the chosen charm"
+                                LargeChange="0.1"
+                                Maximum="1.6"
+                                Minimum="0.6"
+                                SmallChange="0.05"
+                                StepFrequency="0.05"
+                                ValueChanged="OnSlotSizeChanged" />
+                        </StackPanel>
                     </StackPanel>
 
                     <!-- Search and the chips. A category is a filter, and a filter is one

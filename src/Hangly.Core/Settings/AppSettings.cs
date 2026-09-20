@@ -51,6 +51,44 @@ public sealed record OverlaySettings
     /// </remarks>
     public IReadOnlyList<string> CharmIds { get; init; } = [CharmCatalog.DefaultId];
 
+    /// <summary>Every place on the rope, in use or not, from the anchor down.</summary>
+    /// <remarks>
+    /// <b>Why the places are stored and not just the charms.</b> macOS keeps three places
+    /// always, with the ones in use at the end, so that turning the count down and back up
+    /// returns the same rope rather than copies of whatever survived. It also carries each
+    /// place's own size, which is a trim relative to <see cref="CharmSize"/> and belongs to
+    /// the place rather than to the charm in it — see <see cref="RopeCharm"/>.
+    ///
+    /// <para>Empty in a document written before places existed, which is every document
+    /// this build has written until now. <see cref="Stack"/> falls back to
+    /// <see cref="CharmIds"/> in that case, so an older settings file opens with the same
+    /// rope it had and gains the two hidden places on the next write.</para>
+    /// </remarks>
+    public IReadOnlyList<RopeCharm> Slots { get; init; } = [];
+
+    /// <summary>How many places hang. Zero means "as many as <see cref="CharmIds"/> names".</summary>
+    public int CharmCount { get; init; }
+
+    /// <summary>The rope as the solver and the Library both see it.</summary>
+    public CharmStackState Stack =>
+        Slots.Count > 0
+            ? CharmStackState.Restore(Slots, CharmCount > 0 ? CharmCount : Slots.Count)
+            : CharmStackState.Of(CharmIds);
+
+    /// <summary>This overlay carrying a different rope, with both shapes kept in step.</summary>
+    /// <remarks>
+    /// <see cref="CharmIds"/> is still written, and deliberately: it is what every other
+    /// part of this build reads, it is what an older build would read if someone moved a
+    /// settings file backwards, and it is the one thing in the document a person editing
+    /// it by hand is likely to understand.
+    /// </remarks>
+    public OverlaySettings WithStack(CharmStackState stack) => this with
+    {
+        Slots = stack.StoredSlots,
+        CharmCount = stack.Count,
+        CharmIds = stack.Ids,
+    };
+
     /// <summary>Compares by value, including the charms.</summary>
     /// <remarks>
     /// Hand-written because the generated one is wrong here. A record compares each
@@ -70,7 +108,9 @@ public sealed record OverlaySettings
         && OffsetY.Equals(other.OffsetY)
         && RopeStyle == other.RopeStyle
         && DisplayIndex == other.DisplayIndex
-        && CharmIds.SequenceEqual(other.CharmIds, StringComparer.Ordinal);
+        && CharmCount == other.CharmCount
+        && CharmIds.SequenceEqual(other.CharmIds, StringComparer.Ordinal)
+        && Slots.SequenceEqual(other.Slots);
 
     public override int GetHashCode()
     {
@@ -87,6 +127,12 @@ public sealed record OverlaySettings
         foreach (string id in CharmIds)
         {
             hash.Add(id, StringComparer.Ordinal);
+        }
+
+        hash.Add(CharmCount);
+        foreach (RopeCharm place in Slots)
+        {
+            hash.Add(place);
         }
 
         return hash.ToHashCode();
@@ -106,6 +152,8 @@ public sealed record OverlaySettings
         OffsetY = Math.Clamp(OffsetY, -2000, 2000),
         DisplayIndex = Math.Max(0, DisplayIndex),
         CharmIds = ClampedCharmIds(),
+        Slots = [.. Slots.Take(CharmStack.MaximumCount).Select(place => place.Clamped())],
+        CharmCount = Slots.Count > 0 ? Math.Clamp(CharmCount, 1, CharmStack.MaximumCount) : 0,
     };
 
     private IReadOnlyList<string> ClampedCharmIds()

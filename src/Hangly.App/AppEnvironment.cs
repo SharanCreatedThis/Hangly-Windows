@@ -49,6 +49,9 @@ public sealed class AppEnvironment : IDisposable
     private CharmArtworkCache? artwork;
     private IReadOnlyList<string> hanging = [];
 
+    /// <summary>The same rope, with each place's own size, which is what rebuilds it.</summary>
+    private IReadOnlyList<RopeCharm> hangingPlaces = [];
+
     /// <summary>The catalogue plus whatever has been imported. Rebuilt when that changes.</summary>
     private CharmIndex index = new();
     private CustomCharmStore? customCharms;
@@ -72,7 +75,7 @@ public sealed class AppEnvironment : IDisposable
         // every launch about thirty milliseconds, and most launches have nothing in it —
         // a new install certainly does not. It is loaded the moment anything actually
         // needs it: a custom charm on the rope, or the Library being opened.
-        if (this.store.Settings.Overlay.CharmIds.Any(Hangly.Core.Models.CharmId.IsCustom))
+        if (this.store.Settings.Overlay.Stack.Ids.Any(Hangly.Core.Models.CharmId.IsCustom))
         {
             RebuildIndex();
         }
@@ -259,11 +262,11 @@ public sealed class AppEnvironment : IDisposable
 
         store.Update(settings => settings with
         {
-            Overlay = settings.Overlay with
-            {
-                CharmIds = [.. settings.Overlay.CharmIds.Select(
-                    existing => existing == charmId ? Hangly.Core.Models.CharmCatalog.DefaultId : existing)],
-            },
+            // Every place, hanging or not. A place that is put away still names a
+            // charm, and a deleted import that survived there would come back the next
+            // time the count grew.
+            Overlay = settings.Overlay.WithStack(
+                settings.Overlay.Stack.Replacing(charmId, Hangly.Core.Models.CharmCatalog.DefaultId)),
             Library = settings.Library with
             {
                 FavouriteCharmIds = [.. settings.Library.FavouriteCharmIds.Where(existing => existing != charmId)],
@@ -309,13 +312,14 @@ public sealed class AppEnvironment : IDisposable
         artwork = new CharmArtworkCache(device, CharmArtworkCache.DefaultDirectory);
         var renderer = new RopeRenderer(artwork);
 
-        hanging = [.. store.Settings.Overlay.CharmIds];
+        hangingPlaces = [.. store.Settings.Overlay.Stack.Places];
+        hanging = [.. hangingPlaces.Select(place => place.Id)];
         overlay = new OverlayWindow(
             device,
             store.Settings.Overlay,
             rope,
             renderer,
-            CharmLibrary.Resolve(artwork, index, hanging));
+            CharmLibrary.Resolve(artwork, index, hangingPlaces));
         Diagnostics.Log("overlay window constructed");
 
         // Returns as soon as the frame loop is running. The window itself is created on
@@ -400,11 +404,23 @@ public sealed class AppEnvironment : IDisposable
 
         // Rebuilding the charms means measuring artwork, so it happens only when the
         // charms actually changed rather than on every slider move.
-        if (artwork is not null && !hanging.SequenceEqual(settings.Overlay.CharmIds, StringComparer.Ordinal))
+        // Rebuilt when the places change in any way that changes what is drawn: which
+        // charm is in a place, how many places hang, or how large a place is. A size is
+        // part of the metrics the solver is given, so it cannot be applied without
+        // rebuilding, and it is cheap to notice here rather than measuring artwork again
+        // on every slider move.
+        IReadOnlyList<RopeCharm> places = settings.Overlay.Stack.Places;
+        if (artwork is not null && !hangingPlaces.SequenceEqual(places))
         {
-            ReportCharmChange(hanging, settings.Overlay.CharmIds);
-            hanging = [.. settings.Overlay.CharmIds];
-            overlay?.SetCharms(CharmLibrary.Resolve(artwork, index, hanging));
+            IReadOnlyList<string> ids = [.. places.Select(place => place.Id)];
+            if (!hanging.SequenceEqual(ids, StringComparer.Ordinal))
+            {
+                ReportCharmChange(hanging, ids);
+            }
+
+            hangingPlaces = [.. places];
+            hanging = [.. ids];
+            overlay?.SetCharms(CharmLibrary.Resolve(artwork, index, hangingPlaces));
         }
 
         if (reported.RopeStyle != settings.Overlay.RopeStyle)

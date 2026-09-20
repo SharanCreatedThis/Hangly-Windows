@@ -25,6 +25,24 @@ public readonly record struct CharmMetrics(double Mass, double RadiusRatio, doub
     public static CharmMetrics Default { get; } = new(2.6, 0.126, 0.90);
 
     /// <summary>Linear blend, used to make a charm change resize smoothly instead of popping.</summary>
+    /// <summary>This charm at a different size.</summary>
+    /// <remarks>
+    /// Radius and mass both move, and they move together: a charm drawn twice the size
+    /// that swung with the same authority as before would read as a picture of a charm
+    /// rather than an object on a string.
+    ///
+    /// <para><b>Linear rather than cubed</b>, which is not what physics would say and is
+    /// deliberate — the rope is tuned for how heavy a charm <em>looks</em>, and a cubed
+    /// mass makes a large charm behave like a wrecking ball long before it looks like
+    /// one. Transcribed from the macOS <c>CharmMetrics.scaled(by:)</c>.</para>
+    ///
+    /// <para><see cref="KnotInset"/> is a proportion of the radius and so is already
+    /// correct at any size; scaling it too would move the cord off the artwork.</para>
+    /// </remarks>
+    public CharmMetrics Scaled(double size) => size.Equals(1)
+        ? this
+        : new CharmMetrics(Mass * size, RadiusRatio * size, KnotInset);
+
     public static CharmMetrics Interpolate(CharmMetrics start, CharmMetrics end, double progress)
     {
         double clamped = Math.Clamp(progress, 0, 1);

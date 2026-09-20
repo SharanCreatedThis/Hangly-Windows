@@ -45,7 +45,6 @@ public sealed partial class CustomizeWindow : Window
     private readonly AppEnvironment environment;
     private readonly List<CharmTile> tiles = [];
     private readonly Dictionary<string, CharmTile> tilesById = new(StringComparer.Ordinal);
-    private readonly List<Button> slots = [];
     private readonly List<ToggleButton> chips = [];
 
     private CharmFilter filter = CharmFilter.All;
@@ -60,6 +59,15 @@ public sealed partial class CustomizeWindow : Window
 
     /// <summary>The charm the detail panel is describing, if any.</summary>
     private CharmCatalogEntry? detailed;
+
+    /// <summary>The places on the rope, as the reorder strip holds them.</summary>
+    private readonly System.Collections.ObjectModel.ObservableCollection<SlotTile> slotTiles = [];
+
+    /// <summary>True while the strip is being rebuilt, so its own events are ignored.</summary>
+    private bool isRebuildingSlots;
+
+    /// <summary>True while the size slider is being set from the settings rather than by hand.</summary>
+    private bool isLoadingSlotSize;
 
     /// <summary>The last secret shown, so the next one is a different one.</summary>
     private string? lastSecret;
@@ -183,6 +191,7 @@ public sealed partial class CustomizeWindow : Window
     private void BuildCharmGrid()
     {
         RebuildTiles();
+        slotTiles.CollectionChanged += OnSlotsReordered;
         BuildCollections();
         BuildFilterChips();
         ShowResults();
@@ -485,40 +494,149 @@ public sealed partial class CustomizeWindow : Window
     /// <summary>One button per charm on the cord; clicking one says which a pick replaces.</summary>
     private void RebuildSlots()
     {
-        slots.Clear();
-        SlotButtons.Children.Clear();
+        CharmStackState stack = Overlay.Stack;
+        IReadOnlyList<RopeCharm> places = stack.Places;
+        selectedSlot = Math.Clamp(selectedSlot, 0, places.Count - 1);
 
-        IReadOnlyList<string> ids = Overlay.CharmIds;
-        selectedSlot = Math.Clamp(selectedSlot, 0, ids.Count - 1);
-
-        for (int index = 0; index < ids.Count; index++)
+        // Rebuilt wholesale rather than edited in place. The strip is at most three
+        // tiles, and the alternative is keeping a collection in step with a settings
+        // document that other surfaces also write to.
+        // An observable collection, not a list: a ListView will not reorder an items
+        // source it cannot write back to, which is why dragging did nothing at first.
+        isRebuildingSlots = true;
+        slotTiles.Clear();
+        for (int index = 0; index < places.Count; index++)
         {
-            var button = new Button
-            {
-                Content = $"{index + 1}. {environment.Charms.Find(ids[index]).DisplayName}",
-                Tag = index,
-            };
-            button.Click += OnSlotClicked;
-            slots.Add(button);
-            SlotButtons.Children.Add(button);
+            slotTiles.Add(new SlotTile(
+                index,
+                environment.Charms.Find(places[index].Id).DisplayName,
+                tilesById.GetValueOrDefault(places[index].Id)?.Image));
         }
 
-        HighlightSlot();
+        SlotList.ItemsSource ??= slotTiles;
+
+        SlotList.SelectedIndex = selectedSlot;
+        isRebuildingSlots = false;
+
+        MoveUpButton.IsEnabled = selectedSlot > 0;
+        MoveDownButton.IsEnabled = selectedSlot < places.Count - 1;
+
+        ShowSlotSize();
         ShowSelectedSlotInDetail();
-        CordSummary.Text = ids.Count == 1
+        CordSummary.Text = places.Count == 1
             ? "One charm hangs on the cord."
-            : $"{ids.Count} charms hang on the cord, from the top down.";
+            : $"{places.Count} charms hang on the cord, from the top down.";
     }
 
-    private void HighlightSlot()
+    private void OnMoveSlotUp(object sender, RoutedEventArgs args) => MoveSlot(-1);
+
+    private void OnMoveSlotDown(object sender, RoutedEventArgs args) => MoveSlot(1);
+
+    /// <summary>Moves the chosen place along the cord, and follows it with the selection.</summary>
+    private void MoveSlot(int delta)
     {
-        for (int index = 0; index < slots.Count; index++)
+        CharmStackState stack = Overlay.Stack;
+        int destination = selectedSlot + delta;
+        if (destination < 0 || destination >= stack.Count)
         {
-            slots[index].Style = index == selectedSlot
-                ? (Style)Application.Current.Resources["AccentButtonStyle"]
-                : (Style)Application.Current.Resources["DefaultButtonStyle"];
+            return;
+        }
+
+        int source = selectedSlot;
+        store.UpdateOverlay(overlay => overlay.WithStack(overlay.Stack.Moved(source, destination)));
+        analytics.Track(Events.CharmReordered(source, destination));
+
+        // The selection follows the charm rather than staying where the charm was: the
+        // person is moving a thing, not a slot, and having the panel jump to a different
+        // charm mid-move reads as the app losing track.
+        selectedSlot = destination;
+        RebuildSlots();
+    }
+
+    /// <summary>Puts the size slider on the chosen place.</summary>
+    private void ShowSlotSize()
+    {
+        CharmStackState stack = Overlay.Stack;
+        double size = stack.SizeAt(selectedSlot);
+
+        isLoadingSlotSize = true;
+        SlotSizeSlider.Value = size;
+        isLoadingSlotSize = false;
+
+        SlotSizeLabel.Text = $"Size of {environment.Charms.Find(stack.Ids[selectedSlot]).DisplayName} — {size:P0} of its own";
+    }
+
+    private void OnSlotSizeChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (isLoading || isLoadingSlotSize)
+        {
+            return;
+        }
+
+        int slot = selectedSlot;
+        double size = SlotSizeSlider.Value;
+        store.UpdateOverlay(overlay => overlay.WithStack(overlay.Stack.WithSize(slot, size)));
+        ShowSlotSize();
+    }
+
+    /// <summary>Clicking a tile chooses the place a pick replaces, as the buttons did.</summary>
+    private void OnSlotItemClicked(object sender, ItemClickEventArgs args)
+    {
+        if (args.ClickedItem is SlotTile tile)
+        {
+            selectedSlot = tile.Index;
+            SlotList.SelectedIndex = selectedSlot;
+            ShowSlotSize();
+            ShowSelectedSlotInDetail();
         }
     }
+
+    /// <summary>The strip's order changed: the strip's order is the rope's order.</summary>
+    /// <remarks>
+    /// Hooked to the collection rather than to <c>DragItemsCompleted</c>, and that is the
+    /// difference between reordering working one way and working every way. A ListView
+    /// reorders its own items source, so this fires whether the move came from a drag or
+    /// from the keyboard — and keyboard reordering is the accessible path, which a
+    /// drag-only handler would have left broken.
+    ///
+    /// <para>Each tile still carries the index it had when the strip was built, so the
+    /// collection's new order <em>is</em> the permutation to apply to the stack.</para>
+    /// </remarks>
+    private void OnSlotsReordered(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs args)
+    {
+        if (args.Action != System.Collections.Specialized.NotifyCollectionChangedAction.Move)
+        {
+            return;
+        }
+
+        if (isRebuildingSlots || isLoading)
+        {
+            return;
+        }
+
+        var order = slotTiles.Select(tile => tile.Index).ToList();
+        if (order.SequenceEqual(Enumerable.Range(0, order.Count)))
+        {
+            return;
+        }
+
+        store.UpdateOverlay(overlay =>
+        {
+            IReadOnlyList<RopeCharm> before = overlay.Stack.Places;
+            var reordered = order
+                .Where(index => index >= 0 && index < before.Count)
+                .Select(index => before[index])
+                .ToList();
+
+            return reordered.Count == before.Count
+                ? overlay.WithStack(CharmStackState.FromPlaces(reordered))
+                : overlay;
+        });
+
+        analytics.Track(Events.CharmReordered(args.OldStartingIndex, args.NewStartingIndex));
+        RebuildSlots();
+    }
+
 
     private void MarkChosen()
     {
@@ -549,8 +667,7 @@ public sealed partial class CustomizeWindow : Window
         if (sender is Button { Tag: int index })
         {
             selectedSlot = index;
-            HighlightSlot();
-            ShowSelectedSlotInDetail();
+                ShowSelectedSlotInDetail();
         }
     }
 
@@ -721,17 +838,15 @@ public sealed partial class CustomizeWindow : Window
 
         store.Update(settings =>
         {
-            var ids = settings.Overlay.CharmIds.ToList();
-            if (selectedSlot >= 0 && selectedSlot < ids.Count)
-            {
-                ids[selectedSlot] = tile.Id;
-            }
-
+            // Writing a charm into a place leaves that place's size alone: the size
+            // describes the composition, and changing your mind about which charm is in
+            // the middle is not a decision to make the middle large again.
             // The rope and the recents change together, in one write, so the file is
             // written once for one act rather than twice.
             return settings with
             {
-                Overlay = settings.Overlay with { CharmIds = ids },
+                Overlay = settings.Overlay.WithStack(
+                    settings.Overlay.Stack.WithCharm(selectedSlot, tile.Id)),
                 Library = settings.Library.WithRecent(tile.Id),
                 Milestones = settings.Milestones with
                 {
@@ -786,26 +901,12 @@ public sealed partial class CustomizeWindow : Window
             return;
         }
 
+        // Nothing is discarded. The stack keeps three places whether or not they all
+        // hang, so turning the count down hides places from the top and turning it back
+        // up brings back exactly what was hidden — which is what macOS does, and what
+        // this used to get wrong by duplicating the bottom charm on the way up.
         int wanted = CountChoice.SelectedIndex + 1;
-        store.UpdateOverlay(overlay =>
-        {
-            var ids = overlay.CharmIds.ToList();
-
-            // Growing repeats the last charm rather than picking one: the user is asking
-            // for another charm, not for a particular one, and a repeat is obvious on
-            // screen and one click from being what they wanted.
-            while (ids.Count < wanted)
-            {
-                ids.Add(ids[^1]);
-            }
-
-            while (ids.Count > wanted)
-            {
-                ids.RemoveAt(ids.Count - 1);
-            }
-
-            return overlay with { CharmIds = ids };
-        });
+        store.UpdateOverlay(overlay => overlay.WithStack(overlay.Stack.WithCount(wanted)));
     }
 
     private void OnRopeChanged(object sender, SelectionChangedEventArgs args)

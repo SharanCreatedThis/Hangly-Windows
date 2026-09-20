@@ -163,17 +163,41 @@ function ClickElement($e) {
 
 # --- the Library --------------------------------------------------------------------
 function CharmTiles {
-    # The navigation items are ListItems too; the charms are the rest.
+    # Three kinds of ListItem live in this window: the navigation items, the places on
+    # the cord, and the charms in the grid. Only the last are being counted, so the other
+    # two are excluded by name and by identity — the strip's tiles carry charm names too,
+    # so they cannot be told apart by name alone.
     $win = [System.Windows.Automation.AutomationElement]::FromHandle($window)
     $cond = New-Object System.Windows.Automation.PropertyCondition(
         [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
         [System.Windows.Automation.ControlType]::ListItem)
+
+    $strip = $win.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
+        (New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::NameProperty,
+            'Charms on the cord, drag to reorder')))
+    $onTheCord = @()
+    if ($strip) {
+        $onTheCord = @($strip.FindAll([System.Windows.Automation.TreeScope]::Children,
+            [System.Windows.Automation.Condition]::TrueCondition) |
+            ForEach-Object { , $_.GetRuntimeId() })
+    }
+
     @($win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond) |
-        Where-Object { $_.Current.Name -notin 'Library', 'Appearance', 'About' }).Count
+        Where-Object { $_.Current.Name -notin 'Library', 'Appearance', 'About' } |
+        Where-Object {
+            $id = $_.GetRuntimeId()
+            -not ($onTheCord | Where-Object { @(Compare-Object $_ $id -SyncWindow 0).Count -eq 0 })
+        }).Count
 }
 
 Check 'the Library page is the one that opens' ([bool](FindIn ([System.Windows.Automation.ControlType]::ListItem) '^Library$'))
 Check 'every charm is shown, the import included' ((CharmTiles) -eq 71)
+# Reordering and per-place size: the strip, its move controls and its slider.
+Check 'the cord strip is offered'        ([bool](FindIn ([System.Windows.Automation.ControlType]::List) 'Charms on the cord'))
+Check 'the size slider is offered'       ([bool](ById 'SlotSizeSlider'))
+Check 'moving up is refused at the top'  (-not (ById 'MoveUpButton').Current.IsEnabled)
+
 # The detail panel opens describing whatever is already on the cord.
 # Matched on the stem, not the whole name: 'Nazar boncuğu' carries a Turkish g-breve
 # and this file is read back by a shell that does not reliably keep it.
