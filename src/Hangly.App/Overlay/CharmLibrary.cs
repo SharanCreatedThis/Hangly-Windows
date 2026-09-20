@@ -76,7 +76,13 @@ public static class CharmLibrary
             // will be drawn, which is what keeps its swing and its picture in agreement.
             CharmCatalog.MetricsFor(entry, regions).Scaled(size),
             entry.Palette,
-            CharmCatalog.BeadsFor(entry, regions),
+            // A charm whose artwork draws no beads gets the standard three. That is
+            // every created charm: a photograph has no cord above the subject, and a
+            // charm hanging on a bare string beside seventy that hang on threaded ones
+            // looks like a mistake rather than a choice.
+            CharmCatalog.BeadsFor(entry, regions) is { Count: > 0 } measured
+                ? measured
+                : CharmCatalog.DefaultBeads,
             regions?.Body ?? WholeArtwork,
             regions?.Beads ?? []);
     }

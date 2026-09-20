@@ -27,7 +27,18 @@ public sealed class CharmIndex
     public const string CustomCategoryId = "yours";
 
     /// <summary>How the Library names that category.</summary>
-    public static CharmCategory CustomCategory { get; } = new(CustomCategoryId, "Yours");
+    public static CharmCategory CustomCategory { get; } = new(CustomCategoryId, "Custom");
+
+    /// <summary>The Custom collection, for the Library's hero cards.</summary>
+    /// <remarks>
+    /// Only offered when there is something in it. A card promising a collection that
+    /// turns out to be empty is worse than no card, and until someone has made a charm
+    /// there is nothing to show.
+    /// </remarks>
+    public static CharmCollection CustomCollection { get; } = new(
+        CustomCategoryId,
+        "Custom",
+        "Charms you made yourself.");
 
     private Dictionary<string, CharmCatalogEntry>? byId;
 

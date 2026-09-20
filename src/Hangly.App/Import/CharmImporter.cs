@@ -90,6 +90,19 @@ public static class CharmImporter
             return ImportOutcome.Refused("That file couldn't be read.");
         }
 
+        return ImportMarkup(markup, NameFor(path), store);
+    }
+
+    /// <summary>
+    /// Everything an import does once the bytes are in hand: clean, measure, keep.
+    /// </summary>
+    /// <remarks>
+    /// Split out so a created charm and a dropped file travel the same road. The Create
+    /// tab turns a photograph into SVG and hands it here, which is what keeps there from
+    /// being a second importer with its own idea of what a charm weighs.
+    /// </remarks>
+    public static ImportOutcome ImportMarkup(string markup, string name, CustomCharmStore store)
+    {
         SvgSanitizeResult cleaned = SvgSanitizer.Sanitize(markup);
         if (!cleaned.IsAccepted)
         {
@@ -110,7 +123,7 @@ public static class CharmImporter
         CustomCharmEntry entry;
         try
         {
-            entry = store.Add(cleaned.Markup!, NameFor(path), shape.Metrics, shape.Palette);
+            entry = store.Add(cleaned.Markup!, name, shape.Metrics, shape.Palette);
         }
         catch (Exception exception)
         {
@@ -123,6 +136,58 @@ public static class CharmImporter
             : string.Empty;
 
         return new ImportOutcome(true, $"“{entry.Name}” is in your Library.{note}", entry);
+    }
+
+    /// <summary>Imports anything the Create tab accepts: a drawing or a photograph.</summary>
+    /// <remarks>
+    /// A raster is wrapped in an SVG carrying it as a data URI and then goes through the
+    /// same path a drawing does, so nothing downstream — the store, the splitter, the
+    /// renderer, persistence, favourites, reordering — learns that photographs exist.
+    /// </remarks>
+    public static ImportOutcome ImportAny(string path, string name, CustomCharmStore store)
+    {
+        if (!File.Exists(path))
+        {
+            return ImportOutcome.Refused("That file isn't there any more.");
+        }
+
+        var file = new FileInfo(path);
+        if (file.Length == 0)
+        {
+            return ImportOutcome.Refused("That file is empty.");
+        }
+
+        string extension = Path.GetExtension(path).ToLowerInvariant();
+        if (extension == ".svg")
+        {
+            if (file.Length > SvgSanitizer.MaximumBytes)
+            {
+                return ImportOutcome.Refused(
+                    $"That drawing is {file.Length / (1024 * 1024)} MB. Hangly accepts SVG files up to "
+                    + $"{SvgSanitizer.MaximumBytes / (1024 * 1024)} MB.");
+            }
+
+            try
+            {
+                return ImportMarkup(File.ReadAllText(path), name, store);
+            }
+            catch (Exception exception)
+            {
+                Services.Diagnostics.Failure("reading an import", exception);
+                return ImportOutcome.Refused("That file couldn't be read.");
+            }
+        }
+
+        if (!RasterCharmSource.Handles(path))
+        {
+            return ImportOutcome.Refused(
+                $"Hangly can use PNG, JPG and SVG. “{Path.GetFileName(path)}” isn't one of those.");
+        }
+
+        RasterCharmSource.RasterResult raster = RasterCharmSource.ToSvg(path);
+        return raster.Markup is null
+            ? ImportOutcome.Refused(raster.Refusal ?? "That image couldn't be used.")
+            : ImportMarkup(raster.Markup, name, store);
     }
 
     private static string Explain(SvgRejection rejection) => rejection switch

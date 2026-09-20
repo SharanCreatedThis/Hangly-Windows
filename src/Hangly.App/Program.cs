@@ -61,6 +61,13 @@ internal static class Program
         // code. The dashboard is not the only place a privacy claim should be checkable,
         // and this is what makes "exactly this leaves the machine" a fact rather than a
         // promise.
+        int create = Array.IndexOf(args, "--check-create");
+        if (create >= 0 && create + 1 < args.Length)
+        {
+            Diagnostics.CheckCreate(args[create + 1]);
+            return;
+        }
+
         if (args.Contains("--check-analytics", StringComparer.Ordinal))
         {
             Diagnostics.CheckAnalytics();

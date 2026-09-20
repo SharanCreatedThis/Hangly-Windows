@@ -237,7 +237,15 @@ public sealed partial class CustomizeWindow : Window
     private void BuildCollections()
     {
         var cards = new List<CollectionCard>();
-        foreach (CharmCollection collection in CharmCatalog.Collections)
+
+        // Custom comes first when it exists: it is the one collection that is yours, and
+        // it is the one you will be looking for.
+        IReadOnlyList<CharmCollection> collections = environment.Charms.All
+            .Any(entry => entry.CategoryId == CharmIndex.CustomCategoryId)
+            ? [CharmIndex.CustomCollection, .. CharmCatalog.Collections]
+            : CharmCatalog.Collections;
+
+        foreach (CharmCollection collection in collections)
         {
             CharmTile[] members =
             [
@@ -681,6 +689,7 @@ public sealed partial class CustomizeWindow : Window
     {
         string page = (args.SelectedItem as NavigationViewItem)?.Tag as string ?? "charms";
         CharmsPage.Visibility = page == "charms" ? Visibility.Visible : Visibility.Collapsed;
+        CreatePage.Visibility = page == "create" ? Visibility.Visible : Visibility.Collapsed;
         AppearancePage.Visibility = page == "appearance" ? Visibility.Visible : Visibility.Collapsed;
         AboutPage.Visibility = page == "about" ? Visibility.Visible : Visibility.Collapsed;
 
@@ -688,6 +697,136 @@ public sealed partial class CustomizeWindow : Window
         {
             LoadAnalytics();
         }
+    }
+
+    // --- Create -------------------------------------------------------------------
+
+    /// <summary>The picture chosen on the Create page, before it becomes a charm.</summary>
+    private string? creating;
+
+    private void OnCreateChoose(object sender, RoutedEventArgs args)
+    {
+        analytics.Track(Events.AirdropPickerOpened);
+
+        string? path = Interop.FileDialog.OpenFile(
+            WinRT.Interop.WindowNative.GetWindowHandle(this),
+            "Choose a picture",
+            ("Pictures", "*.png;*.jpg;*.jpeg;*.svg"));
+
+        if (path is null)
+        {
+            return;
+        }
+
+        ShowCreatePreview(path);
+    }
+
+    /// <summary>
+    /// Shows the chosen picture, and offers a name taken from its file.
+    /// </summary>
+    /// <remarks>
+    /// The preview is the file itself rather than the charm it will become. Rendering the
+    /// finished charm would mean running the whole importer before anyone had said they
+    /// wanted it, and the thing someone needs to see here is whether they picked the right
+    /// picture.
+    /// </remarks>
+    private void ShowCreatePreview(string path)
+    {
+        creating = path;
+        CreateMessage.Text = string.Empty;
+
+        try
+        {
+            var image = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(path));
+            CreatePreview.Source = image;
+            CreatePreviewFrame.Visibility = Visibility.Visible;
+        }
+        catch (Exception exception)
+        {
+            // A picture that will not preview may still import — an SVG does not preview
+            // here at all — so this is a missing preview rather than a refusal.
+            Services.Diagnostics.Log($"create preview failed: {exception.GetType().Name}");
+            CreatePreviewFrame.Visibility = Visibility.Collapsed;
+        }
+
+        CreateNameBox.Text = Hangly.App.Import.CharmImporter.NameFor(path);
+        CreateDetails.Visibility = Visibility.Visible;
+        UpdateCreateButtons();
+    }
+
+    private void OnCreateNameChanged(object sender, TextChangedEventArgs args) => UpdateCreateButtons();
+
+    private void UpdateCreateButtons()
+    {
+        bool ready = creating is not null && CreateNameBox.Text.Trim().Length > 0;
+        CreateAndHangButton.IsEnabled = ready;
+        CreateAndSaveButton.IsEnabled = ready;
+    }
+
+    private void OnCreateAndSave(object sender, RoutedEventArgs args) => Create(hang: false);
+
+    private void OnCreateAndHang(object sender, RoutedEventArgs args) => Create(hang: true);
+
+    /// <summary>Makes the charm, and optionally puts it straight on the rope.</summary>
+    /// <remarks>
+    /// Both buttons run the same import. Hanging is one extra write afterwards, into the
+    /// place currently chosen on the Library page — the same place a pick from the grid
+    /// would have replaced — so a created charm arrives with that place's size and the
+    /// rope's order untouched.
+    /// </remarks>
+    private void Create(bool hang)
+    {
+        if (creating is not string path)
+        {
+            return;
+        }
+
+        string name = CreateNameBox.Text.Trim();
+        if (name.Length == 0)
+        {
+            return;
+        }
+
+        Hangly.App.Import.ImportOutcome outcome;
+        try
+        {
+            outcome = Hangly.App.Import.CharmImporter.ImportAny(path, name, environment.CustomCharmsStore);
+        }
+        catch (Exception exception)
+        {
+            Services.Diagnostics.Failure("create", exception);
+            CreateMessage.Text = "That picture couldn't be made into a charm.";
+            return;
+        }
+
+        CreateMessage.Text = outcome.Message;
+        if (!outcome.IsAccepted || outcome.Entry is null)
+        {
+            return;
+        }
+
+        environment.CharmsChanged();
+        analytics.Track(Events.CharmImported);
+        analytics.Track(Events.CharmSaved);
+
+        string id = Hangly.Core.Models.CharmId.ForCustom(outcome.Entry.Id);
+        store.Update(settings => settings with
+        {
+            Overlay = hang
+                ? settings.Overlay.WithStack(settings.Overlay.Stack.WithCharm(selectedSlot, id))
+                : settings.Overlay,
+            Library = settings.Library.WithRecent(id),
+        });
+
+        // The grid, the chips and the collection cards all have a new charm in them.
+        RebuildTiles();
+        BuildCollections();
+        BuildFilterChips();
+        ShowResults();
+
+        creating = null;
+        CreatePreviewFrame.Visibility = Visibility.Collapsed;
+        CreateDetails.Visibility = Visibility.Collapsed;
     }
 
     /// <summary>The parts of About that never change while the window is open.</summary>

@@ -244,8 +244,16 @@ public sealed class AppEnvironment : IDisposable
     /// Rebuilds the index from what is on disk, dropping imports whose drawing has gone.
     /// </summary>
     /// <summary>The imports, opening the folder the first time anything asks.</summary>
-    private CustomCharmStore CustomCharmsStore =>
+    /// <summary>The imported charms, shared by every surface that can add or remove one.</summary>
+    public CustomCharmStore CustomCharmsStore =>
         customCharms ??= new CustomCharmStore(CustomCharmStore.DefaultDirectory);
+
+    /// <summary>Re-reads the imports after something added one.</summary>
+    /// <remarks>
+    /// The Create page imports directly rather than through <see cref="ImportCharm"/>,
+    /// because it supplies its own name; this is the part of that method it still needs.
+    /// </remarks>
+    public void CharmsChanged() => RebuildIndex();
 
     private void RebuildIndex()
     {

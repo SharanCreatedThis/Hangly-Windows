@@ -16,7 +16,7 @@ a project convinces itself it is nearly finished.
 | Job | Result |
 |---|---|
 | Solver and models (tests) | ✅ 751 / 751 passing on Windows |
-| Customize window (UI smoke) | ✅ 87 / 87 checks, driven through UI Automation in the VM |
+| Customize window (UI smoke) | ✅ 91 / 91 checks, driven through UI Automation in the VM |
 | App — `win-x64` Release | ✅ builds and publishes |
 | App — `win-arm64` Release | ✅ builds and publishes |
 

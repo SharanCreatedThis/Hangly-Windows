@@ -203,6 +203,49 @@ public static class Diagnostics
         }
     }
 
+    /// <summary>Runs a picture through the Create path and says what happened.</summary>
+    /// <remarks>
+    /// The counterpart of <see cref="CheckImport"/> for the Create tab: a raster goes
+    /// through the wrapper and then the ordinary importer, into a scratch store, so the
+    /// validation cases can be exercised on real files without a window and without
+    /// touching anyone's charms.
+    /// </remarks>
+    public static void CheckCreate(string path)
+    {
+        try
+        {
+            string scratch = Path.Combine(
+                Path.GetTempPath(),
+                "hangly-create-check-" + Guid.NewGuid().ToString("N"));
+
+            var store = new Core.Import.CustomCharmStore(scratch);
+            Import.ImportOutcome outcome = Import.CharmImporter.ImportAny(
+                path,
+                Import.CharmImporter.NameFor(path),
+                store);
+
+            Log($"create check '{Path.GetFileName(path)}': "
+                + $"{(outcome.IsAccepted ? "ACCEPTED" : "REFUSED")} — {outcome.Message}");
+
+            if (outcome.IsAccepted && outcome.Entry is not null && store.PathFor(outcome.Entry) is string saved)
+            {
+                string markup = File.ReadAllText(saved);
+                Log($"  stored {new FileInfo(saved).Length / 1024} KB, "
+                    + $"raster kept: {markup.Contains("data:image/png;base64", StringComparison.Ordinal)}, "
+                    + $"mass {outcome.Entry.Metrics.Mass:0.00}, knot {outcome.Entry.Metrics.KnotInset:0.00}");
+            }
+
+            if (System.IO.Directory.Exists(scratch))
+            {
+                System.IO.Directory.Delete(scratch, recursive: true);
+            }
+        }
+        catch (Exception exception)
+        {
+            Failure("create check", exception);
+        }
+    }
+
     public static void CheckImport(string path)
     {
         try

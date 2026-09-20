@@ -82,6 +82,28 @@ public static partial class CharmCatalog
     /// The beads the artwork draws above the charm, in proportions of the charm's radius
     /// so they survive a rescale.
     /// </summary>
+    /// <summary>
+    /// The beads a charm gets when its artwork does not draw any.
+    /// </summary>
+    /// <remarks>
+    /// A photograph has no beads in it — nobody drew a cord above the subject — so a
+    /// charm made from one would hang on a bare string while every built-in hangs on a
+    /// threaded one. These three are the shape the drawn ones take: a small one, a larger
+    /// one, a small one, close together just above the knot.
+    ///
+    /// <para>Sizes and offsets are in multiples of the charm's radius, like every other
+    /// bead, so they survive a resize. The renderer draws them through the plain-bead path
+    /// and takes their colour from the cord, which is what a bead threaded onto that cord
+    /// would actually look like — and means a created charm on a gold chain reads as gold
+    /// without anything here naming a colour.</para>
+    /// </remarks>
+    public static IReadOnlyList<CharmBead> DefaultBeads { get; } =
+    [
+        new(new Size(0.30, 0.30), 1.30, 0.06),
+        new(new Size(0.42, 0.42), 0.95, 0.10),
+        new(new Size(0.30, 0.30), 0.62, 0.06),
+    ];
+
     public static IReadOnlyList<CharmBead> BeadsFor(CharmCatalogEntry entry, CharmArtworkRegions? regions)
     {
         if (regions is not CharmArtworkRegions split)

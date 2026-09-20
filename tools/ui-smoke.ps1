@@ -184,7 +184,7 @@ function CharmTiles {
     }
 
     @($win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond) |
-        Where-Object { $_.Current.Name -notin 'Library', 'Appearance', 'About' } |
+        Where-Object { $_.Current.Name -notin 'Library', 'Create', 'Appearance', 'About' } |
         Where-Object {
             $id = $_.GetRuntimeId()
             -not ($onTheCord | Where-Object { @(Compare-Object $_ $id -SyncWindow 0).Count -eq 0 })
@@ -193,6 +193,21 @@ function CharmTiles {
 
 Check 'the Library page is the one that opens' ([bool](FindIn ([System.Windows.Automation.ControlType]::ListItem) '^Library$'))
 Check 'every charm is shown, the import included' ((CharmTiles) -eq 71)
+# The Create tab exists and offers the whole flow.
+$createNav = FindIn ([System.Windows.Automation.ControlType]::ListItem) '^Create$'
+Check 'the Create tab is offered' ([bool]$createNav)
+if ($createNav) {
+    ClickElement $createNav
+    Check 'Create offers a picture chooser' ([bool](ById 'CreateChooseButton'))
+    Check 'Create says which formats it takes' `
+        ([bool](FindIn ([System.Windows.Automation.ControlType]::Text) 'PNG, JPG or SVG'))
+    Check 'Create hides its buttons until a picture is chosen' `
+        ($null -eq (ById 'CreateAndHangButton'))
+
+    $libraryNav = FindIn ([System.Windows.Automation.ControlType]::ListItem) '^Library$'
+    if ($libraryNav) { ClickElement $libraryNav }
+}
+
 # Reordering and per-place size: the strip, its move controls and its slider.
 Check 'the cord strip is offered'        ([bool](FindIn ([System.Windows.Automation.ControlType]::List) 'Charms on the cord'))
 Check 'the size slider is offered'       ([bool](ById 'SlotSizeSlider'))
@@ -256,11 +271,11 @@ if ($favouriteChip) {
 # --- imported charms -----------------------------------------------------------------
 Check 'the Library offers Import Charm' ([bool](FindIn ([System.Windows.Automation.ControlType]::Button) 'Import a charm'))
 
-$yours = FindIn ([System.Windows.Automation.ControlType]::Button) '^Show Yours$'
-Check 'an import gives the Library a Yours category' ([bool]$yours)
+$yours = FindIn ([System.Windows.Automation.ControlType]::Button) '^Show Custom$'
+Check 'an import gives the Library a Custom category' ([bool]$yours)
 if ($yours) {
     ClickElement $yours
-    Check 'Yours shows the imported charm and nothing else' ((CharmTiles) -eq 1)
+    Check 'Custom shows the imported charm and nothing else' ((CharmTiles) -eq 1)
     Check 'the imported charm is named' `
         ([bool](FindIn ([System.Windows.Automation.ControlType]::ListItem) '^Smoke Charm$'))
 
@@ -286,8 +301,8 @@ if ($yours) {
                 (-not ((Settings).library.favouriteCharmIds -contains "custom:$importId"))
             Check 'deleting forgets it' `
                 (-not ((Settings).library.recentCharmIds -contains "custom:$importId"))
-            Check 'deleting removes the Yours category' `
-                ($null -eq (FindIn ([System.Windows.Automation.ControlType]::Button) '^Show Yours$'))
+            Check 'deleting removes the Custom category' `
+                ($null -eq (FindIn ([System.Windows.Automation.ControlType]::Button) '^Show Custom$'))
         }
     }
 
