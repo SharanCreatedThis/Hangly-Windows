@@ -1,8 +1,28 @@
+# Build output
 bin/
 obj/
+publish/
+artifacts/
+
+# IDE
 *.user
 .vs/
+.idea/
 Generated Files/
-publish/
+
+# Packaging
 *.msix
 *.appx
+*.appxbundle
+
+# macOS. Half of this port is developed on a Mac, and Finder writes one of these
+# into every folder it displays. They were committed once, which broke `git clone`
+# for anyone whose target directory Finder had already touched: git will not
+# overwrite an untracked file with a tracked one, and the checkout aborts.
+.DS_Store
+.AppleDouble
+._*
+
+# Windows
+Thumbs.db
+desktop.ini
