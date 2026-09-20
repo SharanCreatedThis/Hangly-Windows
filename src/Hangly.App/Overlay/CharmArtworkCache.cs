@@ -5,6 +5,7 @@
 //  Charm artwork: SVG in, a bitmap at exactly the size this frame needs out.
 //
 
+using Hangly.Core.Geometry;
 using Hangly.Core.Models;
 using Hangly.Core.Physics;
 using Microsoft.Graphics.Canvas;
@@ -20,13 +21,19 @@ namespace Hangly.App.Overlay;
 /// <param name="Metrics">What the rope has to carry.</param>
 /// <param name="Palette">Its four inks.</param>
 /// <param name="Beads">What it threads on the cord above it.</param>
+/// <param name="Body">
+/// Which part of the artwork is the charm itself, in the fitted unit square, as measured
+/// by <see cref="CharmArtworkSplitter"/>. The whole square when the artwork could not be
+/// measured — drawing the beads in as well is a better failure than drawing nothing.
+/// </param>
 public sealed record CharmDescriptor(
     string Id,
     string DisplayName,
     string FileName,
     CharmMetrics Metrics,
     CharmPalette Palette,
-    IReadOnlyList<CharmBead> Beads);
+    IReadOnlyList<CharmBead> Beads,
+    Rect Body);
 
 /// <summary>Rasterises charm artwork, once per size.</summary>
 /// <remarks>
@@ -47,7 +54,8 @@ public sealed class CharmArtworkCache : IDisposable
 {
     private readonly string directory;
     private readonly Dictionary<string, SKSvg> documents = [];
-    private readonly Dictionary<(string File, int Size), CanvasBitmap> rasters = [];
+    private readonly Dictionary<(string File, int Size, Rect Region), CanvasBitmap> rasters = [];
+    private readonly Dictionary<(string File, int Beads, int Body), CharmArtworkRegions?> regions = [];
     private readonly ICanvasResourceCreator resourceCreator;
 
     public CharmArtworkCache(ICanvasResourceCreator resourceCreator, string directory)
@@ -72,7 +80,7 @@ public sealed class CharmArtworkCache : IDisposable
             return;
         }
 
-        CanvasBitmap? bitmap = Raster(charm.FileName, pixels);
+        CanvasBitmap? bitmap = Raster(charm.FileName, pixels, charm.Body);
         if (bitmap is null)
         {
             return;
@@ -99,9 +107,151 @@ public sealed class CharmArtworkCache : IDisposable
         session.Transform = previous;
     }
 
-    private CanvasBitmap? Raster(string fileName, int pixels)
+    /// <summary>
+    /// Measures how a charm's artwork divides into beads and body, once per charm.
+    /// </summary>
+    /// <remarks>
+    /// The analysis raster is its own size and its own pass: it is read for its alpha
+    /// channel only, and never drawn. <see langword="null"/> when the artwork is missing
+    /// or does not have the parts the catalogue claims, which the caller reports rather
+    /// than papering over.
+    /// </remarks>
+    public CharmArtworkRegions? Measure(CharmCatalogEntry entry)
     {
-        if (rasters.TryGetValue((fileName, pixels), out CanvasBitmap? cached))
+        var key = (entry.FileName, entry.BeadCount, entry.BodyRun);
+        if (regions.TryGetValue(key, out CharmArtworkRegions? cached))
+        {
+            return cached;
+        }
+
+        CharmArtworkRegions? measured = MeasureDocument(Document(entry.FileName), entry);
+        regions[key] = measured;
+        return measured;
+    }
+
+    /// <summary>The measurement itself, with no cache and no device behind it.</summary>
+    private static CharmArtworkRegions? MeasureDocument(SKSvg? document, CharmCatalogEntry entry)
+    {
+        if (document?.Picture is null)
+        {
+            return null;
+        }
+
+        SKRect bounds = document.Picture.CullRect;
+        if (bounds.Width <= 0 || bounds.Height <= 0)
+        {
+            return null;
+        }
+
+        int side = CharmArtworkSplitter.AnalysisPixels;
+        float scale = Math.Min(side / bounds.Width, side / bounds.Height);
+
+        // How much of the fitted square the drawing actually occupies. The cord threshold
+        // is a fraction of what was drawn, not of the margin around it.
+        double contentWidth = bounds.Width * scale / side;
+
+        byte[]? alpha = AlphaMask(document, bounds, scale, side);
+        return alpha is null
+            ? null
+            : CharmArtworkSplitter.Split(alpha, side, contentWidth, entry.BeadCount, entry.BodyRun);
+    }
+
+    /// <summary>What happened when every charm in the catalogue was opened and measured.</summary>
+    public readonly record struct ArtworkReport(
+        IReadOnlyList<string> Missing,
+        IReadOnlyList<string> Unmeasured,
+        int Measured);
+
+    /// <summary>
+    /// Opens and measures every charm in the catalogue, and says which ones failed.
+    /// </summary>
+    /// <remarks>
+    /// The port of the macOS build's development-only launch check, and deliberately not
+    /// something the app does on the way up: this opens eighty-one SVGs and rasterises
+    /// each one, which is a second of work a user never asked for. A shipped Hangly
+    /// measures a charm when it hangs it and not before.
+    ///
+    /// <para>Needs no graphics device, because measuring is Skia and arithmetic. That is
+    /// what lets it run from a command-line switch on a machine with no window open.</para>
+    /// </remarks>
+    public static ArtworkReport CheckAll(string directory)
+    {
+        var missing = new List<string>();
+        var unmeasured = new List<string>();
+        int measured = 0;
+
+        foreach (CharmCatalogEntry entry in CharmCatalog.All)
+        {
+            string path = Path.Combine(directory, entry.FileName);
+            if (!File.Exists(path))
+            {
+                missing.Add($"{entry.Id} ({entry.FileName})");
+                continue;
+            }
+
+            using var document = new SKSvg();
+            try
+            {
+                document.Load(path);
+            }
+            catch (Exception exception)
+            {
+                missing.Add($"{entry.Id} ({entry.FileName}): {exception.GetType().Name}");
+                continue;
+            }
+
+            if (MeasureDocument(document, entry) is null)
+            {
+                unmeasured.Add($"{entry.Id} (beads {entry.BeadCount}, body {entry.BodyRun})");
+            }
+            else
+            {
+                measured++;
+            }
+        }
+
+        return new ArtworkReport(missing, unmeasured, measured);
+    }
+
+    /// <summary>One byte of alpha per pixel of the fitted square, top row first.</summary>
+    private static byte[]? AlphaMask(SKSvg document, SKRect bounds, float scale, int side)
+    {
+        using var surface = SKSurface.Create(new SKImageInfo(
+            side,
+            side,
+            SKColorType.Bgra8888,
+            SKAlphaType.Premul));
+
+        SKCanvas canvas = surface.Canvas;
+        canvas.Clear(SKColors.Transparent);
+        canvas.Translate((side - (bounds.Width * scale)) / 2, (side - (bounds.Height * scale)) / 2);
+        canvas.Scale(scale);
+        canvas.DrawPicture(document.Picture);
+        canvas.Flush();
+
+        using SKImage image = surface.Snapshot();
+        using SKPixmap pixmap = image.PeekPixels();
+        if (pixmap is null)
+        {
+            return null;
+        }
+
+        byte[] pixels = new byte[pixmap.BytesSize];
+        System.Runtime.InteropServices.Marshal.Copy(pixmap.GetPixels(), pixels, 0, pixels.Length);
+
+        var alpha = new byte[side * side];
+        for (int index = 0; index < alpha.Length; index++)
+        {
+            // BGRA: alpha is the fourth byte of each pixel.
+            alpha[index] = pixels[(index * 4) + 3];
+        }
+
+        return alpha;
+    }
+
+    private CanvasBitmap? Raster(string fileName, int pixels, Rect region)
+    {
+        if (rasters.TryGetValue((fileName, pixels, region), out CanvasBitmap? cached))
         {
             return cached;
         }
@@ -124,15 +274,31 @@ public sealed class CharmArtworkCache : IDisposable
             return null;
         }
 
-        // Fitted to the square the charm's radius describes, keeping its aspect: the
-        // artwork is authored inside a unit square, and a charm that did not fit its own
-        // bounding circle would break every claim CharmStackLayout makes.
-        float scale = Math.Min(pixels / bounds.Width, pixels / bounds.Height);
+        // Only `region` of the artwork is wanted, fitted to the square the charm's radius
+        // describes and keeping its aspect. The region is stated in the fitted unit
+        // square, so the whole square is drawn at whatever size makes the region come out
+        // at `pixels`, and then shifted so the region lands in the middle of the output.
+        //
+        // With a region of the whole square this is exactly the old arithmetic, which is
+        // the point: a charm whose artwork could not be measured still draws.
+        double longest = Math.Max(region.Width, region.Height);
+        if (longest <= 0)
+        {
+            return null;
+        }
+
+        var square = (float)(pixels / longest);
+        float scale = Math.Min(square / bounds.Width, square / bounds.Height);
         SKCanvas canvas = surface.Canvas;
         canvas.Clear(SKColors.Transparent);
+
+        // Centre the region in the output box, then bring the region's own origin to it.
         canvas.Translate(
-            (pixels - (bounds.Width * scale)) / 2,
-            (pixels - (bounds.Height * scale)) / 2);
+            (float)((pixels - (region.Width * square)) / 2) - (float)(region.Left * square),
+            (float)((pixels - (region.Height * square)) / 2) - (float)(region.Top * square));
+        canvas.Translate(
+            (square - (bounds.Width * scale)) / 2,
+            (square - (bounds.Height * scale)) / 2);
         canvas.Scale(scale);
         canvas.DrawPicture(document.Picture);
         canvas.Flush();
@@ -154,7 +320,7 @@ public sealed class CharmArtworkCache : IDisposable
             pixels,
             Windows.Graphics.DirectX.DirectXPixelFormat.B8G8R8A8UIntNormalized);
 
-        rasters[(fileName, pixels)] = bitmap;
+        rasters[(fileName, pixels, region)] = bitmap;
         return bitmap;
     }
 

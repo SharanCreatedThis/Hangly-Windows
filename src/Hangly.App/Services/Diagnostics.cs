@@ -106,6 +106,40 @@ public static class Diagnostics
         Write(text.ToString());
     }
 
+    /// <summary>
+    /// Opens and measures every charm, and writes the result to the log.
+    /// </summary>
+    /// <remarks>
+    /// Lives here rather than in the overlay because it runs before there is one: the
+    /// <c>--check-artwork</c> switch does this and exits, so the log is the only place it
+    /// can report to.
+    /// </remarks>
+    public static void CheckArtwork()
+    {
+        try
+        {
+            Overlay.CharmArtworkCache.ArtworkReport report =
+                Overlay.CharmArtworkCache.CheckAll(Overlay.CharmArtworkCache.DefaultDirectory);
+
+            Log($"artwork check: {report.Measured} measured, "
+                + $"{report.Missing.Count} missing, {report.Unmeasured.Count} unmeasurable");
+
+            foreach (string charm in report.Missing)
+            {
+                Log($"  MISSING   {charm}");
+            }
+
+            foreach (string charm in report.Unmeasured)
+            {
+                Log($"  UNMEASURED {charm}");
+            }
+        }
+        catch (Exception exception)
+        {
+            Failure("artwork check", exception);
+        }
+    }
+
     private static void Write(string line)
     {
         try

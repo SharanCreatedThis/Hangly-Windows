@@ -176,4 +176,50 @@ public class SettingsStoreTests : IDisposable
     [Fact(DisplayName = "A missing file is not an error")]
     public void MissingFileIsDefaults() =>
         Assert.Equal(new AppSettings(), new SettingsStore(Path_).Settings);
+
+    /// <summary>
+    /// The generated record equality compared the charm list by reference, so two
+    /// documents naming the same charms were unequal and the store's "did anything
+    /// change" guard never held. Every read raised a change and rewrote the file.
+    /// </summary>
+    [Fact(DisplayName = "Two documents naming the same charms are the same document")]
+    public void CharmListsCompareByValue()
+    {
+        var first = new OverlaySettings { CharmIds = ["nazar", "hamsa"] };
+        var second = new OverlaySettings { CharmIds = ["nazar", "hamsa"] };
+
+        Assert.Equal(first, second);
+        Assert.Equal(first.GetHashCode(), second.GetHashCode());
+        Assert.NotEqual(first, first with { CharmIds = ["hamsa", "nazar"] });
+    }
+
+    [Fact(DisplayName = "An unknown charm becomes the bead rather than an empty rope")]
+    public void UnknownCharmsAreReplaced()
+    {
+        OverlaySettings clamped = new OverlaySettings { CharmIds = ["nazar", "not-a-charm"] }.Clamped();
+        Assert.Equal(["nazar", CharmCatalog.DefaultId], clamped.CharmIds);
+
+        Assert.Equal([CharmCatalog.DefaultId], new OverlaySettings { CharmIds = [] }.Clamped().CharmIds);
+    }
+
+    [Fact(DisplayName = "A cord carries no more charms than the stack allows")]
+    public void CharmCountIsCapped()
+    {
+        OverlaySettings clamped = new OverlaySettings
+        {
+            CharmIds = ["nazar", "hamsa", "daruma", "ghanta"],
+        }.Clamped();
+
+        Assert.Equal(CharmStack.MaximumCount, clamped.CharmIds.Count);
+    }
+
+    [Fact(DisplayName = "Charms survive a round trip through the file")]
+    public void CharmsRoundTrip()
+    {
+        Directory.CreateDirectory(directory);
+        var store = new SettingsStore(Path_);
+        store.UpdateOverlay(overlay => overlay with { CharmIds = ["hamsa", "daruma"] });
+
+        Assert.Equal(["hamsa", "daruma"], new SettingsStore(Path_).Settings.Overlay.CharmIds);
+    }
 }

@@ -62,6 +62,7 @@ public sealed class OverlayWindow : IDisposable
     private Thread? thread;
     private volatile bool isRunning;
     private OverlaySettings? pending;
+    private IReadOnlyList<CharmDescriptor>? pendingCharms;
 
     private OverlaySettings settings;
     private bool isClickThrough = true;
@@ -82,12 +83,7 @@ public sealed class OverlayWindow : IDisposable
         this.renderer = renderer;
         surface = new LayeredOverlaySurface(device);
 
-        // What hangs on the rope, told to both halves at once: the solver needs the mass
-        // and the radius, the renderer needs the artwork and the palette, and they must be
-        // the same list or the charm will be drawn somewhere the rope is not carrying it.
-        renderer.Charms = charms;
-        rope.SetCharmStack([.. charms.Select(charm => charm.Metrics)]);
-        rope.SetBeads([.. charms.Select(charm => charm.Beads)]);
+        HangCharms(charms);
     }
 
     /// <summary>Applies a settings change without rebuilding anything.</summary>
@@ -97,6 +93,14 @@ public sealed class OverlayWindow : IDisposable
     /// — belongs to the frame loop.
     /// </remarks>
     public void Apply(OverlaySettings updated) => Interlocked.Exchange(ref pending, updated);
+
+    /// <summary>Changes what hangs on the cord, without rebuilding the window.</summary>
+    /// <remarks>
+    /// Handed over the same way settings are, and for the same reason: the solver and the
+    /// renderer belong to the frame loop, and the tray menu is not on it.
+    /// </remarks>
+    public void SetCharms(IReadOnlyList<CharmDescriptor> charms) =>
+        Interlocked.Exchange(ref pendingCharms, charms);
 
     /// <summary>Starts the frame loop, which is also what creates the window.</summary>
     public void Begin()
@@ -152,6 +156,13 @@ public sealed class OverlayWindow : IDisposable
 
                 // Taken rather than read, so a second change arriving between the read and
                 // the clear is not the one that gets dropped.
+                if (Interlocked.Exchange(ref pendingCharms, null) is IReadOnlyList<CharmDescriptor> charms)
+                {
+                    HangCharms(charms);
+                    rope.Wake();
+                    Draw();
+                }
+
                 if (Interlocked.Exchange(ref pending, null) is OverlaySettings updated)
                 {
                     ApplyOnLoop(updated);
@@ -228,6 +239,18 @@ public sealed class OverlayWindow : IDisposable
             scale);
 
         rope.Resize(CanvasSize);
+    }
+
+    /// <summary>
+    /// Tells both halves what is on the cord at once: the solver needs the mass and the
+    /// radius, the renderer needs the artwork and the palette, and they must be the same
+    /// list or a charm is drawn somewhere the rope is not carrying it.
+    /// </summary>
+    private void HangCharms(IReadOnlyList<CharmDescriptor> charms)
+    {
+        renderer.Charms = charms;
+        rope.SetCharmStack([.. charms.Select(charm => charm.Metrics)]);
+        rope.SetBeads([.. charms.Select(charm => charm.Beads)]);
     }
 
     /// <summary>One display frame: poll the cursor, step the physics, present.</summary>

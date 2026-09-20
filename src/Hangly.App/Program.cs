@@ -36,6 +36,16 @@ internal static class Program
 
         VelopackApp.Build().Run();
 
+        // A development switch, not a feature. It opens and measures all eighty-one
+        // charms and writes what failed, which is the one question a screenshot of three
+        // of them cannot answer. The macOS build has the same check and calls it from its
+        // own development-only launch path.
+        if (args.Contains("--check-artwork", StringComparer.Ordinal))
+        {
+            Diagnostics.CheckArtwork();
+            return;
+        }
+
         XamlGeneratedProgram.XamlGeneratedMain();
     }
 }

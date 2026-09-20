@@ -38,6 +38,7 @@ public sealed class AppEnvironment : IDisposable
     private TrayIcon? tray;
     private OverlayWindow? overlay;
     private CharmArtworkCache? artwork;
+    private IReadOnlyList<string> hanging = [];
 
     public AppEnvironment(SettingsStore? store = null, ILaunchAtLogin? launchAtLogin = null)
     {
@@ -110,7 +111,13 @@ public sealed class AppEnvironment : IDisposable
         artwork = new CharmArtworkCache(device, CharmArtworkCache.DefaultDirectory);
         var renderer = new RopeRenderer(artwork);
 
-        overlay = new OverlayWindow(device, store.Settings.Overlay, rope, renderer, BuiltInCharms.Default);
+        hanging = [.. store.Settings.Overlay.CharmIds];
+        overlay = new OverlayWindow(
+            device,
+            store.Settings.Overlay,
+            rope,
+            renderer,
+            CharmLibrary.Resolve(artwork, hanging));
         Diagnostics.Log("overlay window constructed");
 
         // Returns as soon as the frame loop is running. The window itself is created on
@@ -156,15 +163,24 @@ public sealed class AppEnvironment : IDisposable
 
     private void OnSettingsChanged(AppSettings settings)
     {
-        if (settings.Overlay.IsEnabled)
-        {
-            ShowOverlay();
-            overlay?.Apply(settings.Overlay);
-        }
-        else
+        if (!settings.Overlay.IsEnabled)
         {
             HideOverlay();
+            hanging = [];
+            return;
         }
+
+        ShowOverlay();
+
+        // Rebuilding the charms means measuring artwork, so it happens only when the
+        // charms actually changed rather than on every slider move.
+        if (artwork is not null && !hanging.SequenceEqual(settings.Overlay.CharmIds, StringComparer.Ordinal))
+        {
+            hanging = [.. settings.Overlay.CharmIds];
+            overlay?.SetCharms(CharmLibrary.Resolve(artwork, hanging));
+        }
+
+        overlay?.Apply(settings.Overlay);
     }
 
     /// <summary>
@@ -189,12 +205,27 @@ public sealed class AppEnvironment : IDisposable
                 IsChecked: settings.Overlay.Anchor == anchor))
             .ToList();
 
+        var charms = CharmCatalog.All
+            .GroupBy(charm =>
+            {
+                int slash = charm.FileName.LastIndexOf('/');
+                return slash < 0 ? "Classics & Collection" : charm.FileName[..slash];
+            })
+            .Select(group => new MenuEntry(
+                group.Key,
+                Children: [.. group.Select(charm => new MenuEntry(
+                    charm.DisplayName,
+                    () => store.UpdateOverlay(overlay => overlay with { CharmIds = [charm.Id] }),
+                    IsChecked: settings.Overlay.CharmIds.Contains(charm.Id)))]))
+            .ToList();
+
         return
         [
             new MenuEntry(
                 settings.Overlay.IsEnabled ? "Hide Charm" : "Show Charm",
                 () => store.UpdateOverlay(overlay => overlay with { IsEnabled = !overlay.IsEnabled })),
             MenuEntry.Separator,
+            new MenuEntry("Charm", Children: charms),
             new MenuEntry("Rope", Children: ropes),
             new MenuEntry("Position", Children: anchors),
             MenuEntry.Separator,

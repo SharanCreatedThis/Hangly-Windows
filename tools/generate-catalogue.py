@@ -1,0 +1,208 @@
+#!/usr/bin/env python3
+"""Generate the C# charm catalogue from the Swift source.
+
+The catalogue is eighty-one entries of pure data — identity, mass, radius, palette,
+sound and how the artwork divides into beads. Transcribing that by hand is eighty-one
+chances to mistype a number that no compiler would catch and only a screenshot would,
+so it is read out of `reference/swift/` instead and written as C#.
+
+Re-runnable on purpose. When the Swift changes, run this rather than editing the
+generated file; the header says so to whoever opens it next.
+
+    python3 tools/generate-catalogue.py
+"""
+
+from __future__ import annotations
+
+import pathlib
+import re
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+SWIFT = ROOT / "reference" / "swift"
+OUT = ROOT / "src" / "Hangly.Core" / "Models" / "CharmCatalog.Generated.cs"
+
+# The order the charm menu offers them in. CollectionCharmCatalog.entries is
+#   collectionEntries + seasonalEntries + collectionPackEntries + storyPackEntries
+#   + classicEntries
+# and storyPackEntries is legendEntries + screenEntries. Reproduced here because the
+# order is the catalogue's own and a reordering would silently renumber the menu.
+SOURCES = [
+    ("Charms/CollectionCharmCatalog.swift", "collectionEntries"),
+    ("Charms/SeasonalCharmCatalog.swift", "seasonalEntries"),
+    ("Charms/CollectionPackCatalog.swift", "collectionPackEntries"),
+    ("Charms/StoryPackCatalog.swift", "legendEntries"),
+    ("Charms/StoryPackCatalog+Screen.swift", "screenEntries"),
+    ("Charms/ClassicCharmCatalog.swift", "classicEntries"),
+]
+
+EXPECTED = 81
+
+
+def read(path: str) -> str:
+    return (SWIFT / path).read_text(encoding="utf-8")
+
+
+def display_names() -> dict[str, str]:
+    """`case .nazar: "Nazar boncuğu"` out of CharmKind's displayName switch."""
+    text = read("Models/CharmKind.swift")
+    start = text.index("var displayName: String")
+    end = text.index("var symbolName: String")
+    pairs = re.findall(r'case \.(\w+):\s*"([^"]*)"', text[start:end])
+    return dict(pairs)
+
+
+def entry_blocks(text: str, list_name: str) -> list[str]:
+    """Every Entry(...) literal inside one `static let <list_name>: [Entry] = [...]`."""
+    anchor = re.search(rf"static let {list_name}: \[Entry\] = \[", text)
+    if not anchor:
+        raise SystemExit(f"could not find {list_name}")
+
+    # Walk to the matching close bracket so a nested literal cannot end the list early.
+    i = anchor.end() - 1
+    depth = 0
+    for j in range(i, len(text)):
+        if text[j] == "[":
+            depth += 1
+        elif text[j] == "]":
+            depth -= 1
+            if depth == 0:
+                body = text[i + 1 : j]
+                break
+    else:
+        raise SystemExit(f"unterminated list {list_name}")
+
+    blocks = []
+    for m in re.finditer(r"\bEntry\(", body):
+        k = m.end() - 1
+        depth = 0
+        for n in range(k, len(body)):
+            if body[n] == "(":
+                depth += 1
+            elif body[n] == ")":
+                depth -= 1
+                if depth == 0:
+                    blocks.append(body[k + 1 : n])
+                    break
+    return blocks
+
+
+def colour(block: str, name: str) -> tuple[str, str, str]:
+    m = re.search(rf"{name}: CharmColor\(([^)]*)\)", block)
+    if not m:
+        raise SystemExit(f"no {name} colour in block")
+    parts = [p.strip() for p in m.group(1).split(",")]
+    if len(parts) != 3:
+        raise SystemExit(f"{name} expected 3 channels, got {parts}")
+    return tuple(parts)  # type: ignore[return-value]
+
+
+def parse(block: str) -> dict:
+    def field(name: str, pattern: str = r"([^,\n]+)"):
+        m = re.search(rf"\b{name}:\s*{pattern}", block)
+        return m.group(1).strip() if m else None
+
+    kind = field("kind", r"\.(\w+)")
+    source = re.search(r'sourceFileName:\s*"([^"]*)"', block)
+    bead_count = field("beadCount", r"(\d+)")
+    body_run = field("bodyRun", r"(\d+)")
+
+    if not kind or not source or bead_count is None:
+        raise SystemExit(f"incomplete entry: {block[:120]}")
+
+    return {
+        "kind": kind,
+        "file": source.group(1),
+        "mass": field("mass", r"([0-9.]+)"),
+        "radius": field("radiusRatio", r"([0-9.]+)"),
+        "sound": field("sound", r"\.(\w+)"),
+        "beadCount": bead_count,
+        # Swift defaults bodyRun to beadCount; make it explicit rather than reproduce
+        # the defaulting in two languages.
+        "bodyRun": body_run if body_run is not None else bead_count,
+        "primary": colour(block, "primary"),
+        "secondary": colour(block, "secondary"),
+        "deep": colour(block, "deep"),
+        "light": colour(block, "light"),
+    }
+
+
+def csharp_literal(value: str) -> str:
+    """Swift and C# agree on these, but a bare `.5` is legal in neither's style."""
+    return value if value.startswith("0") or value.startswith("-") else value
+
+
+def escape(text: str) -> str:
+    return text.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def main() -> int:
+    names = display_names()
+    entries: list[dict] = []
+    for path, list_name in SOURCES:
+        entries.extend(parse(b) for b in entry_blocks(read(path), list_name))
+
+    if len(entries) != EXPECTED:
+        print(f"expected {EXPECTED} entries, parsed {len(entries)}", file=sys.stderr)
+        return 1
+
+    ids = [e["kind"] for e in entries]
+    if len(set(ids)) != len(ids):
+        dupes = {i for i in ids if ids.count(i) > 1}
+        print(f"duplicate kinds: {sorted(dupes)}", file=sys.stderr)
+        return 1
+
+    lines = [
+        "//",
+        "//  CharmCatalog.Generated.cs",
+        "//  Hangly",
+        "//",
+        "//  GENERATED FILE — DO NOT EDIT.",
+        "//",
+        "//  Written by tools/generate-catalogue.py from reference/swift/. Eighty-one",
+        "//  entries of pure data, read out of the Swift rather than typed again, because",
+        "//  a mistyped mass is a bug no compiler sees and only a screenshot catches.",
+        "//",
+        "//  To change a charm, change the Swift and re-run the generator.",
+        "//",
+        "",
+        "namespace Hangly.Core.Models;",
+        "",
+        "public static partial class CharmCatalog",
+        "{",
+        "    /// <summary>Every built-in charm, in the order the charm menu offers them.</summary>",
+        "    public static IReadOnlyList<CharmCatalogEntry> All { get; } =",
+        "    [",
+    ]
+
+    for e in entries:
+        name = names.get(e["kind"])
+        if name is None:
+            print(f"no display name for {e['kind']}", file=sys.stderr)
+            return 1
+        sound = e["sound"][0].upper() + e["sound"][1:]
+        lines += [
+            "        new(",
+            f'            Id: "{e["kind"]}",',
+            f'            DisplayName: "{escape(name)}",',
+            f'            FileName: "{escape(e["file"])}",',
+            f'            Mass: {csharp_literal(e["mass"])},',
+            f'            RadiusRatio: {csharp_literal(e["radius"])},',
+            "            Palette: new CharmPalette(",
+            f'                new CharmColor({", ".join(e["primary"])}),',
+            f'                new CharmColor({", ".join(e["secondary"])}),',
+            f'                new CharmColor({", ".join(e["deep"])}),',
+            f'                new CharmColor({", ".join(e["light"])})),',
+            f'            Sound: CharmSound.{sound},',
+            f'            BeadCount: {e["beadCount"]},',
+            f'            BodyRun: {e["bodyRun"]}),',
+        ]
+
+    lines += ["    ];", "}", ""]
+    OUT.write_text("\n".join(lines), encoding="utf-8")
+    print(f"wrote {OUT.relative_to(ROOT)} — {len(entries)} charms")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

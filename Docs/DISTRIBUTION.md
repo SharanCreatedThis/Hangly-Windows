@@ -63,6 +63,14 @@ still being read by the app.
 There is no migration from the old location and there does not need to be: nothing has
 ever been released, so no copy of Hangly for Windows has ever written one.
 
+**Roaming has one consequence worth writing down.** Settings follow the user to another
+machine, and that includes `displayIndex` — so a charm configured on the second monitor of
+a two-monitor desk will be asked for on a laptop that has one. It degrades safely:
+`DisplayObserver.DisplayAt` falls back to the primary display when the index is out of
+range, which is the same path a monitor being unplugged takes. It is written down here so
+that a later report of "my charm is on the wrong monitor" is read as roaming doing exactly
+what it says, and not as a bug in placement.
+
 ### Versions and channels
 
 | | |

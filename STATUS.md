@@ -7,7 +7,7 @@ a project convinces itself it is nearly finished.
 - **Build:** green. All three CI jobs pass on `windows-latest`.
 - **Runs:** yes — Windows 11 ARM64 at 200%. The rope hangs on the desktop, is transparent,
   and can be thrown.
-- **Features:** roughly a quarter ported.
+- **Features:** roughly 40% ported. All eighty-one charms are in and drawing.
 
 ---
 
@@ -15,7 +15,7 @@ a project convinces itself it is nearly finished.
 
 | Job | Result |
 |---|---|
-| Solver and models (tests) | ✅ 67 / 67 passing on Windows |
+| Solver and models (tests) | ✅ 92 / 92 passing on Windows |
 | App — `win-x64` Release | ✅ builds and publishes |
 | App — `win-arm64` Release | ✅ builds and publishes |
 
@@ -62,6 +62,15 @@ real machine — Windows 11 ARM64 at 200% scaling:
 - The **overlay**, confirmed by watching it rather than by inferring it: a transparent,
   click-through, always-on-top window; the charm grabbed, dragged, thrown and left to
   settle; the tray icon, its menu, and the menu's keyboard navigation.
+- The **charm catalogue — all eighty-one**, generated from the Swift by
+  `tools/generate-catalogue.py` rather than transcribed. Every one of them opens,
+  rasterises and measures: `Hangly.exe --check-artwork` reports *81 measured, 0 missing,
+  0 unmeasurable*, on both architectures.
+- The **artwork splitter**, which is what makes a charm more than a picture: it finds the
+  beads in the artwork's own silhouette and measures where the knot sits, so a rope at
+  rest is laid out as the designer drew it. Charms are drawn cropped to their measured
+  body, and their beads ride the cord as the solver's own particles.
+- **One, two or three charms** chosen from the tray, grouped by their packs.
 
 ## 3. What does not work
 
@@ -79,9 +88,6 @@ real machine — Windows 11 ARM64 at 200% scaling:
   over a thirty-second drag, allocation fell from 154 MB/s to 0.7 MB/s and gen-2
   collections from 1,040 to 7. What remains is memory bandwidth, and it is only spent
   while the rope is awake.
-- **One charm exists**, the plain bead, wired by `BuiltInCharms` as an explicit bootstrap.
-- **No beads are drawn on any charm**, because every charm in the real catalogue derives
-  its beads by splitting its own artwork into regions, and that splitter is not ported.
 - **No settings UI at all.** Everything is changed through the tray menu or by editing
   `%LOCALAPPDATA%\Hangly\settings.json` by hand.
 
@@ -91,8 +97,6 @@ Ordered by what unblocks the most.
 
 | Subsystem | Swift lines | Notes |
 |---|---:|---|
-| **Charm catalogue** | ~1,900 | 82 charms: mass, radius, knot inset, palette, beads, sound. Mechanical. Unblocks everything visual. |
-| **Artwork splitter** | ~400 | Derives each charm's beads from its SVG regions. Required before any charm but the bead has its beads. |
 | **Customize window** | ~4,500 | The whole settings UI. The largest single piece, and the one with the most room to be a Windows app rather than a translated Mac one. |
 | **Charm Library** | ~1,800 | Browser, search, categories, favourites. |
 | **Charm Studio** | ~2,400 | Editor, pipeline, undo stack. **Deferred: explicitly out of scope for v1.** |
@@ -105,7 +109,7 @@ Ordered by what unblocks the most.
 
 ## 5. Completion
 
-**Roughly 25%** by weighted line count of the macOS source.
+**Roughly 40%** by weighted line count of the macOS source.
 
 That number understates progress in one way and overstates it in another, and both are
 worth saying:
@@ -121,7 +125,7 @@ worth saying:
 |---|---|
 | Physics | ~100% |
 | App shell and services | ~40% |
-| Models | ~25% |
+| Models | ~60% |
 | Views | ~8% |
 
 ## 6. Distribution
@@ -138,26 +142,42 @@ Decided and documented in `Docs/DISTRIBUTION.md`; measured on win-arm64 at 0.9.0
 | Trimming | not started |
 | x64 package | never built |
 
-## 7. Next milestone
+## 7. Verified, and not
 
-The previous milestone — *confirm the overlay is genuinely transparent and genuinely
-click-through* — is met. It cost a rewrite of the window layer rather than a fix, which is
-precisely the outcome the milestone existed to find early, and finding it now was cheaper
-than finding it under several thousand lines of settings UI.
+Build health and feature completeness are separate questions, and so are "it compiles"
+and "somebody watched it work". This is the second list.
 
-Observed on Windows 11 ARM64 at 200% scaling, by screenshot and by driving the real
-cursor:
+### Watched working
 
 | | |
 |---|---|
-| Desktop visible through the window | ✅ no rectangle of any colour |
-| A charm hangs from a cord near the top centre | ✅ |
-| It swings and settles | ✅ |
-| Clicks pass through everywhere except the charm | ✅ `WS_EX_TRANSPARENT` toggles as the cursor arrives and leaves |
-| Grabbed, dragged, thrown, carries its momentum | ✅ the cord takes the S-curve of a pulled rope |
-| Tray icon appears, menu opens and dismisses | ✅ and is navigable by keyboard |
+| Windows 11 ARM64 at 200% | ✅ the configuration everything below was seen on |
+| Windows 11 ARM64 at 250% | ✅ incidentally, during a display-scaling incident |
+| **x64, under ARM64 emulation** | ✅ PE machine AMD64, launches, renders, 81 charms measured |
+| Transparency, click-through, drag, throw, settle | ✅ |
+| Tray icon, menu, keyboard navigation | ✅ |
+| All 81 charms load, rasterise and measure | ✅ |
+| Charms drawn cropped to their measured body, beads on the cord | ✅ one, two and three at a time |
+| Velopack install, run, and settings surviving an install-over | ✅ |
 
-**Next: the charm catalogue.** It is the largest thing between this and something worth
-looking at, it is mechanical, and every other visual subsystem is queued behind it. The
-artwork splitter follows it, because until that exists every charm except the bead hangs
-without its beads.
+### Not verified, and not claimed
+
+Deferred to a manual pass before a release, because automating display changes inside the
+guest cost an incident once already and is not worth a second:
+
+| | |
+|---|---|
+| 100% and 150% scaling | ❌ never seen |
+| **Native x64 hardware** | ❌ emulation exercises the binary, not the silicon |
+| Two monitors | ❌ the host has one display; not testable here |
+| Monitor hot-unplug | ❌ the fallback exists in `DisplayObserver.DisplayAt` and is untested end to end |
+| Wake from sleep | ❌ never tried |
+| **Windows 10 1809**, the floor the manifest declares | ❌ never tried. Either test it or raise the floor; claiming it is the one option that is not available |
+| A DPI change *while running* | ❌ and expected to be wrong — nothing handles `WM_DPICHANGED`, so `scale` is stale until something repositions the window |
+
+## 8. Next milestone
+
+The Customize window. The catalogue is what unblocked it: there are eighty-one charms to
+offer now, and a tray submenu is not where somebody chooses one.
+
+**Charm Studio is deferred — explicitly out of scope for v1.**
