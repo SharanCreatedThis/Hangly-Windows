@@ -95,6 +95,7 @@ public sealed partial class OverlayWindow : Window
         }
 
         ApplyExtendedStyles();
+        ApplyTransparency();
 
         clock.Tick += OnTick;
         Closed += (_, _) => clock.Stop();
@@ -139,9 +140,41 @@ public sealed partial class OverlayWindow : Window
         style |= NativeMethods.WsExToolwindow // no taskbar button, no Alt-Tab entry
             | NativeMethods.WsExTopmost // above every other application
             | NativeMethods.WsExNoactivate // clicking it never steals focus
-            | NativeMethods.WsExLayered // per-pixel alpha against the desktop
             | NativeMethods.WsExTransparent; // click-through until the cursor finds the charm
+
+        // Deliberately NOT WS_EX_LAYERED. A layered window expects its pixels through
+        // UpdateLayeredWindow, which a WinUI swapchain never calls, and setting the style
+        // without ever supplying those pixels is what leaves the window opaque. The alpha
+        // here comes from DWM compositing the swapchain instead — see ApplyTransparency.
+        style &= ~NativeMethods.WsExLayered;
         NativeMethods.SetExtendedStyle(handle, style);
+    }
+
+    /// <summary>Makes the window genuinely transparent rather than merely backdrop-less.</summary>
+    /// <remarks>
+    /// Three things have to agree, and all three are necessary: the XAML root paints
+    /// nothing, the window has no system backdrop, and DWM is told the glass frame covers
+    /// the entire client area. With only the first two the window still carries an opaque
+    /// backing and paints white — which is what the first build that ran on Windows did,
+    /// a white rectangle with a rope drawn inside it.
+    /// </remarks>
+    private void ApplyTransparency()
+    {
+        var margins = new NativeMethods.Margins { Left = -1, Right = -1, Top = -1, Bottom = -1 };
+        NativeMethods.DwmExtendFrameIntoClientArea(handle, ref margins);
+
+        // Windows 11 rounds every window's corners. An ornament hanging on the desktop is
+        // not a window and must not look like one.
+        int corners = NativeMethods.DwmwcpDoNotRound;
+        NativeMethods.DwmSetWindowAttribute(
+            handle,
+            NativeMethods.DwmwaWindowCornerPreference,
+            ref corners,
+            sizeof(int));
+
+        // The XAML tree must paint nothing at all. A Transparent brush is still a brush
+        // the compositor has to honour; null is the absence of one.
+        Root.Background = null;
     }
 
     /// <summary>Puts the window where the settings say, on the display they name.</summary>
@@ -253,7 +286,7 @@ public sealed partial class OverlayWindow : Window
     }
 
     private void OnDraw(CanvasControl sender, CanvasDrawEventArgs args) =>
-        renderer.Draw(args.DrawingSession, rope.Snapshot(), rope.Style, scale);
+        renderer.Draw(args.DrawingSession, rope.Snapshot(), rope.Style);
 }
 
 /// <summary>The overlay's own proportions, in points.</summary>

@@ -11,7 +11,7 @@
         the Window has no SystemBackdrop (set in code — there is no XAML "none"), the
         Grid has no Background, and the canvas clears to transparent.
     -->
-    <Grid x:Name="Root" Background="Transparent">
+    <Grid x:Name="Root">
         <canvas:CanvasControl
             x:Name="Canvas"
             ClearColor="Transparent"

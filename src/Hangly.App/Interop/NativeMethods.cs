@@ -118,6 +118,37 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll", SetLastError = true)]
     internal static partial uint GetDpiForWindow(IntPtr hWnd);
 
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct Margins
+    {
+        public int Left;
+        public int Right;
+        public int Top;
+        public int Bottom;
+    }
+
+    /// <summary>
+    /// Extends the glass frame over the whole client area, which is what actually lets a
+    /// window composite with per-pixel alpha against the desktop.
+    /// </summary>
+    /// <remarks>
+    /// A transparent XAML root and a null <c>SystemBackdrop</c> are necessary and are not
+    /// sufficient: without this the window still has an opaque backing and paints as a
+    /// white rectangle, which is exactly what the first working build did. Margins of -1
+    /// on all four sides is the documented way to say "all of it".
+    /// </remarks>
+    [LibraryImport("dwmapi.dll")]
+    internal static partial int DwmExtendFrameIntoClientArea(IntPtr hWnd, ref Margins margins);
+
+    [LibraryImport("dwmapi.dll")]
+    internal static partial int DwmSetWindowAttribute(IntPtr hWnd, int attribute, ref int value, int size);
+
+    /// <summary>DWMWA_WINDOW_CORNER_PREFERENCE.</summary>
+    internal const int DwmwaWindowCornerPreference = 33;
+
+    /// <summary>DWMWCP_DONOTROUND. An ornament has no corners to round.</summary>
+    internal const int DwmwcpDoNotRound = 1;
+
     [LibraryImport("user32.dll", SetLastError = true)]
     internal static partial IntPtr MonitorFromPoint(Point pt, uint dwFlags);
 

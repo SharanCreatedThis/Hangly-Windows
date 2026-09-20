@@ -38,7 +38,7 @@ public sealed class RopeRenderer
     /// <summary>What the charms hanging on the rope are, from the anchor down.</summary>
     public IReadOnlyList<CharmDescriptor> Charms { get; set; } = [];
 
-    public void Draw(CanvasDrawingSession session, RopeSnapshot snapshot, RopeStyle style, double scale)
+    public void Draw(CanvasDrawingSession session, RopeSnapshot snapshot, RopeStyle style)
     {
         if (snapshot.Points.Count < 2)
         {
@@ -47,10 +47,14 @@ public sealed class RopeRenderer
 
         session.Antialiasing = CanvasAntialiasing.Antialiased;
 
-        // The solver works in points and the swapchain in pixels; one transform here is
-        // the whole of the conversion, so nothing below has to know about DPI.
-        session.Transform = System.Numerics.Matrix3x2.CreateScale((float)scale);
-
+        // No DPI transform here, and that is the correction to an earlier mistake worth
+        // recording: a CanvasControl's drawing session is already in DIPs, so scaling it
+        // again by the window's DPI drew everything twice its size. On a 200% display the
+        // rope then overshot its canvas and the charm hung below the bottom edge, which
+        // looked like a missing charm rather than an oversized rope.
+        //
+        // The window is sized in physical pixels as points × scale, so the control's DIP
+        // space and the solver's point space are the same space. Nothing to convert.
         RopeAppearance appearance = RopeStyleAppearanceTable.AppearanceOf(style);
         double charmRadius = snapshot.Charms.Count > 0 ? snapshot.Charms[^1].Radius : 10;
         double width = RopeStyleAppearanceTable.WidthFor(style, charmRadius);
