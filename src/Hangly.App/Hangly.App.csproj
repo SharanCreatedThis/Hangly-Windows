@@ -26,6 +26,18 @@
     <!-- Unpackaged by default: Hangly is a small ornament people download as an .exe,
          the way the macOS build is a disk image rather than a Mac App Store listing. -->
     <WindowsPackageType>None</WindowsPackageType>
+
+    <!--
+      Required even though nothing here is packaged, and removing it is what broke the
+      first build that ran on a real machine.
+
+      This switch owns the target that builds the app's own PRI file, and in WinUI the
+      compiled XAML (.xbf) lives *inside* that PRI rather than beside it. Without it the
+      app published with no resource map and no XAML at all: InitializeComponent asked
+      for ms-appx:///App.xaml, found nothing, and Microsoft.UI.Xaml.dll raised a stowed
+      exception (0xc000027b) before any of our code could report it.
+    -->
+    <EnableMsixTooling>true</EnableMsixTooling>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>false</PublishSingleFile>

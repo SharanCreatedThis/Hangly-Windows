@@ -103,6 +103,16 @@ jobs:
             $missing += "Win2D (Microsoft.Graphics.Canvas)"
           }
 
+          # The app's own PRI. WinUI embeds the compiled XAML inside it, so a payload
+          # without one is an app with no XAML: it dies inside Microsoft.UI.Xaml.dll
+          # before any managed code of ours can say so. The four framework PRIs are
+          # always present and are not what this is looking for.
+          $pri = Get-ChildItem -Path $root -Filter "*.pri" -Recurse -File -ErrorAction SilentlyContinue
+          Write-Host "resource indexes found: $($pri.Name -join ', ')"
+          if (-not ($pri | Where-Object { $_.Name -match '^(resources|Hangly)' })) {
+            $missing += "the app's own .pri (no XAML would load)"
+          }
+
           $svg = (Get-ChildItem -Path $root -Filter "*.svg" -Recurse -File -ErrorAction SilentlyContinue).Count
           Write-Host "charm artwork: $svg SVG files"
           if ($svg -lt 82) { $missing += "charm artwork (found $svg, expected 82)" }
