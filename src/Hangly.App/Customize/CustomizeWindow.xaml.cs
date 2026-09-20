@@ -11,6 +11,7 @@ using Hangly.Core.Models;
 using Hangly.Core.Settings;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 
 namespace Hangly.App.Customize;
 
@@ -38,7 +39,12 @@ public sealed partial class CustomizeWindow : Window
     private readonly ILaunchAtLogin launchAtLogin;
     private readonly AnalyticsManager analytics;
     private readonly List<CharmTile> tiles = [];
+    private readonly Dictionary<string, CharmTile> tilesById = new(StringComparer.Ordinal);
     private readonly List<Button> slots = [];
+    private readonly List<ToggleButton> chips = [];
+
+    private CharmFilter filter = CharmFilter.All;
+    private string query = string.Empty;
 
     private bool isClosingForReal;
     private bool isLoading;
@@ -145,25 +151,172 @@ public sealed partial class CustomizeWindow : Window
         }
     }
 
+    /// <summary>
+    /// Builds one tile per charm, once, and never again.
+    /// </summary>
+    /// <remarks>
+    /// Filtering regroups these same objects rather than making new ones. A tile owns a
+    /// decoded <c>BitmapImage</c>, so rebuilding the grid on every keystroke would
+    /// re-decode eighty-one PNGs per letter typed — which is the difference between a
+    /// search box that keeps up and one that stutters.
+    /// </remarks>
     private void BuildCharmGrid()
     {
-        // Grouped by the pack directory the artwork already sits in, so the grouping is
-        // the catalogue's own rather than a second list to keep in step with it.
-        var groups = new List<CharmGroup>();
-        foreach (IGrouping<string, CharmCatalogEntry> pack in CharmCatalog.All.GroupBy(PackOf))
+        foreach (CharmCatalogEntry entry in CharmCatalog.All)
         {
-            var packTiles = new List<CharmTile>();
-            foreach (CharmCatalogEntry entry in pack)
-            {
-                var tile = new CharmTile(entry);
-                packTiles.Add(tile);
-                tiles.Add(tile);
-            }
+            var tile = new CharmTile(entry);
+            tiles.Add(tile);
+            tilesById[entry.Id] = tile;
+        }
 
-            groups.Add(new CharmGroup(pack.Key, packTiles));
+        BuildFilterChips();
+        ShowResults();
+    }
+
+    /// <summary>All, the two saved sets, then every category.</summary>
+    private void BuildFilterChips()
+    {
+        AddChip("All", CharmFilter.All);
+        AddChip("Favourites", CharmFilter.Favourites);
+        AddChip("Recent", CharmFilter.Recent);
+        foreach (CharmCategory category in CharmCatalog.Categories)
+        {
+            AddChip(category.Name, CharmFilter.Category(category.Id));
+        }
+
+        HighlightChips();
+    }
+
+    private void AddChip(string label, CharmFilter which)
+    {
+        var chip = new ToggleButton { Content = label, Tag = which };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(chip, $"Show {label}");
+        chip.Click += (sender, _) =>
+        {
+            filter = which;
+            HighlightChips();
+            ShowResults();
+        };
+
+        chips.Add(chip);
+        FilterChips.Children.Add(chip);
+    }
+
+    private void HighlightChips()
+    {
+        foreach (ToggleButton chip in chips)
+        {
+            chip.IsChecked = Equals(chip.Tag, filter);
+        }
+    }
+
+    /// <summary>
+    /// Applies the filter and the query, and regroups what survives.
+    /// </summary>
+    private void ShowResults()
+    {
+        AppSettings settings = store.Settings;
+        IReadOnlyList<CharmCatalogEntry> matches = CharmSearch.Apply(
+            filter,
+            query,
+            settings.Library.FavouriteCharmIds,
+            settings.Library.RecentCharmIds);
+
+        var groups = new List<CharmGroup>();
+        if (matches.Count > 0)
+        {
+            // Recents are already in the order that matters, so they are not regrouped:
+            // splitting them by pack would throw away the only thing the list says.
+            if (filter is CharmFilter.Recently)
+            {
+                groups.Add(new CharmGroup(
+                    "Recently hung",
+                    [.. matches.Select(entry => tilesById[entry.Id])]));
+            }
+            else
+            {
+                foreach (IGrouping<string, CharmCatalogEntry> pack in matches.GroupBy(PackOf))
+                {
+                    groups.Add(new CharmGroup(pack.Key, [.. pack.Select(entry => tilesById[entry.Id])]));
+                }
+            }
         }
 
         Packs.ItemsSource = groups;
+        ShowEmptyState(matches.Count == 0);
+        MarkChosen();
+        MarkFavourites();
+    }
+
+    /// <summary>Which nothing this is, because they are not the same nothing.</summary>
+    private void ShowEmptyState(bool isEmpty)
+    {
+        EmptyState.Visibility = isEmpty ? Visibility.Visible : Visibility.Collapsed;
+        ResultsScroller.Visibility = isEmpty ? Visibility.Collapsed : Visibility.Visible;
+        if (!isEmpty)
+        {
+            return;
+        }
+
+        if (query.Trim().Length > 0)
+        {
+            EmptyTitle.Text = "Nothing matches that";
+            EmptyDetail.Text = $"No charm has \u201c{query.Trim()}\u201d in its name, its place or its materials.";
+            return;
+        }
+
+        (EmptyTitle.Text, EmptyDetail.Text) = filter switch
+        {
+            CharmFilter.Favourite => (
+                "No favourites yet",
+                "Star a charm with the button in the corner of its tile and it will be waiting here."),
+            CharmFilter.Recently => (
+                "Nothing hung yet",
+                "Charms you put on the cord show up here, most recent first."),
+            _ => ("Nothing here", "This category has no charms in it."),
+        };
+    }
+
+    private void MarkFavourites()
+    {
+        var favourites = store.Settings.Library.FavouriteCharmIds.ToHashSet(StringComparer.Ordinal);
+        foreach (CharmTile tile in tiles)
+        {
+            tile.IsFavourite = favourites.Contains(tile.Id);
+        }
+    }
+
+    private void OnSearchChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput)
+        {
+            return;
+        }
+
+        // Typing is not a setting. This never touches the store.
+        query = sender.Text;
+        ShowResults();
+    }
+
+    private void OnFavouriteClicked(object sender, RoutedEventArgs args)
+    {
+        if (sender is not Button { Tag: string id })
+        {
+            return;
+        }
+
+        store.Update(settings => settings with
+        {
+            Library = settings.Library.WithFavouriteToggled(id),
+        });
+
+        MarkFavourites();
+
+        // Starring while looking at the favourites is a removal, and the tile should go.
+        if (filter is CharmFilter.Favourite)
+        {
+            ShowResults();
+        }
     }
 
     private static string PackOf(CharmCatalogEntry entry)
@@ -210,7 +363,7 @@ public sealed partial class CustomizeWindow : Window
             LoginToggle.IsOn = store.Settings.LaunchAtLogin;
 
             RebuildSlots();
-            MarkChosen();
+            ShowResults();
         }
         finally
         {
@@ -381,15 +534,21 @@ public sealed partial class CustomizeWindow : Window
             return;
         }
 
-        store.UpdateOverlay(overlay =>
+        store.Update(settings =>
         {
-            var ids = overlay.CharmIds.ToList();
+            var ids = settings.Overlay.CharmIds.ToList();
             if (selectedSlot >= 0 && selectedSlot < ids.Count)
             {
                 ids[selectedSlot] = tile.Id;
             }
 
-            return overlay with { CharmIds = ids };
+            // The rope and the recents change together, in one write, so the file is
+            // written once for one act rather than twice.
+            return settings with
+            {
+                Overlay = settings.Overlay with { CharmIds = ids },
+                Library = settings.Library.WithRecent(tile.Id),
+            };
         });
     }
 

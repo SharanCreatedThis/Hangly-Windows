@@ -7,7 +7,7 @@ a project convinces itself it is nearly finished.
 - **Build:** green. All three CI jobs pass on `windows-latest`.
 - **Runs:** yes — Windows 11 ARM64 at 200%. The rope hangs on the desktop, is transparent,
   and can be thrown.
-- **Features:** roughly 58% ported. Charms, customization, About and analytics are in.
+- **Features:** roughly 66% ported. Charms, the Library, customization, About and analytics are in.
 
 ---
 
@@ -15,8 +15,8 @@ a project convinces itself it is nearly finished.
 
 | Job | Result |
 |---|---|
-| Solver and models (tests) | ✅ 114 / 114 passing on Windows |
-| Customize window (UI smoke) | ✅ 35 / 35 checks, driven through UI Automation in the VM |
+| Solver and models (tests) | ✅ 137 / 137 passing on Windows |
+| Customize window (UI smoke) | ✅ 53 / 53 checks, driven through UI Automation in the VM |
 | App — `win-x64` Release | ✅ builds and publishes |
 | App — `win-arm64` Release | ✅ builds and publishes |
 
@@ -72,6 +72,10 @@ real machine — Windows 11 ARM64 at 200% scaling:
   rest is laid out as the designer drew it. Charms are drawn cropped to their measured
   body, and their beads ride the cord as the solver's own particles.
 - **One, two or three charms** chosen from the tray or the Customize window.
+- The **Library**: all eighty-one charms grouped by pack, search that reaches names,
+  places, materials and tags and folds accents so *pancha* finds *Pánchángjié*, filter
+  chips for favourites, recents and all fourteen categories, starring, and an empty state
+  that says which nothing it is.
 - **About**, with the app icon read back out of the executable, the version and build, the
   copyright, links to the website, GitHub, the release notes and Instagram, and the
   coffee button.
@@ -104,8 +108,7 @@ real machine — Windows 11 ARM64 at 200% scaling:
   solver carries exactly the beads the designer drew. What differs from macOS is only
   how they are *painted*: a disc tinted with the cord's palette, rather than that part of
   the SVG. It reads well because a bead is a bead, and it is a parity gap all the same.
-- **Customize has three pages, not four.** Library and Create are not ported: no charm
-  search, no favourites, no importing your own.
+- **Create is not ported.** No importing your own charm, and no Studio.
 
 ## 4. What remains to be ported
 
@@ -113,7 +116,6 @@ Ordered by what unblocks the most.
 
 | Subsystem | Swift lines | Notes |
 |---|---:|---|
-| **Customize: Library page** | ~1,800 | Search, categories, favourites. The picker exists; the browser does not. |
 | **Charm Library** | ~1,800 | Browser, search, categories, favourites. |
 | **Charm Studio** | ~2,400 | Editor, pipeline, undo stack. **Deferred: explicitly out of scope for v1.** |
 | **Custom charm import** | ~1,200 | Image processor, store, dialogs. |
@@ -125,7 +127,7 @@ Ordered by what unblocks the most.
 
 ## 5. Completion
 
-**Roughly 58%** by weighted line count of the macOS source.
+**Roughly 66%** by weighted line count of the macOS source.
 
 That number understates progress in one way and overstates it in another, and both are
 worth saying:
@@ -142,7 +144,7 @@ worth saying:
 | Physics | ~100% |
 | App shell and services | ~40% |
 | Models | ~60% |
-| Views | ~38% |
+| Views | ~48% |
 
 ## 6. Distribution
 
@@ -209,6 +211,39 @@ rhythm is to run it whenever any of that changes.
 | Switching back on mints a **different** identifier | ✅ |
 | No property describing the desktop appears on any event | ✅ asserted against a recording provider |
 
+### The Library, verified
+
+| | |
+|---|---|
+| All 81 shown, grouped by pack | ✅ |
+| Search narrows the grid, and writes nothing to disk | ✅ asserted against the file, not inferred |
+| Accent-folding: *pancha* → *Pánchángjié*, *boncugu* → *Nazar boncuğu* | ✅ unit tested |
+| Category chips — all fourteen, none of them empty | ✅ a test fails if a chip would lead nowhere |
+| Starring persists; favourites filter shows what was starred | ✅ |
+| Hanging a charm records it as recent, newest first, no repeats | ✅ |
+| Empty states for "no favourites", "nothing hung", "nothing matches" | ✅ |
+| Filter survives closing and reopening the window | ✅ |
+| Thumbnails rendered once to disk and reused across launches | ✅ 81 PNGs, not re-rendered on reopen |
+
+### Startup, measured
+
+Median of the app's own timestamps, from launch to the rope being on screen, over nine
+runs on the ARM64 guest at 200%.
+
+| | Wall clock | App internal |
+|---|---|---|
+| Before the Library | 317 ms | 236 ms |
+| After | 341 ms | 255 ms |
+
+**A real regression of about 19 ms, or 8%.** It is the generated catalogue getting bigger:
+every charm now carries its region, description and tags, and the whole table is built the
+first time anything touches it — which at launch is resolving the charms on the rope.
+
+Not optimised, deliberately. The fix is to split the Library-only strings into a second
+generated table that nothing touches until the Library opens, and 19 ms on a 255 ms
+startup does not yet pay for a second table. Written down here so that if startup ever
+does matter, the first place to look is known rather than guessed at.
+
 ### Known differences from macOS
 
 | | |
@@ -218,6 +253,10 @@ rhythm is to run it whenever any of that changes.
 | No batching | Each event is its own request. macOS lets the SDK queue; at a handful of events per session there is nothing to gain and a queue is something to lose on a crash |
 | Events defined but never fired | `charm_imported`, `charm_saved`, `charm_reordered`, `weather_effect_toggled`, `collection_opened`, `collection_charm_selected`, `follow_popup_*`, `airdrop_*`, `coffee_copy_upi`, `coffee_qr_viewed` — the features do not exist yet. Named now so both platforms report the same act under the same name later |
 | About page | One page, not the macOS four-band layout: no statistics, no secrets button, no creator card, no in-app release-notes or coffee sheets — both links open a browser |
+| Library layout | A grid with chips above it. macOS has hero cards for the collections, a detail panel describing the charm you are reading about, a tag cloud, and a rope shelf with its own swatches — none of which are here. Choosing a charm hangs it; there is no "read about it without hanging it" |
+| Charm metadata | macOS keeps physics in the Swift catalogue and Library facts in `CharmLibrary.json`. Here the generator merges both into one table by id, so a charm is described in exactly one place |
+| Recently used | **An addition, not a port.** macOS has favourites and no recents |
+| Rope composition | macOS has no count control at all — the number of charms is a consequence of how many places are filled. Here it is still a one-two-three picker |
 
 ## 8. Next milestone
 
@@ -230,12 +269,10 @@ describes ships, not after.
 
 What remains for v1, in the order that unblocks the most:
 
-1. **Library** — search, categories, favourites. Eighty-one charms in one grid is fine;
-   it will not be at a hundred and eighty.
-2. **Custom charm import** — the drag-and-drop half of what macOS does with AirDrop.
-3. **Weather and seasons.**
-4. **Sound**, the welcome flow, the follow card, and the tray artwork.
-5. **Packaging, signing and the v0.9.0 pre-release**, which is blocked on SignPath
+1. **Custom charm import** — the drag-and-drop half of what macOS does with AirDrop.
+2. **Weather and seasons.**
+3. **Sound**, the welcome flow, the follow card, and the tray artwork.
+4. **Packaging, signing and the v0.9.0 pre-release**, which is blocked on SignPath
    answering whether a pre-release satisfies "already released".
 
 **Charm Studio is deferred — explicitly out of scope for v1.**

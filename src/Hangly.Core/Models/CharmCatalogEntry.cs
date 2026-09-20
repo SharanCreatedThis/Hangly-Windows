@@ -28,6 +28,14 @@ namespace Hangly.Core.Models;
 /// unless the artwork's own cord is thick enough to read as a part of its own, in which
 /// case the parts between are dropped and the simulated cord replaces them.
 /// </param>
+/// <param name="CategoryId">
+/// Which of <see cref="CharmCatalog.Categories"/> this charm belongs to.
+/// </param>
+/// <param name="Region">Where the charm comes from, as the Library says it.</param>
+/// <param name="Tags">
+/// Words the Library searches in addition to the name — the material, the colour, the
+/// place. They are what makes "glass" find the nazar.
+/// </param>
 public sealed record CharmCatalogEntry(
     string Id,
     string DisplayName,
@@ -37,4 +45,35 @@ public sealed record CharmCatalogEntry(
     CharmPalette Palette,
     CharmSound Sound,
     int BeadCount,
-    int BodyRun);
+    int BodyRun,
+    string CategoryId,
+    string Region,
+    string Description,
+    IReadOnlyList<string> Tags)
+{
+    /// <summary>Compared by value, tags included.</summary>
+    /// <remarks>
+    /// The generated equality would compare <see cref="Tags"/> by reference, which makes
+    /// two identical entries unequal — the same trap the settings document fell into.
+    /// </remarks>
+    public bool Equals(CharmCatalogEntry? other) =>
+        other is not null
+        && Id == other.Id
+        && DisplayName == other.DisplayName
+        && FileName == other.FileName
+        && Mass.Equals(other.Mass)
+        && RadiusRatio.Equals(other.RadiusRatio)
+        && Palette == other.Palette
+        && Sound == other.Sound
+        && BeadCount == other.BeadCount
+        && BodyRun == other.BodyRun
+        && CategoryId == other.CategoryId
+        && Region == other.Region
+        && Description == other.Description
+        && Tags.SequenceEqual(other.Tags, StringComparer.Ordinal);
+
+    public override int GetHashCode() => Id.GetHashCode(StringComparison.Ordinal);
+}
+
+/// <summary>One of the Library's categories.</summary>
+public sealed record CharmCategory(string Id, string Name);

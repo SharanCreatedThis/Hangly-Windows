@@ -14,6 +14,7 @@ generated file; the header says so to whoever opens it next.
 
 from __future__ import annotations
 
+import json
 import pathlib
 import re
 import sys
@@ -21,6 +22,11 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SWIFT = ROOT / "reference" / "swift"
 OUT = ROOT / "src" / "Hangly.Core" / "Models" / "CharmCatalog.Generated.cs"
+
+# The Library's own facts — region, category, description, tags — live in the metadata
+# document the macOS app ships rather than in the Swift catalogue. Merged here by id into
+# one table, so a charm is described in exactly one place on this side.
+LIBRARY = SWIFT / "CharmLibrary.json"
 
 # The order the charm menu offers them in. CollectionCharmCatalog.entries is
 #   collectionEntries + seasonalEntries + collectionPackEntries + storyPackEntries
@@ -41,6 +47,14 @@ EXPECTED = 81
 
 def read(path: str) -> str:
     return (SWIFT / path).read_text(encoding="utf-8")
+
+
+def library_metadata() -> tuple[dict[str, dict], list[tuple[str, str]]]:
+    """Per-charm Library facts, and the category list, out of CharmLibrary.json."""
+    document = json.loads(LIBRARY.read_text(encoding="utf-8"))
+    charms = {entry["id"]: entry for entry in document["charms"]}
+    categories = [(c["id"], c["name"]) for c in document["categories"]]
+    return charms, categories
 
 
 def display_names() -> dict[str, str]:
@@ -138,6 +152,7 @@ def escape(text: str) -> str:
 
 def main() -> int:
     names = display_names()
+    library, categories = library_metadata()
     entries: list[dict] = []
     for path, list_name in SOURCES:
         entries.extend(parse(b) for b in entry_blocks(read(path), list_name))
@@ -150,6 +165,11 @@ def main() -> int:
     if len(set(ids)) != len(ids):
         dupes = {i for i in ids if ids.count(i) > 1}
         print(f"duplicate kinds: {sorted(dupes)}", file=sys.stderr)
+        return 1
+
+    missing_metadata = [e["kind"] for e in entries if e["kind"] not in library]
+    if missing_metadata:
+        print(f"no library metadata for: {sorted(missing_metadata)}", file=sys.stderr)
         return 1
 
     lines = [
@@ -170,6 +190,17 @@ def main() -> int:
         "",
         "public static partial class CharmCatalog",
         "{",
+        "    /// <summary>The Library's categories, in the order the chips offer them.</summary>",
+        "    public static IReadOnlyList<CharmCategory> Categories { get; } =",
+        "    [",
+    ]
+
+    for identifier, name in categories:
+        lines.append(f'        new("{escape(identifier)}", "{escape(name)}"),')
+
+    lines += [
+        "    ];",
+        "",
         "    /// <summary>Every built-in charm, in the order the charm menu offers them.</summary>",
         "    public static IReadOnlyList<CharmCatalogEntry> All { get; } =",
         "    [",
@@ -181,6 +212,8 @@ def main() -> int:
             print(f"no display name for {e['kind']}", file=sys.stderr)
             return 1
         sound = e["sound"][0].upper() + e["sound"][1:]
+        meta = library[e["kind"]]
+        tags = ", ".join(f'"{escape(tag)}"' for tag in meta.get("tags", []))
         lines += [
             "        new(",
             f'            Id: "{e["kind"]}",',
@@ -195,7 +228,11 @@ def main() -> int:
             f'                new CharmColor({", ".join(e["light"])})),',
             f'            Sound: CharmSound.{sound},',
             f'            BeadCount: {e["beadCount"]},',
-            f'            BodyRun: {e["bodyRun"]}),',
+            f'            BodyRun: {e["bodyRun"]},',
+            f'            CategoryId: "{escape(meta["category"])}",',
+            f'            Region: "{escape(meta["region"])}",',
+            f'            Description: "{escape(meta["description"])}",',
+            f'            Tags: [{tags}]),',
         ]
 
     lines += ["    ];", "}", ""]

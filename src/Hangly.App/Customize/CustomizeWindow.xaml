@@ -24,6 +24,21 @@
                         BorderBrush="{x:Bind Outline, Mode=OneWay}"
                         BorderThickness="2"
                         CornerRadius="8" />
+                    <Button
+                        Width="26"
+                        Height="26"
+                        Padding="0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        AutomationProperties.Name="{x:Bind FavouriteLabel, Mode=OneWay}"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Click="OnFavouriteClicked"
+                        Content="{x:Bind FavouriteGlyph, Mode=OneWay}"
+                        FontFamily="Segoe Fluent Icons"
+                        FontSize="14"
+                        Tag="{x:Bind Id, Mode=OneTime}"
+                        ToolTipService.ToolTip="{x:Bind FavouriteLabel, Mode=OneWay}" />
                     <StackPanel VerticalAlignment="Center">
                         <Image
                             Width="56"
@@ -54,7 +69,7 @@
             SelectionChanged="OnSectionChanged">
 
             <muxc:NavigationView.MenuItems>
-                <muxc:NavigationViewItem Content="Charms" Tag="charms" IsSelected="True">
+                <muxc:NavigationViewItem Content="Library" Tag="charms" IsSelected="True">
                     <muxc:NavigationViewItem.Icon>
                         <SymbolIcon Symbol="Emoji2" />
                     </muxc:NavigationViewItem.Icon>
@@ -72,24 +87,23 @@
             </muxc:NavigationView.MenuItems>
 
             <Grid>
-                <!-- Charms -->
+                <!-- Library -->
                 <Grid x:Name="CharmsPage" Margin="24,16,24,16">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <TextBlock
-                        Style="{StaticResource TitleTextBlockStyle}"
-                        Text="Charms" />
+                    <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Library" />
 
+                    <!-- What is on the rope now, and how many places there are. -->
                     <StackPanel Grid.Row="1" Margin="0,12,0,12" Spacing="10">
                         <TextBlock
                             x:Name="CordSummary"
                             Style="{StaticResource BodyTextBlockStyle}"
                             Text="On the cord" />
-
                         <muxc:RadioButtons
                             x:Name="CountChoice"
                             Header="Charms on the cord"
@@ -99,33 +113,71 @@
                             <x:String>2</x:String>
                             <x:String>3</x:String>
                         </muxc:RadioButtons>
-
-                        <StackPanel
-                            x:Name="SlotButtons"
-                            Orientation="Horizontal"
-                            Spacing="8" />
+                        <StackPanel x:Name="SlotButtons" Orientation="Horizontal" Spacing="8" />
                     </StackPanel>
 
-                    <ScrollViewer Grid.Row="2">
-                        <ItemsControl x:Name="Packs">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="local:CharmGroup">
-                                    <StackPanel Margin="0,0,0,18">
-                                        <TextBlock
-                                            Margin="0,0,0,6"
-                                            Style="{StaticResource SubtitleTextBlockStyle}"
-                                            Text="{x:Bind Name, Mode=OneTime}" />
-                                        <GridView
-                                            IsItemClickEnabled="True"
-                                            ItemClick="OnCharmClicked"
-                                            ItemTemplate="{StaticResource CharmTemplate}"
-                                            ItemsSource="{x:Bind Charms, Mode=OneTime}"
-                                            SelectionMode="None" />
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
+                    <!-- Search and the chips. A category is a filter, and a filter is one
+                         click that leaves the charms where they are. -->
+                    <StackPanel Grid.Row="2" Margin="0,0,0,12" Spacing="10">
+                        <AutoSuggestBox
+                            x:Name="SearchBox"
+                            MaxWidth="420"
+                            HorizontalAlignment="Left"
+                            AutomationProperties.Name="Search charms"
+                            PlaceholderText="Search charms, places, materials"
+                            QueryIcon="Find"
+                            TextChanged="OnSearchChanged" />
+                        <ScrollViewer
+                            HorizontalScrollBarVisibility="Auto"
+                            HorizontalScrollMode="Auto"
+                            VerticalScrollMode="Disabled">
+                            <StackPanel x:Name="FilterChips" Orientation="Horizontal" Spacing="8" />
+                        </ScrollViewer>
+                    </StackPanel>
+
+                    <Grid Grid.Row="3">
+                        <ScrollViewer x:Name="ResultsScroller">
+                            <ItemsControl x:Name="Packs">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="local:CharmGroup">
+                                        <StackPanel Margin="0,0,0,18">
+                                            <TextBlock
+                                                Margin="0,0,0,6"
+                                                Style="{StaticResource SubtitleTextBlockStyle}"
+                                                Text="{x:Bind Name, Mode=OneTime}" />
+                                            <GridView
+                                                IsItemClickEnabled="True"
+                                                ItemClick="OnCharmClicked"
+                                                ItemTemplate="{StaticResource CharmTemplate}"
+                                                ItemsSource="{x:Bind Charms, Mode=OneTime}"
+                                                SelectionMode="None"
+                                                TabNavigation="Local" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+
+                        <!-- Empty states. Which one depends on why there is nothing. -->
+                        <StackPanel
+                            x:Name="EmptyState"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="6"
+                            Visibility="Collapsed">
+                            <TextBlock
+                                x:Name="EmptyTitle"
+                                HorizontalAlignment="Center"
+                                Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <TextBlock
+                                x:Name="EmptyDetail"
+                                HorizontalAlignment="Center"
+                                MaxWidth="360"
+                                Opacity="0.7"
+                                TextAlignment="Center"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Grid>
                 </Grid>
 
                 <!-- Appearance -->

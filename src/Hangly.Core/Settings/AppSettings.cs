@@ -174,6 +174,75 @@ public sealed record MilestoneSettings
     public bool IsFirstLaunch => LaunchCount <= 1;
 }
 
+/// <summary>What the Library remembers between visits.</summary>
+/// <remarks>
+/// Separate from <see cref="OverlaySettings"/> because none of it changes what hangs on
+/// the rope: starring a charm and looking at one are things the user does <i>to the
+/// Library</i>, and a write here must never be mistaken for a change to the overlay.
+/// </remarks>
+public sealed record LibrarySettings
+{
+    /// <summary>Charms the user has starred, in the order they starred them.</summary>
+    public IReadOnlyList<string> FavouriteCharmIds { get; init; } = [];
+
+    /// <summary>Charms recently hung, newest first.</summary>
+    public IReadOnlyList<string> RecentCharmIds { get; init; } = [];
+
+    /// <summary>How many recents are kept. Enough to be useful, few enough to scan.</summary>
+    public const int RecentLimit = 12;
+
+    /// <summary>The same settings with this charm moved to the front of the recents.</summary>
+    public LibrarySettings WithRecent(string charmId)
+    {
+        List<string> recent = [charmId, .. RecentCharmIds.Where(id => id != charmId)];
+        if (recent.Count > RecentLimit)
+        {
+            recent.RemoveRange(RecentLimit, recent.Count - RecentLimit);
+        }
+
+        return this with { RecentCharmIds = recent };
+    }
+
+    /// <summary>The same settings with this charm starred, or unstarred if it already was.</summary>
+    public LibrarySettings WithFavouriteToggled(string charmId) =>
+        FavouriteCharmIds.Contains(charmId)
+            ? this with { FavouriteCharmIds = [.. FavouriteCharmIds.Where(id => id != charmId)] }
+            : this with { FavouriteCharmIds = [.. FavouriteCharmIds, charmId] };
+
+    /// <summary>Compared by value, because two lists of the same ids are the same set.</summary>
+    /// <remarks>
+    /// The generated equality compares a list by reference, which would make the store
+    /// think the Library had changed on every read and rewrite the file each time.
+    /// </remarks>
+    public bool Equals(LibrarySettings? other) =>
+        other is not null
+        && FavouriteCharmIds.SequenceEqual(other.FavouriteCharmIds, StringComparer.Ordinal)
+        && RecentCharmIds.SequenceEqual(other.RecentCharmIds, StringComparer.Ordinal);
+
+    public override int GetHashCode()
+    {
+        var hash = default(HashCode);
+        foreach (string id in FavouriteCharmIds)
+        {
+            hash.Add(id, StringComparer.Ordinal);
+        }
+
+        foreach (string id in RecentCharmIds)
+        {
+            hash.Add(id, StringComparer.Ordinal);
+        }
+
+        return hash.ToHashCode();
+    }
+
+    /// <summary>Drops ids the catalogue no longer knows, so a stale file cannot poison the grid.</summary>
+    public LibrarySettings Clamped() => this with
+    {
+        FavouriteCharmIds = [.. FavouriteCharmIds.Where(Models.CharmCatalog.Contains).Distinct(StringComparer.Ordinal)],
+        RecentCharmIds = [.. RecentCharmIds.Where(Models.CharmCatalog.Contains).Distinct(StringComparer.Ordinal).Take(RecentLimit)],
+    };
+}
+
 /// <summary>The whole settings document.</summary>
 public sealed record AppSettings
 {
@@ -193,10 +262,13 @@ public sealed record AppSettings
 
     public MilestoneSettings Milestones { get; init; } = new();
 
+    public LibrarySettings Library { get; init; } = new();
+
     public AppSettings Clamped() => this with
     {
         Overlay = Overlay.Clamped(),
         Milestones = Milestones with { LaunchCount = Math.Max(0, Milestones.LaunchCount) },
+        Library = Library.Clamped(),
     };
 
     /// <summary>The reader and writer both sides of persistence use.</summary>

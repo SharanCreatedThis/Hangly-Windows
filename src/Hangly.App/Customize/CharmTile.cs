@@ -28,6 +28,7 @@ public sealed class CharmTile : INotifyPropertyChanged
     private static readonly SolidColorBrush Unchosen = new(Microsoft.UI.Colors.Transparent);
 
     private bool isChosen;
+    private bool isFavourite;
 
     public CharmTile(CharmCatalogEntry entry)
     {
@@ -68,6 +69,39 @@ public sealed class CharmTile : INotifyPropertyChanged
     public Brush Outline => isChosen
         ? (Brush)Microsoft.UI.Xaml.Application.Current.Resources["AccentFillColorDefaultBrush"]
         : Unchosen;
+
+    /// <summary>Whether this charm has been starred.</summary>
+    public bool IsFavourite
+    {
+        get => isFavourite;
+        set
+        {
+            if (isFavourite == value)
+            {
+                return;
+            }
+
+            isFavourite = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsFavourite)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(FavouriteGlyph)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(FavouriteLabel)));
+        }
+    }
+
+    /// <summary>A filled star when starred, an outline when not. Segoe Fluent Icons.</summary>
+    public string FavouriteGlyph => isFavourite ? "\uE735" : "\uE734";
+
+    /// <summary>
+    /// What a screen reader says, and what the tooltip shows.
+    /// </summary>
+    /// <remarks>
+    /// Names the charm as well as the action. A grid of eighty-one buttons all announcing
+    /// "Add to favourites" tells somebody navigating by voice nothing about which one
+    /// they are on.
+    /// </remarks>
+    public string FavouriteLabel => isFavourite
+        ? $"Remove {DisplayName} from favourites"
+        : $"Add {DisplayName} to favourites";
 }
 
 /// <summary>The charms of one pack, which is how the grid is divided.</summary>

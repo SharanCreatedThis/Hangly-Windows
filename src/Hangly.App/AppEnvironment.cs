@@ -309,6 +309,12 @@ public sealed class AppEnvironment : IDisposable
     /// The tray menu, rebuilt on every click so a checkmark cannot disagree with the
     /// settings.
     /// </summary>
+    /// <remarks>
+    /// There is no charm picker here any more. An eighty-one item submenu was a stopgap
+    /// while the Library did not exist; it does now, and a list of eighty-one things in a
+    /// tray menu is a list rather than a way to choose. Rope and Position stay, because
+    /// they are short and genuinely quicker than opening a window for.
+    /// </remarks>
     private IReadOnlyList<MenuEntry> BuildMenu()
     {
         AppSettings settings = store.Settings;
@@ -327,20 +333,6 @@ public sealed class AppEnvironment : IDisposable
                 IsChecked: settings.Overlay.Anchor == anchor))
             .ToList();
 
-        var charms = CharmCatalog.All
-            .GroupBy(charm =>
-            {
-                int slash = charm.FileName.LastIndexOf('/');
-                return slash < 0 ? "Classics & Collection" : charm.FileName[..slash];
-            })
-            .Select(group => new MenuEntry(
-                group.Key,
-                Children: [.. group.Select(charm => new MenuEntry(
-                    charm.DisplayName,
-                    () => store.UpdateOverlay(overlay => overlay with { CharmIds = [charm.Id] }),
-                    IsChecked: settings.Overlay.CharmIds.Contains(charm.Id)))]))
-            .ToList();
-
         return
         [
             new MenuEntry(
@@ -349,7 +341,6 @@ public sealed class AppEnvironment : IDisposable
             MenuEntry.Separator,
             new MenuEntry("Customize…", OpenCustomize),
             MenuEntry.Separator,
-            new MenuEntry("Charm", Children: charms),
             new MenuEntry("Rope", Children: ropes),
             new MenuEntry("Position", Children: anchors),
             MenuEntry.Separator,

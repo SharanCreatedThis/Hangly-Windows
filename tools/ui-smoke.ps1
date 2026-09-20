@@ -23,6 +23,7 @@ Add-Type -Namespace UI -Name N -MemberDefinition @'
 [DllImport("user32.dll", CharSet=CharSet.Unicode, EntryPoint="FindWindowW")] public static extern IntPtr FindWindowByClass(string c, IntPtr n);
 [DllImport("user32.dll", CharSet=CharSet.Unicode, EntryPoint="FindWindowW")] public static extern IntPtr FindWindowTitled(string c, string n);
 [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+[DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
 '@
 [UI.N]::SetProcessDPIAware() | Out-Null
 
@@ -114,6 +115,79 @@ function ClickElement($e) {
   ClickPoint ($r.X + $r.Width/2) ($r.Y + $r.Height/2) $false
   Start-Sleep -Milliseconds 900 }
 
+# --- the Library --------------------------------------------------------------------
+function CharmTiles {
+    # The navigation items are ListItems too; the charms are the rest.
+    $win = [System.Windows.Automation.AutomationElement]::FromHandle($window)
+    $cond = New-Object System.Windows.Automation.PropertyCondition(
+        [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+        [System.Windows.Automation.ControlType]::ListItem)
+    @($win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond) |
+        Where-Object { $_.Current.Name -notin 'Library', 'Appearance', 'About' }).Count
+}
+
+Check 'the Library page is the one that opens' ([bool](FindIn ([System.Windows.Automation.ControlType]::ListItem) '^Library$'))
+Check 'all eighty-one charms are shown' ((CharmTiles) -eq 81)
+foreach ($chip in 'All', 'Favourites', 'Recent', 'Protection') {
+    Check "the $chip filter is offered" ([bool](FindIn ([System.Windows.Automation.ControlType]::Button) "^Show $chip$"))
+}
+
+$search = FindIn ([System.Windows.Automation.ControlType]::Edit) '.*'
+Check 'the search box exists' ([bool]$search)
+if ($search) {
+    $settingsBeforeSearch = Get-Content $settingsPath -Raw
+    $search.SetFocus()
+    Start-Sleep -Milliseconds 400
+    [System.Windows.Forms.SendKeys]::SendWait('glass')
+    Start-Sleep -Seconds 2
+    $narrowed = CharmTiles
+    Check 'searching narrows the grid'        ($narrowed -gt 0 -and $narrowed -lt 81)
+    Check 'searching writes nothing to disk'  ((Get-Content $settingsPath -Raw) -eq $settingsBeforeSearch)
+
+    [System.Windows.Forms.SendKeys]::SendWait('^a{BACKSPACE}')
+    Start-Sleep -Seconds 2
+    Check 'clearing the search restores the grid' ((CharmTiles) -eq 81)
+}
+
+$favouriteChip = FindIn ([System.Windows.Automation.ControlType]::Button) '^Show Favourites$'
+if ($favouriteChip) {
+    ClickElement $favouriteChip
+    Check 'an unstarred Library shows an empty state' `
+        ([bool](FindIn ([System.Windows.Automation.ControlType]::Text) 'No favourites yet'))
+
+    $allChip = FindIn ([System.Windows.Automation.ControlType]::Button) '^Show All$'
+    if ($allChip) { ClickElement $allChip }
+
+    $star = FindIn ([System.Windows.Automation.ControlType]::Button) 'Add Hamsa to favourites'
+    Check 'a charm can be starred' ([bool]$star)
+    if ($star) {
+        ClickElement $star
+        Check 'starring persists'  ((Settings).library.favouriteCharmIds -contains 'hamsa')
+        ClickElement $favouriteChip
+        Check 'favourites shows what was starred' ((CharmTiles) -eq 1)
+        if ($allChip) { ClickElement $allChip }
+    }
+}
+
+$categoryChip = FindIn ([System.Windows.Automation.ControlType]::Button) '^Show Protection$'
+if ($categoryChip) {
+    ClickElement $categoryChip
+    $inCategory = CharmTiles
+    Check 'a category shows some charms but not all' ($inCategory -gt 0 -and $inCategory -lt 81)
+    $allChip = FindIn ([System.Windows.Automation.ControlType]::Button) '^Show All$'
+    if ($allChip) { ClickElement $allChip }
+}
+
+# Hanging a charm from the Library is what fills the recents.
+$daruma = FindIn ([System.Windows.Automation.ControlType]::ListItem) '^Daruma$'
+Check 'a charm can be hung from the Library' ([bool]$daruma)
+if ($daruma) {
+    ClickElement $daruma
+    Start-Sleep -Seconds 1
+    Check 'hanging a charm changes the rope'   ((Settings).overlay.charmIds -contains 'daruma')
+    Check 'hanging a charm records it as recent' ((Settings).library.recentCharmIds -contains 'daruma')
+}
+
 $three = FindIn ([System.Windows.Automation.ControlType]::RadioButton) '^3$'
 Check 'the charm count picker offers three' ([bool]$three)
 if ($three) {
@@ -180,6 +254,28 @@ if ($about) {
         Check 'switching analytics back on is recorded'    ($on.privacy.analyticsEnabled -eq $true)
         Check 'switching back on mints a new identifier'   ($null -ne $on.privacy.anonymousId)
     }
+}
+
+# Closing hides rather than destroys, so what the Library was showing should survive it.
+$protection = FindIn ([System.Windows.Automation.ControlType]::Button) '^Show Protection$'
+if ($protection) {
+    ClickElement $protection
+    [UI.N]::PostMessage($window, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+    Start-Sleep -Seconds 3
+    Check 'the app survives closing Customize' ([bool](Get-Process Hangly -ErrorAction SilentlyContinue))
+
+    $icon = TrayIcon
+    if ($icon) {
+        $b = $icon.Current.BoundingRectangle
+        ClickPoint ($b.X+$b.Width/2) ($b.Y+$b.Height/2) $true
+        Start-Sleep -Milliseconds 900
+        [System.Windows.Forms.SendKeys]::SendWait('{DOWN}{DOWN}{ENTER}')
+        Start-Sleep -Seconds 5
+    }
+    $reopened = FindIn ([System.Windows.Automation.ControlType]::Button) '^Show Protection$'
+    Check 'reopening keeps the filter that was chosen' `
+        ($null -ne $reopened -and $reopened.Current.Name -eq 'Show Protection' -and
+         $reopened.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState -eq 'On')
 }
 
 Check 'the launch was counted' ((Settings).milestones.launchCount -ge 1)
