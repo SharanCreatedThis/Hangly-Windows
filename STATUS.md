@@ -15,7 +15,7 @@ a project convinces itself it is nearly finished.
 
 | Job | Result |
 |---|---|
-| Solver and models (tests) | ✅ 687 / 687 passing on Windows |
+| Solver and models (tests) | ✅ 692 / 692 passing on Windows |
 | Customize window (UI smoke) | ✅ 81 / 81 checks, driven through UI Automation in the VM |
 | App — `win-x64` Release | ✅ builds and publishes |
 | App — `win-arm64` Release | ✅ builds and publishes |
@@ -215,6 +215,7 @@ guest cost an incident once already and is not worth a second:
 | Monitor hot-unplug | ❌ the fallback exists in `DisplayObserver.DisplayAt` and is untested end to end |
 | Wake from sleep | ❌ never tried |
 | **Windows 10 1809**, the floor the manifest declares | ❌ never tried. Either test it or raise the floor; claiming it is the one option that is not available |
+| A file dragged from Explorer onto the charm | ⚠️ implemented, end-to-end drag not exercised. `RegisterDragDrop` succeeds and the replacement is unit-tested, but an OLE drag is a shell-driven modal loop that synthetic input cannot complete — two attempts hung on `DoDragDrop`. Manual-pass item |
 | A DPI change *while running* | ⚠️ handled, never exercised. `WM_DPICHANGED` refits the overlay, and the scale is also compared against the window's own DPI once a second so a missed message cannot leave it stale. Neither path can be triggered from outside the process — Windows refuses a synthetic `WM_DPICHANGED` (`PostMessage` → ERROR_MESSAGE_SYNC_ONLY, `SendMessage` dropped) — so this needs the manual scaling pass |
 
 Customize, About and analytics are covered by `tools/ui-smoke.ps1`, which drives the
@@ -297,7 +298,7 @@ would be worse than saying so.
 | `macos_version` → `windows_version` | The same key holding a different kind of number would make the two datasets disagree about what the word means |
 | Transport | Hand-written against PostHog's capture endpoint rather than their SDK. The macOS build wraps the SDK behind the same provider seam; here the wrapper was the whole job, and a file this size can be read to check what leaves |
 | No batching | Each event is its own request. macOS lets the SDK queue; at a handful of events per session there is nothing to gain and a queue is something to lose on a crash |
-| Events defined but never fired | `charm_imported`, `charm_saved`, `charm_reordered`, `collection_charm_selected`, `airdrop_*` — the features do not exist yet. Named now so both platforms report the same act under the same name later |
+| Events defined but never fired | `charm_imported`, `charm_saved`, `charm_reordered`, `collection_charm_selected`, nothing — every defined event now has a call site. Named now so both platforms report the same act under the same name later |
 | Import input format | **SVG here, photographs on macOS.** The biggest gap in this milestone; see PORTING.md |
 | Import review step | macOS opens every interactive import in the Studio first. Here it goes straight into the Library |
 | About page | One page, not the macOS four-band layout: no statistics, no secrets button, no creator card, no in-app release-notes or coffee sheets — both links open a browser |

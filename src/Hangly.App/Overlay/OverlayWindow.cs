@@ -65,6 +65,10 @@ public sealed class OverlayWindow : IDisposable
     private int isNudged;
     private long swings;
     private long lastRaise;
+    private CharmDropTarget? dropTarget;
+
+    /// <summary>Which place the cursor is over, or null. Read by the drop target.</summary>
+    private int? hoveredCharm;
     private long lastScaleCheck;
     private int lastSide;
     private IReadOnlyList<CharmDescriptor>? pendingCharms;
@@ -101,6 +105,17 @@ public sealed class OverlayWindow : IDisposable
     /// — belongs to the frame loop.
     /// </remarks>
     public void Apply(OverlaySettings updated) => Interlocked.Exchange(ref pending, updated);
+
+    /// <summary>A file was dropped on a charm: which place, and which file.</summary>
+    /// <remarks>
+    /// Raised from the frame loop's thread, because that is where the drop target lives.
+    /// The handler does the importing, which is why this carries the path rather than a
+    /// charm: the overlay knows where the file landed and nothing else about it.
+    /// </remarks>
+    public event Action<int, string>? FileDropped;
+
+    /// <summary>A file was dragged over a charm for the first time in this drag.</summary>
+    public event Action? DragEntered;
 
     /// <summary>Changes what hangs on the cord, without rebuilding the window.</summary>
     /// <remarks>
@@ -145,6 +160,12 @@ public sealed class OverlayWindow : IDisposable
             // the process alive after the tray has quit it.
             IsBackground = true,
         };
+
+        // Single-threaded apartment, which OLE drag and drop requires: RegisterDragDrop
+        // answers E_OUTOFMEMORY on an MTA thread, which is what it did here until this
+        // line existed. The loop already pumps messages, which is the other half of what
+        // an STA thread owes.
+        thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
     }
 
@@ -157,6 +178,28 @@ public sealed class OverlayWindow : IDisposable
         try
         {
             surface.Create();
+
+            // The drop target is registered on this thread because OLE drag and drop is
+            // apartment-bound: it has to be the thread that owns the window and pumps it.
+            int ole = NativeMethods.OleInitialize(IntPtr.Zero);
+            if (ole < 0)
+            {
+                Diagnostics.Log($"OleInitialize failed: 0x{ole:X8}");
+            }
+
+            dropTarget = new CharmDropTarget(
+                () => DragEntered?.Invoke(),
+                OnFileDropped,
+                () => hoveredCharm is not null);
+
+            int registered = NativeMethods.RegisterDragDrop(surface.Handle, dropTarget);
+            if (registered != 0)
+            {
+                // Reported rather than thrown: an overlay that cannot take a dropped file
+                // is still an overlay, and the menu can still import.
+                Diagnostics.Log($"RegisterDragDrop failed: 0x{registered:X8}; drops are off");
+            }
+
             Reposition();
             rope.Start();
 
@@ -223,6 +266,12 @@ public sealed class OverlayWindow : IDisposable
         finally
         {
             clock.Stop();
+            if (dropTarget is not null)
+            {
+                NativeMethods.RevokeDragDrop(surface.Handle);
+                dropTarget = null;
+            }
+
             surface.Dispose();
         }
     }
@@ -426,7 +475,11 @@ public sealed class OverlayWindow : IDisposable
             (cursor.Y - frame.Top) / scale);
 
         bool isButtonDown = (NativeMethods.GetAsyncKeyState(NativeMethods.VkLbutton) & 0x8000) != 0;
-        bool overCharm = rope.CanGrab(location);
+
+        // Which place, not just whether: a drop has to land on the charm it was aimed at.
+        // This is polled anyway for click-through, so the drop target costs no extra work.
+        hoveredCharm = rope.CharmIndexAt(location);
+        bool overCharm = hoveredCharm is not null;
 
         // The cursor may only pass through when it is not over the charm — and never
         // mid-drag, or letting go while moving fast would drop the charm the instant the
@@ -454,6 +507,15 @@ public sealed class OverlayWindow : IDisposable
 
         wasButtonDown = isButtonDown;
         lastCursor = location;
+    }
+
+    /// <summary>Hands the drop on to whoever is listening, with the place it landed on.</summary>
+    private void OnFileDropped(string path)
+    {
+        if (hoveredCharm is int slot)
+        {
+            FileDropped?.Invoke(slot, path);
+        }
     }
 
     private void SetClickThrough(bool enabled)

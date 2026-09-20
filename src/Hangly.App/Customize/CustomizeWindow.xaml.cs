@@ -1037,6 +1037,7 @@ public sealed partial class CustomizeWindow : Window
 
     private void Import()
     {
+        analytics.Track(Events.AirdropPickerOpened);
         string? path = Interop.FileDialog.OpenFile(
             WinRT.Interop.WindowNative.GetWindowHandle(this),
             "Import a charm",

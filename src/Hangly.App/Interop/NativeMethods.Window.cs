@@ -34,6 +34,21 @@ internal static partial class NativeMethods
     /// <summary>Sent when a window's DPI changes, by a display change or by moving.</summary>
     internal const uint WmDpiChanged = 0x02E0;
 
+    [DllImport("ole32.dll")]
+    internal static extern int OleInitialize(IntPtr reserved);
+
+    [DllImport("ole32.dll")]
+    internal static extern int RegisterDragDrop(IntPtr hWnd, [MarshalAs(UnmanagedType.Interface)] object target);
+
+    [DllImport("ole32.dll")]
+    internal static extern int RevokeDragDrop(IntPtr hWnd);
+
+    [DllImport("ole32.dll")]
+    internal static extern void ReleaseStgMedium(ref System.Runtime.InteropServices.ComTypes.STGMEDIUM medium);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    internal static extern uint DragQueryFile(IntPtr drop, uint index, char[]? buffer, uint length);
+
     internal const uint WsPopup = 0x80000000;
     internal const uint WsVisible = 0x10000000;
 

@@ -66,9 +66,21 @@ public sealed partial class RopeSimulation
     /// that a tie goes to the charm on the end — the one a user reaching for "the charm"
     /// almost always means.
     /// </remarks>
-    public CharmStackLayout.Slot? CharmAt(Vec2 location)
+    public CharmStackLayout.Slot? CharmAt(Vec2 location) =>
+        CharmIndexAt(location) is int index ? CharmLayout.Slots[index] : null;
+
+    /// <summary>
+    /// Which place on the rope is under <paramref name="location"/>, or <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// The index rather than the slot, for callers that have to act on the place itself
+    /// — dropping a file on the third charm has to replace the third charm, and a
+    /// <see cref="CharmStackLayout.Slot"/> knows its node but not its position in the
+    /// stack. Same search as <see cref="CharmAt"/>, which is written in terms of this.
+    /// </remarks>
+    public int? CharmIndexAt(Vec2 location)
     {
-        CharmStackLayout.Slot? best = null;
+        int? best = null;
         double bestDistance = double.PositiveInfinity;
 
         for (int index = CharmLayout.Slots.Count - 1; index >= 0; index--)
@@ -85,7 +97,7 @@ public sealed partial class RopeSimulation
                 continue;
             }
 
-            best = charm;
+            best = index;
             bestDistance = distance;
         }
 

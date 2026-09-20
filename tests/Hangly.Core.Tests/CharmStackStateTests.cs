@@ -101,3 +101,77 @@ public class CharmStackStateTests
         Assert.Equal(metrics, metrics.Scaled(1));
     }
 }
+
+/// <summary>What a file dropped on a charm must and must not disturb.</summary>
+/// <remarks>
+/// The drop itself is shell input and cannot be driven by a test. What can be pinned is
+/// the transformation it performs, which is the part that would silently corrupt a rope:
+/// replacing the charm in one place while leaving that place's size, the order of the
+/// others, and the Library's own memory alone.
+/// </remarks>
+public class DropOnCharmTests
+{
+    private static OverlaySettings ThreeCharms() =>
+        new OverlaySettings()
+            .WithStack(CharmStackState.Of(["nazar", "hamsa", "daruma"])
+                .WithSize(0, 0.8)
+                .WithSize(1, 1.45)
+                .WithSize(2, 1.1));
+
+    [Fact(DisplayName = "A drop replaces one place and leaves the others alone")]
+    public void DropReplacesInPlace()
+    {
+        OverlaySettings before = ThreeCharms();
+        OverlaySettings after = before.WithStack(before.Stack.WithCharm(1, "custom:abc"));
+
+        Assert.Equal(["nazar", "custom:abc", "daruma"], after.CharmIds);
+    }
+
+    [Fact(DisplayName = "A drop keeps the size of the place it landed on")]
+    public void DropKeepsTheSize()
+    {
+        OverlaySettings before = ThreeCharms();
+        CharmStackState after = before.Stack.WithCharm(1, "custom:abc");
+
+        // The size describes the composition, not the charm: dropping a new charm into
+        // the middle of three should not make the middle full-size again.
+        Assert.Equal(0.8, after.SizeAt(0), 6);
+        Assert.Equal(1.45, after.SizeAt(1), 6);
+        Assert.Equal(1.1, after.SizeAt(2), 6);
+    }
+
+    [Fact(DisplayName = "A drop on the end replaces the end, not the first")]
+    public void DropTargetsTheRightPlace()
+    {
+        OverlaySettings before = ThreeCharms();
+
+        Assert.Equal(["custom:abc", "hamsa", "daruma"], before.WithStack(before.Stack.WithCharm(0, "custom:abc")).CharmIds);
+        Assert.Equal(["nazar", "hamsa", "custom:abc"], before.WithStack(before.Stack.WithCharm(2, "custom:abc")).CharmIds);
+    }
+
+    [Fact(DisplayName = "A drop survives being reordered afterwards")]
+    public void DropThenReorder()
+    {
+        OverlaySettings before = ThreeCharms();
+        CharmStackState dropped = before.Stack.WithCharm(1, "custom:abc");
+        CharmStackState moved = dropped.Moved(1, 2);
+
+        Assert.Equal(["nazar", "daruma", "custom:abc"], moved.Ids);
+
+        // And its size travelled with it, as any other charm's would.
+        Assert.Equal(1.45, moved.SizeAt(2), 6);
+    }
+
+    [Fact(DisplayName = "Deleting a dropped import leaves no stale reference anywhere")]
+    public void DeletingADroppedImportIsClean()
+    {
+        OverlaySettings before = ThreeCharms();
+        CharmStackState dropped = before.Stack.WithCharm(1, "custom:abc").WithCount(1);
+
+        // Put away, so the reference is in a hidden place rather than a hanging one.
+        Assert.DoesNotContain("custom:abc", dropped.Ids);
+
+        CharmStackState cleaned = dropped.Replacing("custom:abc", CharmCatalog.DefaultId);
+        Assert.DoesNotContain("custom:abc", cleaned.WithCount(3).Ids);
+    }
+}

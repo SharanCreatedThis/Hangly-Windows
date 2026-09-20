@@ -267,6 +267,61 @@ public sealed class AppEnvironment : IDisposable
     /// once the file has been read and accepted, charm_saved once it is stored. Neither
     /// carries the file, its name or its size.
     /// </remarks>
+    /// <summary>A file was dropped on a charm: import it and put it in that place.</summary>
+    /// <remarks>
+    /// <b>Off the frame loop.</b> This is raised from the thread that owns the overlay
+    /// window, and importing rasterises an SVG and writes two files; doing that inline
+    /// would stall the rope for as long as it took. The work is handed to the thread pool
+    /// and only the settings write comes back, which the store already serialises.
+    ///
+    /// <para><b>The place, not the charm.</b> Replacing through the stack is what keeps
+    /// everything else true: the place keeps its size, the rope keeps its order, and
+    /// favourites and recents are untouched except for the recent entry the import earns.
+    /// Dropping on the middle of three replaces the middle of three.</para>
+    /// </remarks>
+    private void OnFileDroppedOnCharm(int slot, string path)
+    {
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                long size = 0;
+                try
+                {
+                    size = new FileInfo(path).Length;
+                }
+                catch (IOException)
+                {
+                    // The size is a bucket on one event. Not worth failing an import for.
+                }
+
+                // The extension and a size bucket, which is all this event has ever
+                // carried: never the path, never the name, never the contents.
+                analytics.Track(Events.AirdropFileDropped(Path.GetExtension(path), size));
+
+                ImportOutcome outcome = ImportCharm(path);
+                if (!outcome.IsAccepted || outcome.Entry is null)
+                {
+                    Diagnostics.Log($"drop refused: {outcome.Message}");
+                    return;
+                }
+
+                string id = Hangly.Core.Models.CharmId.ForCustom(outcome.Entry.Id);
+                store.Update(settings => settings with
+                {
+                    Overlay = settings.Overlay.WithStack(settings.Overlay.Stack.WithCharm(slot, id)),
+                    Library = settings.Library.WithRecent(id),
+                });
+
+                Diagnostics.Log($"dropped charm went into place {slot}");
+            }
+            catch (Exception exception)
+            {
+                Diagnostics.Failure("drop import", exception);
+            }
+        });
+    }
+
     public ImportOutcome ImportCharm(string path)
     {
         ImportOutcome outcome = CharmImporter.Import(path, CustomCharmsStore);
@@ -357,6 +412,9 @@ public sealed class AppEnvironment : IDisposable
             rope,
             renderer,
             CharmLibrary.Resolve(artwork, index, hangingPlaces));
+
+        overlay.DragEntered += () => analytics.Track(Events.AirdropDragEntered);
+        overlay.FileDropped += OnFileDroppedOnCharm;
         Diagnostics.Log("overlay window constructed");
 
         // Returns as soon as the frame loop is running. The window itself is created on

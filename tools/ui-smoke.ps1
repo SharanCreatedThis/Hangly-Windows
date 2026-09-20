@@ -39,7 +39,7 @@ Stop-Process -Name Hangly -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 800
 @'
 {
-  "schemaVersion": 1, "launchAtLogin": false, "hasSeenWelcome": true, "displayName": "Sharan",
+  "schemaVersion": 1, "launchAtLogin": false, "hasSeenWelcome": true, "displayName": "Sharan", "isFollowPromptSilenced": true,
   "overlay": {
     "isEnabled": true, "opacity": 1, "charmSize": 1, "ropeLength": 1,
     "anchor": "TopCenter", "offsetX": 0, "offsetY": 0,
