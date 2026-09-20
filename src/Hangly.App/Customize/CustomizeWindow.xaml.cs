@@ -191,6 +191,11 @@ public sealed partial class CustomizeWindow : Window
     private void BuildCharmGrid()
     {
         RebuildTiles();
+
+        // Anything cached for a charm that is gone -- a deleted import, or one of the
+        // eleven the seasonal cut removed -- goes with it.
+        CharmThumbnails.Prune([.. environment.Charms.All.Select(entry => entry.Id)]);
+
         slotTiles.CollectionChanged += OnSlotsReordered;
         BuildCollections();
         BuildFilterChips();

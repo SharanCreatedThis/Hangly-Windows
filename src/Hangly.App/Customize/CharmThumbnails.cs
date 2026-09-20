@@ -45,6 +45,46 @@ public static class CharmThumbnails
     /// The PNG for this charm, rendering it first if it is not already there.
     /// </summary>
     /// <returns>A path, or <see langword="null"/> when the artwork could not be drawn.</returns>
+    /// <summary>Deletes cached thumbnails for charms that no longer exist.</summary>
+    /// <remarks>
+    /// The cache is keyed by charm id and nothing ever looks up an id that is gone, so a
+    /// stale file is inert rather than harmful. It still accumulates: an audit found
+    /// fourteen — the eleven seasonal charms cut from v1, and three imports that had been
+    /// deleted — and the import ones would have kept arriving for as long as people tried
+    /// charms and changed their minds.
+    ///
+    /// <para>Swallows its own failures. This is a tidy-up of a temporary directory, and
+    /// there is no version of "could not delete a cached thumbnail" that a person needs to
+    /// hear about or that should stop the Library opening.</para>
+    /// </remarks>
+    public static void Prune(IReadOnlyCollection<string> liveIds)
+    {
+        try
+        {
+            if (!System.IO.Directory.Exists(Directory))
+            {
+                return;
+            }
+
+            var live = liveIds.Select(SafeName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            int removed = 0;
+            foreach (string file in System.IO.Directory.EnumerateFiles(Directory, "*.png"))
+            {
+                if (!live.Contains(Path.GetFileNameWithoutExtension(file)))
+                {
+                    File.Delete(file);
+                    removed++;
+                }
+            }
+
+            Services.Diagnostics.Log($"pruned {removed} stale thumbnail(s) of {live.Count} live");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Services.Diagnostics.Log($"could not prune thumbnails: {exception.GetType().Name}");
+        }
+    }
+
     public static string? PathFor(CharmCatalogEntry entry)
     {
         string target = Path.Combine(Directory, SafeName(entry.Id) + ".png");
