@@ -110,11 +110,12 @@ public sealed class AppEnvironment : IDisposable
         artwork = new CharmArtworkCache(device, CharmArtworkCache.DefaultDirectory);
         var renderer = new RopeRenderer(artwork);
 
-        overlay = new OverlayWindow(store.Settings.Overlay, rope, renderer, BuiltInCharms.Default);
+        overlay = new OverlayWindow(device, store.Settings.Overlay, rope, renderer, BuiltInCharms.Default);
         Diagnostics.Log("overlay window constructed");
 
+        // Returns as soon as the frame loop is running. The window itself is created on
+        // that loop's thread, so "shown" is logged from there rather than here.
         overlay.Begin();
-        Diagnostics.Log("overlay window shown");
     }
 
     /// <summary>A Win2D device, in software if the hardware will not give one.</summary>

@@ -1,5 +1,5 @@
 //
-//  OverlayWindow.xaml.cs
+//  OverlayWindow.cs
 //  Hangly
 //
 //  The borderless, click-through, always-on-top window the rope hangs in.
@@ -11,15 +11,12 @@ using Hangly.Core.Geometry;
 using Hangly.Core.Models;
 using Hangly.Core.Physics;
 using Hangly.Core.Settings;
-using Microsoft.Graphics.Canvas.UI.Xaml;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Media;
-using WinRT.Interop;
+using Microsoft.Graphics.Canvas;
 
-// Both names exist in Windows.Foundation as well, and the WinUI namespaces bring that in.
+// Both names exist in Windows.Foundation as well, and the Win2D namespaces bring that in.
 // Aliased rather than fully qualified at each use: the window works in the solver's
 // coordinate space throughout, and the two types must never be silently swapped for the
-// XAML ones, which measure different things.
+// platform ones, which measure different things.
 using Rect = Hangly.Core.Geometry.Rect;
 using Size = Hangly.Core.Geometry.Size;
 
@@ -27,11 +24,20 @@ namespace Hangly.App.Overlay;
 
 /// <summary>The overlay: one window, one rope, no chrome.</summary>
 /// <remarks>
-/// <b>Why a plain Window and not a backdrop.</b> WinUI has no equivalent of the
-/// original's <c>NSPanel</c>, so the five properties that panel gave for free are
-/// assembled by hand: transparency from a XAML root with no backdrop over a Win2D
-/// swapchain that clears to transparent, and the other four from extended window styles
-/// in <see cref="NativeMethods"/>. The mapping is tabulated there.
+/// <b>Why this is not a WinUI window any more.</b> It was one, and it drew a correct rope
+/// inside an opaque white rectangle on every machine it was run on. A WinUI 3 window owns
+/// a redirection surface created with its HWND, and nothing XAML exposes — a null
+/// background, a null <c>SystemBackdrop</c>, <c>DwmExtendFrameIntoClientArea</c> — replaces
+/// that surface; they all paint onto it. The Windows App SDK this builds against has no
+/// <c>TransparentBackdrop</c> to ask for instead. So the overlay owns a plain Win32
+/// layered window and paints it itself; see <see cref="LayeredOverlaySurface"/>.
+///
+/// <para><b>One thread owns everything.</b> The window is created on a dedicated thread
+/// which then pumps its messages, steps the solver and presents each frame. That is not
+/// an optimisation — a window whose thread never pumps is marked unresponsive and
+/// replaced by a ghost, and the frame loop has to live wherever the window does. Settings
+/// arriving from the tray are handed over as a single volatile reference and picked up at
+/// the top of a frame, which is the whole of the cross-thread surface.</para>
 ///
 /// <para><b>Click-through is toggled, not partial.</b> Windows decides hit-testing per
 /// window, exactly as AppKit does, so <c>WS_EX_TRANSPARENT</c> is turned on and off once
@@ -46,12 +52,16 @@ namespace Hangly.App.Overlay;
 /// nothing to handle; polling is what lets the charm notice the cursor arriving without
 /// installing a global hook.</para>
 /// </remarks>
-public sealed partial class OverlayWindow : Window
+public sealed class OverlayWindow : IDisposable
 {
     private readonly RopeSimulation rope;
     private readonly RopeRenderer renderer;
     private readonly SimulationClock clock = new();
-    private readonly IntPtr handle;
+    private readonly LayeredOverlaySurface surface;
+
+    private Thread? thread;
+    private volatile bool isRunning;
+    private volatile OverlaySettings? pending;
 
     private OverlaySettings settings;
     private bool isClickThrough = true;
@@ -61,6 +71,7 @@ public sealed partial class OverlayWindow : Window
     private double scale = 1;
 
     public OverlayWindow(
+        CanvasDevice device,
         OverlaySettings settings,
         RopeSimulation rope,
         RopeRenderer renderer,
@@ -69,6 +80,7 @@ public sealed partial class OverlayWindow : Window
         this.settings = settings;
         this.rope = rope;
         this.renderer = renderer;
+        surface = new LayeredOverlaySurface(device);
 
         // What hangs on the rope, told to both halves at once: the solver needs the mass
         // and the radius, the renderer needs the artwork and the palette, and they must be
@@ -76,112 +88,115 @@ public sealed partial class OverlayWindow : Window
         renderer.Charms = charms;
         rope.SetCharmStack([.. charms.Select(charm => charm.Metrics)]);
         rope.SetBeads([.. charms.Select(charm => charm.Beads)]);
-
-        InitializeComponent();
-
-        handle = WindowNative.GetWindowHandle(this);
-
-        // No title bar, no backdrop, no shadow: the window is the rope and nothing else.
-        SystemBackdrop = null;
-        ExtendsContentIntoTitleBar = true;
-        AppWindow.IsShownInSwitchers = false;
-        if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
-        {
-            presenter.SetBorderAndTitleBar(hasBorder: false, hasTitleBar: false);
-            presenter.IsAlwaysOnTop = true;
-            presenter.IsResizable = false;
-            presenter.IsMaximizable = false;
-            presenter.IsMinimizable = false;
-        }
-
-        ApplyExtendedStyles();
-        ApplyTransparency();
-
-        clock.Tick += OnTick;
-        Closed += (_, _) => clock.Stop();
     }
 
     /// <summary>Applies a settings change without rebuilding anything.</summary>
-    public void Apply(OverlaySettings updated)
+    /// <remarks>
+    /// Called from the thread the tray menu runs on. The change is handed over rather
+    /// than applied, because everything it touches — the window, the solver, the surface
+    /// — belongs to the frame loop.
+    /// </remarks>
+    public void Apply(OverlaySettings updated) => pending = updated;
+
+    /// <summary>Starts the frame loop, which is also what creates the window.</summary>
+    public void Begin()
+    {
+        if (thread is not null)
+        {
+            return;
+        }
+
+        isRunning = true;
+        thread = new Thread(Run)
+        {
+            Name = "Hangly overlay",
+
+            // Background, so a frame loop that somehow fails to notice Close cannot keep
+            // the process alive after the tray has quit it.
+            IsBackground = true,
+        };
+        thread.Start();
+    }
+
+    public void Close() => Dispose();
+
+    private Size CanvasSize => new(frame.Width / scale, frame.Height / scale);
+
+    private void Run()
+    {
+        try
+        {
+            surface.Create();
+            Reposition();
+            rope.Start();
+
+            // Subscribed here rather than in the constructor so the handler is attached on
+            // the thread that will raise it.
+            clock.Tick += OnTick;
+            clock.Start();
+
+            // The first frame is drawn before the window is shown. A layered window that
+            // is shown with no pixels in it yet flashes one frame of whatever was in the
+            // bitmap, which on a transparent overlay reads as a black rectangle.
+            Draw();
+            surface.Show();
+            Diagnostics.Log("overlay window shown");
+
+            while (isRunning)
+            {
+                PumpMessages();
+
+                // Paces the loop to the compositor, which is what CompositionTarget.Rendering
+                // did while there was still a XAML tree to hang it on.
+                NativeMethods.DwmFlush();
+
+                if (pending is OverlaySettings updated)
+                {
+                    pending = null;
+                    ApplyOnLoop(updated);
+                }
+
+                clock.Advance();
+            }
+        }
+        catch (Exception exception)
+        {
+            Diagnostics.Failure("overlay frame loop", exception);
+        }
+        finally
+        {
+            clock.Stop();
+            surface.Dispose();
+        }
+    }
+
+    private static void PumpMessages()
+    {
+        while (NativeMethods.PeekMessage(
+            out NativeMethods.Msg message,
+            IntPtr.Zero,
+            0,
+            0,
+            NativeMethods.PmRemove))
+        {
+            NativeMethods.DispatchMessage(ref message);
+        }
+    }
+
+    private void ApplyOnLoop(OverlaySettings updated)
     {
         settings = updated;
         rope.SetStyle(updated.RopeStyle);
         Reposition();
         rope.SetCharmSize(updated.CharmSize, CanvasSize);
         rope.SetRopeLength(updated.RopeLength, CanvasSize);
-        Root.Opacity = updated.Opacity;
-    }
-
-    public void Begin()
-    {
-        Reposition();
-        rope.Start();
-        clock.Start();
-        Activate();
-
-        // Activate() would ordinarily raise and focus the window. The style bits say it
-        // may not take focus, and this puts it above everything without asking for any.
-        NativeMethods.SetWindowPos(
-            handle,
-            NativeMethods.HwndTopmost,
-            0,
-            0,
-            0,
-            0,
-            NativeMethods.SwpNomove | NativeMethods.SwpNosize
-                | NativeMethods.SwpNoactivate | NativeMethods.SwpShowwindow);
-    }
-
-    private Size CanvasSize => new(frame.Width / scale, frame.Height / scale);
-
-    private void ApplyExtendedStyles()
-    {
-        uint style = NativeMethods.GetExtendedStyle(handle);
-        style |= NativeMethods.WsExToolwindow // no taskbar button, no Alt-Tab entry
-            | NativeMethods.WsExTopmost // above every other application
-            | NativeMethods.WsExNoactivate // clicking it never steals focus
-            | NativeMethods.WsExTransparent; // click-through until the cursor finds the charm
-
-        // Deliberately NOT WS_EX_LAYERED. A layered window expects its pixels through
-        // UpdateLayeredWindow, which a WinUI swapchain never calls, and setting the style
-        // without ever supplying those pixels is what leaves the window opaque. The alpha
-        // here comes from DWM compositing the swapchain instead — see ApplyTransparency.
-        style &= ~NativeMethods.WsExLayered;
-        NativeMethods.SetExtendedStyle(handle, style);
-    }
-
-    /// <summary>Makes the window genuinely transparent rather than merely backdrop-less.</summary>
-    /// <remarks>
-    /// Three things have to agree, and all three are necessary: the XAML root paints
-    /// nothing, the window has no system backdrop, and DWM is told the glass frame covers
-    /// the entire client area. With only the first two the window still carries an opaque
-    /// backing and paints white — which is what the first build that ran on Windows did,
-    /// a white rectangle with a rope drawn inside it.
-    /// </remarks>
-    private void ApplyTransparency()
-    {
-        var margins = new NativeMethods.Margins { Left = -1, Right = -1, Top = -1, Bottom = -1 };
-        NativeMethods.DwmExtendFrameIntoClientArea(handle, ref margins);
-
-        // Windows 11 rounds every window's corners. An ornament hanging on the desktop is
-        // not a window and must not look like one.
-        int corners = NativeMethods.DwmwcpDoNotRound;
-        NativeMethods.DwmSetWindowAttribute(
-            handle,
-            NativeMethods.DwmwaWindowCornerPreference,
-            ref corners,
-            sizeof(int));
-
-        // The XAML tree must paint nothing at all. A Transparent brush is still a brush
-        // the compositor has to honour; null is the absence of one.
-        Root.Background = null;
     }
 
     /// <summary>Puts the window where the settings say, on the display they name.</summary>
     private void Reposition()
     {
         DisplayInfo display = DisplayObserver.DisplayAt(settings.DisplayIndex);
-        scale = NativeMethods.GetDpiForWindow(handle) / 96.0;
+        scale = NativeMethods.GetDpiForWindow(surface.Handle) / 96.0;
         if (scale <= 0)
         {
             scale = display.Scale;
@@ -200,16 +215,15 @@ public sealed partial class OverlayWindow : Window
             edgeInset: OverlayMetrics.EdgeInset * scale,
             topInset: 0);
 
-        AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(
-            (int)Math.Round(frame.Left),
-            (int)Math.Round(frame.Top),
+        surface.Resize(
             (int)Math.Round(frame.Width),
-            (int)Math.Round(frame.Height)));
+            (int)Math.Round(frame.Height),
+            scale);
 
         rope.Resize(CanvasSize);
     }
 
-    /// <summary>One display frame: poll the cursor, step the physics, ask for a redraw.</summary>
+    /// <summary>One display frame: poll the cursor, step the physics, present.</summary>
     private void OnTick(double deltaTime)
     {
         PollPointer();
@@ -217,13 +231,19 @@ public sealed partial class OverlayWindow : Window
 
         // A settled rope is a still image. Stop redrawing it, and drop the tick rate —
         // the clock keeps running because the same tick is what notices the cursor
-        // arriving over the charm.
+        // arriving over the charm. A layered window keeps the last frame it was given, so
+        // not presenting leaves the settled rope on screen rather than blanking it.
         clock.SetThrottled(rope.IsSleeping && !rope.IsDragging);
         if (!rope.IsSleeping || rope.IsDragging)
         {
-            Canvas.Invalidate();
+            Draw();
         }
     }
+
+    private void Draw() => surface.Present(
+        session => renderer.Draw(session, rope.Snapshot(), rope.Style),
+        new NativeMethods.Point { X = (int)Math.Round(frame.Left), Y = (int)Math.Round(frame.Top) },
+        settings.Opacity);
 
     private void PollPointer()
     {
@@ -278,15 +298,28 @@ public sealed partial class OverlayWindow : Window
         }
 
         isClickThrough = enabled;
-        uint style = NativeMethods.GetExtendedStyle(handle);
+        uint style = NativeMethods.GetExtendedStyle(surface.Handle);
         style = enabled
             ? style | NativeMethods.WsExTransparent
             : style & ~NativeMethods.WsExTransparent;
-        NativeMethods.SetExtendedStyle(handle, style);
+        NativeMethods.SetExtendedStyle(surface.Handle, style);
     }
 
-    private void OnDraw(CanvasControl sender, CanvasDrawEventArgs args) =>
-        renderer.Draw(args.DrawingSession, rope.Snapshot(), rope.Style);
+    public void Dispose()
+    {
+        if (!isRunning)
+        {
+            return;
+        }
+
+        isRunning = false;
+
+        // DwmFlush blocks for up to one compositor frame, so the loop always notices
+        // within a few milliseconds; the join is bounded anyway so a stuck compositor
+        // cannot hang the quit.
+        thread?.Join(TimeSpan.FromSeconds(1));
+        thread = null;
+    }
 }
 
 /// <summary>The overlay's own proportions, in points.</summary>

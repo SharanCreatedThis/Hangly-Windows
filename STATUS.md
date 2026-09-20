@@ -1,10 +1,12 @@
 # Status
 
-As of the first green CI run. Build health and feature completeness are reported
-separately here, because they are separate questions and conflating them is how a project
-convinces itself it is nearly finished.
+As of the first run on real Windows hardware. Build health and feature completeness are
+reported separately here, because they are separate questions and conflating them is how
+a project convinces itself it is nearly finished.
 
 - **Build:** green. All three CI jobs pass on `windows-latest`.
+- **Runs:** yes — Windows 11 ARM64 at 200%. The rope hangs on the desktop, is transparent,
+  and can be thrown.
 - **Features:** roughly a quarter ported.
 
 ---
@@ -33,15 +35,17 @@ Every one of these came from code written on a Mac, where none of it could be co
 
 ### Build problems still possible
 
-Nothing is failing. These are risks that only a real Windows machine can retire — CI
-proves the app *builds*, never that it *runs*:
+Nothing is failing. The three risks this section used to list have all been settled on a
+real machine — Windows 11 ARM64 at 200% scaling:
 
-- **Transparency.** The overlay depends on a transparent XAML root, a null `SystemBackdrop`
-  and a Win2D control clearing to transparent. If any of the three misbehaves, the window
-  composites as a grey rectangle. This is the single most likely thing to be wrong.
-- **The P/Invoke surface.** `Interop/NativeMethods.cs` and `Tray/TrayIcon.cs` compile,
-  which says nothing about whether the signatures marshal correctly at runtime.
-- **SkiaSharp's native binary on ARM64.** Restores and publishes; has never been loaded.
+- **Transparency.** Was wrong, and could not be fixed where it was written. A WinUI 3
+  window owns an opaque redirection surface created with its HWND, and no XAML property
+  replaces it, so the overlay drew a correct rope inside a white rectangle. The window
+  layer is now a plain Win32 layered window; see PORTING.md §3.
+- **The P/Invoke surface.** Exercised. Two real defects came out of it — the wrong export
+  name for `Shell_NotifyIconW`, and a `NOTIFYICONDATA` declared short enough that the
+  shell refused it silently — and both are fixed.
+- **SkiaSharp's native binary on ARM64.** Loads, and rasterises the charm.
 
 ---
 
@@ -55,11 +59,20 @@ proves the app *builds*, never that it *runs*:
 - The **settings document**: tolerant decoding, clamping, atomic writes, one write path.
 - **Placement geometry**, restated in Win32's coordinate convention and tested in it.
 - Both architectures **publish as self-contained applications**.
+- The **overlay**, confirmed by watching it rather than by inferring it: a transparent,
+  click-through, always-on-top window; the charm grabbed, dragged, thrown and left to
+  settle; the tray icon, its menu, and the menu's keyboard navigation.
 
 ## 3. What does not work
 
-- **Nothing has ever been run.** Launch, transparency, click-through, dragging the charm,
-  the tray menu — all unverified. CI cannot see a screen.
+- **The window layer is new, and has one machine's worth of evidence behind it.** Launch,
+  transparency, click-through, dragging and the tray menu have all been watched working on
+  Windows 11 ARM64 at 200%. None of it has been seen at 100%, on x64, on a second display,
+  or across a DPI change — and the overlay recomputes its scale only when it repositions.
+- **A presented frame costs a read-back.** `UpdateLayeredWindow` wants the pixels in
+  system memory, and Win2D will only hand them over as a fresh array, so every drawn
+  frame allocates about a megabyte. Nothing is drawn at all once the rope sleeps, which
+  is why this has not mattered yet; it has not been profiled during a sustained drag.
 - **One charm exists**, the plain bead, wired by `BuiltInCharms` as an explicit bootstrap.
 - **No beads are drawn on any charm**, because every charm in the real catalogue derives
   its beads by splitting its own artwork into regions, and that splitter is not ported.
@@ -107,19 +120,24 @@ worth saying:
 
 ## 6. Next milestone
 
-**Run it on real Windows hardware and confirm the overlay is genuinely transparent and
-genuinely click-through.**
+The previous milestone — *confirm the overlay is genuinely transparent and genuinely
+click-through* — is met. It cost a rewrite of the window layer rather than a fix, which is
+precisely the outcome the milestone existed to find early, and finding it now was cheaper
+than finding it under several thousand lines of settings UI.
 
-Everything else is queued behind that one observation. If transparency works, the
-remaining work is a long, well-understood transcription. If it does not, the window layer
-needs rethinking — and that is a decision worth making before another line of UI is
-written on top of it.
+Observed on Windows 11 ARM64 at 200% scaling, by screenshot and by driving the real
+cursor:
 
-Concretely:
+| | |
+|---|---|
+| Desktop visible through the window | ✅ no rectangle of any colour |
+| A charm hangs from a cord near the top centre | ✅ |
+| It swings and settles | ✅ |
+| Clicks pass through everywhere except the charm | ✅ `WS_EX_TRANSPARENT` toggles as the cursor arrives and leaves |
+| Grabbed, dragged, thrown, carries its momentum | ✅ the cord takes the S-curve of a pulled rope |
+| Tray icon appears, menu opens and dismisses | ✅ and is navigable by keyboard |
 
-1. Download the `hangly-win-x64` artifact from the green CI run, or clone and
-   `dotnet run --project src/Hangly.App`.
-2. Confirm: the window appears; the desktop is visible through it; a blue bead hangs from
-   a cord and swings; clicks pass through everywhere except the bead; the bead can be
-   grabbed, thrown, and carries its momentum; the tray icon opens a working menu.
-3. Report what actually happened — including which of those failed.
+**Next: the charm catalogue.** It is the largest thing between this and something worth
+looking at, it is mechanical, and every other visual subsystem is queued behind it. The
+artwork splitter follows it, because until that exists every charm except the bead hangs
+without its beads.

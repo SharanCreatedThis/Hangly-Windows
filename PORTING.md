@@ -23,14 +23,13 @@ The tests are the Swift suite's assertions at the same tolerances, including the
 matter most: two 120 Hz frames match one 60 Hz frame to within 1e-9, and three charms
 thrown in circles for 900 frames overlap by less than 1e-6 points.
 
-### Written but never compiled
+### Compiled, and now run
 
-Everything in `Hangly.App`. It was written on a Mac, where WinUI 3 cannot be built at
-all. It is careful code with the reasoning written down, but **assume it does not compile
-until you have compiled it**, and expect to spend the first hour on package versions,
-XAML codegen and P/Invoke signatures rather than on behaviour.
-
-The specific things most likely to need work are in §3.
+Everything in `Hangly.App` was written on a Mac, where WinUI 3 cannot be built at all. It
+has since been built and run on Windows 11 ARM64, and five separate faults came out of
+doing so — not one of which a compiler or a green CI run could have caught. Four were
+bugs and are recorded in the git log. The fifth was not a bug: it was the wrong window
+layer, and it is the subject of §3.
 
 ### Not started
 
@@ -78,12 +77,30 @@ properties are assembled from extended window styles. The mapping is tabulated i
 
 Two consequences worth knowing:
 
-- **Transparency is the fragile part.** It depends on the XAML root being transparent,
-  `SystemBackdrop` being null, and the Win2D control clearing to transparent. All three,
-  or the window composites as a grey rectangle. `WS_EX_LAYERED` is set as well, but note
-  that the classic `UpdateLayeredWindow` path is *not* compatible with a WinUI swapchain
-  — if the composition route fails on a target machine, the fallback is a plain Win32
-  window with a Direct2D layered surface, not a hybrid.
+- **Transparency is not something WinUI can give, and the fallback was taken.** Read this
+  before putting the overlay back inside a `Window`. A WinUI 3 desktop window's HWND is
+  created without `WS_EX_NOREDIRECTIONBITMAP`, and that style cannot be added afterwards:
+  the opaque redirection surface is allocated at `CreateWindowEx` time. A null
+  `Background`, a null `SystemBackdrop`, a Win2D control clearing to transparent and
+  `DwmExtendFrameIntoClientArea` all paint *onto* that surface rather than replacing it,
+  so every combination of them still composites as a white rectangle with a perfectly
+  correct rope inside it. That was watched happening, not reasoned about. The Windows App
+  SDK pinned here has no `TransparentBackdrop` to ask for instead — checked against the
+  shipped metadata rather than assumed.
+
+  So the overlay is a plain Win32 layered window that paints itself.
+  `Overlay/LayeredOverlaySurface.cs` creates it, renders each frame into a Win2D
+  `CanvasRenderTarget` in premultiplied BGRA, and hands the pixels to
+  `UpdateLayeredWindow`. Nothing below it changed: `RopeRenderer` takes a
+  `CanvasDrawingSession` and never knew where the session came from, and `Hangly.Core`
+  never knew there was a window at all. That separation is the reason this was a contained
+  rewrite of one file instead of a rebuild, and it is the reason to keep it.
+
+  The alternative was a composition swapchain under DirectComposition, which keeps the
+  pixels on the GPU and is the faster of the two. It was not taken: it costs several COM
+  vtables that have to be declared in exactly the right order to work at all, weighed
+  against one read-back of a window this size that only happens while the rope is awake.
+  If a sustained drag ever shows up in a profile, that is the thing to write.
 - **There is no "all Spaces".** Windows has no public per-window API to show a window on
   every virtual desktop. `IVirtualDesktopManager` can tell you which desktop a window is
   on and move it, but pinning is undocumented COM that changes between builds. The
@@ -103,11 +120,23 @@ inside the physics.
 
 ### The clock
 
-`CADisplayLink` becomes `CompositionTarget.Rendering`. Windows has no equivalent of
-`preferredFrameRateRange`, so the idle rate is implemented by delivering one tick in four
-rather than by asking the system for fewer frames. Skipped intervals are **accumulated,
-not dropped**, so throttling changes how often the solver is asked to advance and never
-how far it advances.
+`CADisplayLink` becomes `DwmFlush`, called once per turn of the overlay's own frame loop.
+It was `CompositionTarget.Rendering`, which is the closer analogue and was the right
+answer while the overlay was still a XAML window; that event fires only while there is a
+XAML tree being composed, and there is no longer one. Both block until the desktop
+compositor has finished a frame, so the pacing is unchanged and so is the reason for not
+using a timer.
+
+Windows has no equivalent of `preferredFrameRateRange`, so the idle rate is implemented
+by delivering one tick in four rather than by asking the system for fewer frames. Skipped
+intervals are **accumulated, not dropped**, so throttling changes how often the solver is
+asked to advance and never how far it advances.
+
+The loop runs on a thread of its own, which is also the thread that creates the window and
+pumps its messages. That is not a performance choice: a window whose thread does not pump
+is declared unresponsive and replaced by a ghost, so the window has to live wherever the
+loop lives. Settings arriving from the tray are handed across as one volatile reference
+and picked up at the top of a frame, which is the entire cross-thread surface.
 
 ### Input
 
@@ -147,10 +176,11 @@ magnitude, and the solver compares against it on nearly every line. It is define
 
 ## 4. Suggested order of work
 
-1. **Get it to compile**, on Windows, x64. Expect package-version churn.
-2. **Get one charm on screen.** Transcribe a single catalogue entry by hand — the plain
-   bead, `Bead.svg`, mass 2.6, radius ratio 0.140 — and confirm the window is genuinely
-   transparent and genuinely click-through before anything else.
+1. ~~**Get it to compile**, on Windows.~~ Done.
+2. ~~**Get one charm on screen**, and confirm the window is genuinely transparent and
+   genuinely click-through before anything else.~~ Done, and it cost the window layer.
+   This was the right thing to do second: every line of settings UI written before it
+   would have been written on top of a window nobody could see through.
 3. **Transcribe the catalogue.** It is a table; it is mechanical; it unblocks everything
    visual. Consider generating it from the Swift source rather than typing it.
 4. **The Customize window.** The largest remaining piece, and the one with the most room
