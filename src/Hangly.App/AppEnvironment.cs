@@ -63,16 +63,32 @@ public sealed class AppEnvironment : IDisposable
             store.Update(settings => settings with { LaunchAtLogin = actuallyEnabled });
         }
 
-        tray = new TrayIcon("Hangly")
+        // The tray and the overlay are independent surfaces, and a failure in one is not a
+        // reason to lose the other. This was learned the direct way: a mistyped P/Invoke in
+        // the tray took down the whole app during bootstrap, so the rope never appeared —
+        // and the rope is the app. The menu is how you quit and change settings, which
+        // matters, but it is recoverable by editing the settings file where a charm that
+        // never draws is not recoverable at all.
+        try
         {
-            MenuBuilder = BuildMenu,
-        };
-        Diagnostics.Log("tray icon registered");
+            tray = new TrayIcon("Hangly")
+            {
+                MenuBuilder = BuildMenu,
+            };
+            Diagnostics.Log("tray icon registered");
+        }
+        catch (Exception exception)
+        {
+            Diagnostics.Failure("tray icon", exception);
+            Diagnostics.Log("carrying on without a tray icon; the overlay still runs");
+        }
 
         store.Changed += OnSettingsChanged;
 
         if (store.Settings.Overlay.IsEnabled)
         {
+            // Not wrapped. If the overlay cannot be created there is nothing left worth
+            // running, and the exception carries the reason up to the log.
             ShowOverlay();
         }
         else

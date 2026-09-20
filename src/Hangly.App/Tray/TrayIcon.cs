@@ -92,11 +92,23 @@ public sealed class TrayIcon : IDisposable
             ClassName = "HanglyTrayWindow",
         };
 
-        RegisterClassEx(ref wndClass);
+        // Zero means the class could not be registered, and every later call would then
+        // fail for a reason that no longer mentions the class.
+        if (RegisterClassEx(ref wndClass) == 0)
+        {
+            int error = Marshal.GetLastWin32Error();
+
+            // 1410 is ERROR_CLASS_ALREADY_EXISTS, which is fine: the class outlives an
+            // individual tray icon within the process.
+            if (error != 1410)
+            {
+                throw new InvalidOperationException($"RegisterClassEx failed (Win32 {error}).");
+            }
+        }
 
         // HWND_MESSAGE: a window that exists only to receive the icon's callbacks. It is
         // never shown, never sized and never composited.
-        return CreateWindowEx(
+        IntPtr created = CreateWindowEx(
             0,
             "HanglyTrayWindow",
             "Hangly",
@@ -109,35 +121,40 @@ public sealed class TrayIcon : IDisposable
             IntPtr.Zero,
             IntPtr.Zero,
             IntPtr.Zero);
+
+        if (created == IntPtr.Zero)
+        {
+            throw new InvalidOperationException(
+                $"CreateWindowEx(HWND_MESSAGE) failed (Win32 {Marshal.GetLastWin32Error()}).");
+        }
+
+        return created;
     }
 
     private void Register(string tooltip)
     {
-        var data = new NotifyIconData
-        {
-            Size = (uint)Marshal.SizeOf<NotifyIconData>(),
-            Window = window,
-            Id = 1,
-            Flags = NifMessage | NifIcon | NifTip,
-            CallbackMessage = CallbackMessage,
-            Icon = icon,
-            Tip = tooltip,
-        };
+        NotifyIconData data = NotifyIconData.Create(window, 1);
+        data.Flags = NifMessage | NifIcon | NifTip;
+        data.CallbackMessage = CallbackMessage;
+        data.Icon = icon;
+        data.Tip = tooltip;
 
-        ShellNotifyIcon(NimAdd, ref data);
+        // Shell_NotifyIcon reports failure by returning false, not by throwing, so an
+        // unchecked call is a tray icon that silently never appears.
+        if (!ShellNotifyIcon(NimAdd, ref data))
+        {
+            throw new InvalidOperationException(
+                $"Shell_NotifyIcon(NIM_ADD) failed (Win32 {Marshal.GetLastWin32Error()}); " +
+                $"window={window}, icon={icon}, cbSize={data.Size}.");
+        }
     }
 
     /// <summary>Changes the tooltip, which is where the rope's state is reported.</summary>
     public void SetTooltip(string tooltip)
     {
-        var data = new NotifyIconData
-        {
-            Size = (uint)Marshal.SizeOf<NotifyIconData>(),
-            Window = window,
-            Id = 1,
-            Flags = NifTip,
-            Tip = tooltip,
-        };
+        NotifyIconData data = NotifyIconData.Create(window, 1);
+        data.Flags = NifTip;
+        data.Tip = tooltip;
 
         ShellNotifyIcon(NimModify, ref data);
     }
@@ -243,13 +260,7 @@ public sealed class TrayIcon : IDisposable
 
         disposed = true;
 
-        var data = new NotifyIconData
-        {
-            Size = (uint)Marshal.SizeOf<NotifyIconData>(),
-            Window = window,
-            Id = 1,
-        };
-
+        NotifyIconData data = NotifyIconData.Create(window, 1);
         ShellNotifyIcon(NimDelete, ref data);
 
         if (icon != IntPtr.Zero)
@@ -331,6 +342,14 @@ public sealed class TrayIcon : IDisposable
         public IntPtr SmallIcon;
     }
 
+    /// <summary>NOTIFYICONDATAW, in full.</summary>
+    /// <remarks>
+    /// Declared complete rather than truncated after the fields this app uses, and that is
+    /// not tidiness. The shell validates <c>cbSize</c> against the handful of struct
+    /// versions it knows, and rejects anything else — by returning <c>false</c>, with no
+    /// exception and no icon. A short struct therefore fails in the one way that leaves
+    /// nothing to find.
+    /// </remarks>
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct NotifyIconData
     {
@@ -341,6 +360,30 @@ public sealed class TrayIcon : IDisposable
         public uint CallbackMessage;
         public IntPtr Icon;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string Tip;
+        public uint State;
+        public uint StateMask;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)] public string Info;
+        public uint VersionOrTimeout;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)] public string InfoTitle;
+        public uint InfoFlags;
+        public Guid ItemGuid;
+        public IntPtr BalloonIcon;
+
+        /// <summary>A zeroed record of the right size, with no null strings in it.</summary>
+        /// <remarks>
+        /// The fixed-length string fields cannot be left null: marshalling a null through
+        /// <c>ByValTStr</c> throws, so every one of them is an empty string even when the
+        /// corresponding flag is not set.
+        /// </remarks>
+        public static NotifyIconData Create(IntPtr window, uint id) => new()
+        {
+            Size = (uint)Marshal.SizeOf<NotifyIconData>(),
+            Window = window,
+            Id = id,
+            Tip = string.Empty,
+            Info = string.Empty,
+            InfoTitle = string.Empty,
+        };
     }
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -371,7 +414,11 @@ public sealed class TrayIcon : IDisposable
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DestroyWindow(IntPtr hWnd);
 
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    // EntryPoint is spelled out because the export has an underscore in it. CharSet
+    // appends the W for Unicode, but nothing was ever going to guess the underscore, and
+    // the mismatch surfaces as an EntryPointNotFoundException at the first call rather
+    // than at build time.
+    [DllImport("shell32.dll", EntryPoint = "Shell_NotifyIconW", CharSet = CharSet.Unicode, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool ShellNotifyIcon(uint message, ref NotifyIconData data);
 
