@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Hangly.App.Customize.CustomizeWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+    xmlns:local="using:Hangly.App.Customize">
+
+    <Grid x:Name="Root">
+        <Grid.Resources>
+            <!--
+                One tile. The tick is a border rather than a checkbox: a charm is chosen
+                by clicking its picture, and a checkbox beside it would be a second way
+                to do the same thing.
+            -->
+            <DataTemplate x:Key="CharmTemplate" x:DataType="local:CharmTile">
+                <Grid
+                    Width="96"
+                    Height="116"
+                    Padding="4"
+                    AutomationProperties.Name="{x:Bind DisplayName, Mode=OneTime}"
+                    ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneTime}">
+                    <Border
+                        BorderBrush="{x:Bind Outline, Mode=OneWay}"
+                        BorderThickness="2"
+                        CornerRadius="8" />
+                    <StackPanel VerticalAlignment="Center">
+                        <Image
+                            Width="56"
+                            Height="56"
+                            Stretch="Uniform"
+                            Source="{x:Bind Image, Mode=OneTime}" />
+                        <TextBlock
+                            Margin="0,6,0,0"
+                            HorizontalAlignment="Center"
+                            MaxLines="2"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{x:Bind DisplayName, Mode=OneTime}"
+                            TextAlignment="Center"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                </Grid>
+            </DataTemplate>
+        </Grid.Resources>
+
+        <muxc:NavigationView
+            x:Name="Nav"
+            IsBackButtonVisible="Collapsed"
+            IsPaneToggleButtonVisible="False"
+            IsSettingsVisible="False"
+            OpenPaneLength="200"
+            PaneDisplayMode="Left"
+            SelectionChanged="OnSectionChanged">
+
+            <muxc:NavigationView.MenuItems>
+                <muxc:NavigationViewItem Content="Charms" Tag="charms" IsSelected="True">
+                    <muxc:NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="Emoji2" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+                <muxc:NavigationViewItem Content="Appearance" Tag="appearance">
+                    <muxc:NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="View" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+            </muxc:NavigationView.MenuItems>
+
+            <Grid>
+                <!-- Charms -->
+                <Grid x:Name="CharmsPage" Margin="24,16,24,16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock
+                        Style="{StaticResource TitleTextBlockStyle}"
+                        Text="Charms" />
+
+                    <StackPanel Grid.Row="1" Margin="0,12,0,12" Spacing="10">
+                        <TextBlock
+                            x:Name="CordSummary"
+                            Style="{StaticResource BodyTextBlockStyle}"
+                            Text="On the cord" />
+
+                        <muxc:RadioButtons
+                            x:Name="CountChoice"
+                            Header="Charms on the cord"
+                            MaxColumns="3"
+                            SelectionChanged="OnCountChanged">
+                            <x:String>1</x:String>
+                            <x:String>2</x:String>
+                            <x:String>3</x:String>
+                        </muxc:RadioButtons>
+
+                        <StackPanel
+                            x:Name="SlotButtons"
+                            Orientation="Horizontal"
+                            Spacing="8" />
+                    </StackPanel>
+
+                    <ScrollViewer Grid.Row="2">
+                        <ItemsControl x:Name="Packs">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="local:CharmGroup">
+                                    <StackPanel Margin="0,0,0,18">
+                                        <TextBlock
+                                            Margin="0,0,0,6"
+                                            Style="{StaticResource SubtitleTextBlockStyle}"
+                                            Text="{x:Bind Name, Mode=OneTime}" />
+                                        <GridView
+                                            IsItemClickEnabled="True"
+                                            ItemClick="OnCharmClicked"
+                                            ItemTemplate="{StaticResource CharmTemplate}"
+                                            ItemsSource="{x:Bind Charms, Mode=OneTime}"
+                                            SelectionMode="None" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+
+                <!-- Appearance -->
+                <ScrollViewer x:Name="AppearancePage" Visibility="Collapsed">
+                    <StackPanel Margin="24,16,24,24" Spacing="18">
+                        <TextBlock
+                            Style="{StaticResource TitleTextBlockStyle}"
+                            Text="Appearance" />
+
+                        <StackPanel Spacing="6">
+                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Cord" />
+                            <ComboBox
+                                x:Name="RopeChoice"
+                                MinWidth="260"
+                                SelectionChanged="OnRopeChanged" />
+                            <TextBlock
+                                x:Name="RopeDescription"
+                                Opacity="0.7"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="6">
+                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Size and reach" />
+                            <TextBlock x:Name="SizeLabel" Text="Charm size" />
+                            <Slider x:Name="SizeSlider" ValueChanged="OnSizeChanged" />
+                            <TextBlock x:Name="LengthLabel" Text="Rope length" />
+                            <Slider x:Name="LengthSlider" ValueChanged="OnLengthChanged" />
+                            <TextBlock x:Name="OpacityLabel" Text="Opacity" />
+                            <Slider x:Name="OpacitySlider" ValueChanged="OnOpacityChanged" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="6">
+                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Where it hangs" />
+                            <ComboBox
+                                x:Name="AnchorChoice"
+                                MinWidth="260"
+                                SelectionChanged="OnAnchorChanged" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="8">
+                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Behaviour" />
+                            <ToggleSwitch
+                                x:Name="ShowToggle"
+                                Header="Show Hangly"
+                                Toggled="OnShowToggled" />
+                            <ToggleSwitch
+                                x:Name="LoginToggle"
+                                Header="Launch at login"
+                                Toggled="OnLoginToggled" />
+                        </StackPanel>
+
+                        <Button x:Name="ResetButton" Click="OnReset" Content="Restore defaults" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </muxc:NavigationView>
+    </Grid>
+
+</Window>

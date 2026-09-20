@@ -7,7 +7,7 @@ a project convinces itself it is nearly finished.
 - **Build:** green. All three CI jobs pass on `windows-latest`.
 - **Runs:** yes — Windows 11 ARM64 at 200%. The rope hangs on the desktop, is transparent,
   and can be thrown.
-- **Features:** roughly 40% ported. All eighty-one charms are in and drawing.
+- **Features:** roughly half ported. All eighty-one charms are in, drawing, and choosable.
 
 ---
 
@@ -16,6 +16,7 @@ a project convinces itself it is nearly finished.
 | Job | Result |
 |---|---|
 | Solver and models (tests) | ✅ 92 / 92 passing on Windows |
+| Customize window (UI smoke) | ✅ 16 / 16 checks, driven through UI Automation in the VM |
 | App — `win-x64` Release | ✅ builds and publishes |
 | App — `win-arm64` Release | ✅ builds and publishes |
 
@@ -70,7 +71,11 @@ real machine — Windows 11 ARM64 at 200% scaling:
   beads in the artwork's own silhouette and measures where the knot sits, so a rope at
   rest is laid out as the designer drew it. Charms are drawn cropped to their measured
   body, and their beads ride the cord as the solver's own particles.
-- **One, two or three charms** chosen from the tray, grouped by their packs.
+- **One, two or three charms** chosen from the tray or the Customize window.
+- The **Customize window**: a WinUI settings window with a charm picker showing all
+  eighty-one as artwork grouped by pack, the number on the cord, the cord itself with its
+  description, size, reach and opacity, where it hangs, and the two behaviour switches.
+  Every control writes straight through to the store and the rope changes as you watch.
 
 ## 3. What does not work
 
@@ -93,8 +98,10 @@ real machine — Windows 11 ARM64 at 200% scaling:
   solver carries exactly the beads the designer drew. What differs from macOS is only
   how they are *painted*: a disc tinted with the cord's palette, rather than that part of
   the SVG. It reads well because a bead is a bead, and it is a parity gap all the same.
-- **No settings UI at all.** Everything is changed through the tray menu or by editing
-  `%LOCALAPPDATA%\Hangly\settings.json` by hand.
+- **Customize has two pages, not four.** Library and Create are not ported: no charm
+  search, no favourites, no importing your own. About is not there either, so there is no
+  in-app version, no release notes and no analytics inspector — the last of which
+  PRIVACY.md promises, and which therefore has to exist before analytics does.
 
 ## 4. What remains to be ported
 
@@ -102,7 +109,8 @@ Ordered by what unblocks the most.
 
 | Subsystem | Swift lines | Notes |
 |---|---:|---|
-| **Customize window** | ~4,500 | The whole settings UI. The largest single piece, and the one with the most room to be a Windows app rather than a translated Mac one. |
+| **Customize: Library page** | ~1,800 | Search, categories, favourites. The picker exists; the browser does not. |
+| **Customize: About page** | ~900 | Version, release notes, the analytics inspector PRIVACY.md promises. |
 | **Charm Library** | ~1,800 | Browser, search, categories, favourites. |
 | **Charm Studio** | ~2,400 | Editor, pipeline, undo stack. **Deferred: explicitly out of scope for v1.** |
 | **Custom charm import** | ~1,200 | Image processor, store, dialogs. |
@@ -114,7 +122,7 @@ Ordered by what unblocks the most.
 
 ## 5. Completion
 
-**Roughly 40%** by weighted line count of the macOS source.
+**Roughly 50%** by weighted line count of the macOS source.
 
 That number understates progress in one way and overstates it in another, and both are
 worth saying:
@@ -131,7 +139,7 @@ worth saying:
 | Physics | ~100% |
 | App shell and services | ~40% |
 | Models | ~60% |
-| Views | ~8% |
+| Views | ~30% |
 
 ## 6. Distribution
 
@@ -180,9 +188,20 @@ guest cost an incident once already and is not worth a second:
 | **Windows 10 1809**, the floor the manifest declares | ❌ never tried. Either test it or raise the floor; claiming it is the one option that is not available |
 | A DPI change *while running* | ❌ and expected to be wrong — nothing handles `WM_DPICHANGED`, so `scale` is stale until something repositions the window |
 
+The Customize window is covered by `tools/ui-smoke.ps1`, which drives the built app
+through UI Automation inside the guest and checks the settings file afterwards. It is not
+part of CI — CI has no desktop — so it is a command somebody runs, and the rhythm is to
+run it whenever that window changes.
+
 ## 8. Next milestone
 
-The Customize window. The catalogue is what unblocked it: there are eighty-one charms to
-offer now, and a tray submenu is not where somebody chooses one.
+The customization workflow is complete: a stranger can install Hangly, open Customize,
+pick any of the eighty-one charms, decide how many hang, choose a cord, and have all of it
+still there next launch.
+
+What it is missing before it can be called finished is the **About page** — version,
+release notes, and the analytics inspector. That last one is not a nicety: PRIVACY.md
+promises that *Customize → About → Analytics* shows what is being collected, so it has to
+exist before analytics does, not after.
 
 **Charm Studio is deferred — explicitly out of scope for v1.**

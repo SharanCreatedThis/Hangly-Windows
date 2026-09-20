@@ -39,6 +39,7 @@ public sealed class AppEnvironment : IDisposable
     private OverlayWindow? overlay;
     private CharmArtworkCache? artwork;
     private IReadOnlyList<string> hanging = [];
+    private Customize.CustomizeWindow? customize;
 
     public AppEnvironment(SettingsStore? store = null, ILaunchAtLogin? launchAtLogin = null)
     {
@@ -151,6 +152,34 @@ public sealed class AppEnvironment : IDisposable
         }
     }
 
+    /// <summary>
+    /// Opens the Customize window, or brings the open one forward.
+    /// </summary>
+    /// <remarks>
+    /// Called from the tray menu, which runs on the thread that owns the XAML
+    /// application — the same thread a <c>Window</c> has to be created on.
+    /// </remarks>
+    private void OpenCustomize()
+    {
+        try
+        {
+            // Built once and kept. It hides on close rather than closing, so there is
+            // nothing to rebuild and the window comes back where it was left.
+            if (customize is null)
+            {
+                customize = new Customize.CustomizeWindow(store, launchAtLogin);
+                Diagnostics.Log("customize window created");
+            }
+
+            customize.AppWindow.Show();
+            customize.Activate();
+        }
+        catch (Exception exception)
+        {
+            Diagnostics.Failure("customize window", exception);
+        }
+    }
+
     private void HideOverlay()
     {
         // Torn down completely rather than hidden, so a disabled overlay costs nothing
@@ -225,6 +254,8 @@ public sealed class AppEnvironment : IDisposable
                 settings.Overlay.IsEnabled ? "Hide Charm" : "Show Charm",
                 () => store.UpdateOverlay(overlay => overlay with { IsEnabled = !overlay.IsEnabled })),
             MenuEntry.Separator,
+            new MenuEntry("Customize…", OpenCustomize),
+            MenuEntry.Separator,
             new MenuEntry("Charm", Children: charms),
             new MenuEntry("Rope", Children: ropes),
             new MenuEntry("Position", Children: anchors),
@@ -239,8 +270,18 @@ public sealed class AppEnvironment : IDisposable
                 },
                 IsChecked: settings.LaunchAtLogin),
             MenuEntry.Separator,
-            new MenuEntry("Quit Hangly", () => Application.Current.Exit()),
+            new MenuEntry("Quit Hangly", Quit),
         ];
+    }
+
+    /// <summary>
+    /// Quits for real, which means letting the one window that refuses to close, close.
+    /// </summary>
+    private void Quit()
+    {
+        customize?.AllowClose();
+        customize = null;
+        Application.Current.Exit();
     }
 
     public void Dispose()
