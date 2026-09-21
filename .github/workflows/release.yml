@@ -61,9 +61,19 @@ jobs:
           dotnet publish src/Hangly.App/Hangly.App.csproj `
             -c Release -r ${{ matrix.rid }} -p:Platform=${{ matrix.platform }} `
             -p:Version=${{ steps.version.outputs.version }} `
-            -p:HanglyAnalyticsKey=${{ secrets.HANGLY_ANALYTICS_KEY }} `
             -o publish
           if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      # The key is compiled in, so a build that lost it is a build that reports nothing
+      # and says nothing about it. v0.9.1 shipped that way. Checked here rather than
+      # trusted, because the symptom is silence.
+      - name: Check the analytics key made it in
+        shell: pwsh
+        run: |
+          $dll = Join-Path publish 'Hangly.dll'
+          $found = Select-String -Path $dll -Pattern 'phc_' -Encoding unicode -Quiet
+          if (-not $found) { Write-Error 'No PostHog key in the published assembly.'; exit 1 }
+          Write-Host 'analytics key present'
 
       - name: Install vpk
         run: dotnet tool install --global vpk --version 1.2.0

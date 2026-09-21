@@ -224,9 +224,27 @@ public sealed class AnalyticsManager
     {
         provider.Start(CurrentIdentifier(), SuperProperties());
         provider.SetPersonProperties(PersonProperties());
+
+        // Said once at the start of every session, which is what the macOS SDK does for
+        // itself. `$set` riding along with an ordinary event only reaches a person who
+        // already exists; `$identify` is the event that creates one. Without it a copy
+        // that launched and quit without touching anything left a person with no name on
+        // it, which is most of a beta.
+        provider.Capture(new AnalyticsEvent(Events.Identify, Identity()));
+
         Connection = hasDestination ? AnalyticsConnection.Connected(host) : AnalyticsConnection.NoDestination;
         Changed?.Invoke();
     }
+
+    /// <summary>
+    /// The identify event carries no properties of its own.
+    /// </summary>
+    /// <remarks>
+    /// The provider attaches the super properties and the person properties to
+    /// everything, and the person properties are the whole point of this event. There is
+    /// nothing left for it to say.
+    /// </remarks>
+    private static Dictionary<string, AnalyticsValue> Identity() => new(StringComparer.Ordinal);
 
     /// <summary>The installation identifier, minted on first use and stored from then on.</summary>
     private string CurrentIdentifier()
@@ -266,7 +284,33 @@ public sealed class AnalyticsManager
         ["os_version"] = AnalyticsValue.Of(systemVersion),
         ["windows_version"] = AnalyticsValue.Of(systemVersion),
         ["analytics_enabled"] = AnalyticsValue.Of(IsEnabled),
+
+        // The names PostHog's own charts group by. macOS sends these because its SDK
+        // sends them for it; this build writes its own payloads, so nothing was filling
+        // them in and Windows was absent from every breakdown built on the macOS data
+        // rather than wrong in it. Same values as the plain keys above, under the names
+        // the product already understands.
+        ["$os"] = AnalyticsValue.Of("Windows"),
+        ["$os_version"] = AnalyticsValue.Of(systemVersion),
+        ["$app_version"] = AnalyticsValue.Of(appVersion),
+        ["$app_build"] = AnalyticsValue.Of(buildNumber),
+        ["$device_type"] = AnalyticsValue.Of("Desktop"),
+        ["$lib"] = AnalyticsValue.Of(LibraryName),
+        ["$lib_version"] = AnalyticsValue.Of(appVersion),
+
+        // No geolocation. PostHog derives a country, region and city from the sending
+        // address unless the address is explicitly withheld, and PRIVACY.md lists
+        // IP-derived enrichment among the things Hangly never collects.
+        ["$ip"] = AnalyticsValue.Null,
     };
+
+    /// <summary>What this build calls itself to PostHog.</summary>
+    /// <remarks>
+    /// Not one of PostHog's own SDK names, because it is not one of them: the payloads
+    /// here are hand-written. Naming it honestly is what lets a question about a bug in
+    /// the sending code be answered by a query rather than by guesswork.
+    /// </remarks>
+    private const string LibraryName = "hangly-windows";
 
     /// <summary>Which silicon this copy is running on, as PostHog should see it.</summary>
     private static string Architecture =>
@@ -291,10 +335,23 @@ public sealed class AnalyticsManager
     public Dictionary<string, AnalyticsValue> PersonProperties() => new(StringComparer.Ordinal)
     {
         ["user_name"] = AnalyticsValue.Of(store.Settings.DisplayName),
+
+        // The same name again, under the key PostHog shows people by.
+        //
+        // A person's display name is resolved from the first of `email`, `name` or
+        // `username` that the person has, and `user_name` is in none of those lists.
+        // Every Windows person therefore appeared in the project as a bare identifier
+        // with the name sitting in a property nobody was looking at. Written to both, so
+        // existing queries on `user_name` keep working.
+        ["name"] = AnalyticsValue.Of(store.Settings.DisplayName),
+        ["username"] = AnalyticsValue.Of(store.Settings.DisplayName),
+
         ["platform"] = AnalyticsValue.Of("windows"),
         ["architecture"] = AnalyticsValue.Of(Architecture),
         ["app_version"] = AnalyticsValue.Of(appVersion),
         ["os_version"] = AnalyticsValue.Of(systemVersion),
+        ["$os"] = AnalyticsValue.Of("Windows"),
+        ["$os_version"] = AnalyticsValue.Of(systemVersion),
     };
 
     /// <summary>What is on the rope, which is the shape of how the app is used.</summary>

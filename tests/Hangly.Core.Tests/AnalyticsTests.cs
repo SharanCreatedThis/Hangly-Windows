@@ -55,8 +55,10 @@ public class AnalyticsTests : IDisposable
         SettingsStore store = NewStore();
         NewManager(store).Start();
 
+        // $identify leads, because it is what creates the person the other two are
+        // attributed to. Asserted in order, so it cannot quietly stop happening.
         Assert.Equal(
-            ["app_first_launch", "app_launch"],
+            ["$identify", "app_first_launch", "app_launch"],
             provider.Captured.Select(e => e.Name));
     }
 
@@ -70,7 +72,7 @@ public class AnalyticsTests : IDisposable
         var second = new RecordingAnalyticsProvider();
         new AnalyticsManager(store, second, "eu.i.posthog.com", true, "2.0.0", "1", "10.0.26200").Start();
 
-        Assert.Equal(["app_launch"], second.Captured.Select(e => e.Name));
+        Assert.Equal(["$identify", "app_launch"], second.Captured.Select(e => e.Name));
     }
 
     /// <summary>
@@ -86,7 +88,8 @@ public class AnalyticsTests : IDisposable
         manager.Start();
         manager.Start();
 
-        Assert.Equal(2, provider.Captured.Count);
+        // $identify, app_first_launch, app_launch — once each, however often Start runs.
+        Assert.Equal(3, provider.Captured.Count);
         Assert.Equal(1, provider.StartCount);
     }
 
@@ -362,6 +365,61 @@ public class AnalyticsTests : IDisposable
 
         Assert.NotNull(provider.PersonProperties);
         Assert.Equal("Sharan", ((AnalyticsValue.Text)provider.PersonProperties!["user_name"]).Value);
+    }
+
+    /// <summary>
+    /// The name has to be under a key PostHog will show people by.
+    /// </summary>
+    /// <remarks>
+    /// A person's display name is resolved from the first of <c>email</c>, <c>name</c> or
+    /// <c>username</c> that the person has. <c>user_name</c> is in none of those lists, so
+    /// for a whole beta every Windows person appeared as a bare identifier with the name
+    /// sitting one property away, unread. This is that bug, written down.
+    /// </remarks>
+    [Fact(DisplayName = "The name is set under the keys PostHog displays people by")]
+    public void NameIsSetWhereItIsRead()
+    {
+        SettingsStore store = NewStore();
+        store.Update(settings => settings with { DisplayName = "Sharan" });
+        NewManager(store).Start();
+
+        Assert.NotNull(provider.PersonProperties);
+        foreach (string key in (string[])["user_name", "name", "username"])
+        {
+            Assert.Equal("Sharan", ((AnalyticsValue.Text)provider.PersonProperties![key]).Value);
+        }
+    }
+
+    /// <summary>
+    /// PRIVACY.md lists IP-derived enrichment among the things Hangly never collects, and
+    /// declining it means sending the key as null rather than leaving it out.
+    /// </summary>
+    [Fact(DisplayName = "The sending address is withheld, not merely unmentioned")]
+    public void GeolocationIsDeclined()
+    {
+        SettingsStore store = NewStore();
+        NewManager(store).Start();
+
+        Assert.NotNull(provider.SuperProperties);
+        Assert.IsType<AnalyticsValue.Absent>(provider.SuperProperties!["$ip"]);
+    }
+
+    /// <summary>
+    /// The properties PostHog's own charts group by, so Windows shows up beside macOS in
+    /// a breakdown rather than being absent from it.
+    /// </summary>
+    [Fact(DisplayName = "Windows reports itself under PostHog's own platform keys")]
+    public void PlatformIsReportedTwice()
+    {
+        SettingsStore store = NewStore();
+        NewManager(store).Start();
+
+        Assert.NotNull(provider.SuperProperties);
+        Assert.Equal("windows", ((AnalyticsValue.Text)provider.SuperProperties!["platform"]).Value);
+        Assert.Equal("Windows", ((AnalyticsValue.Text)provider.SuperProperties!["$os"]).Value);
+        Assert.Equal("Desktop", ((AnalyticsValue.Text)provider.SuperProperties!["$device_type"]).Value);
+        Assert.True(provider.SuperProperties.ContainsKey("$app_version"));
+        Assert.True(provider.SuperProperties.ContainsKey("$lib"));
     }
 
     /// <summary>A corrected name reaches the project without a relaunch.</summary>

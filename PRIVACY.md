@@ -86,12 +86,45 @@ This is a real payload, taken from this build with `--check-analytics`:
     "os_version": "10.0.26200.0",
     "windows_version": "10.0.26200.0",
     "analytics_enabled": true,
+    "$os": "Windows",
+    "$os_version": "10.0.26200.0",
+    "$app_version": "2.0.0",
+    "$app_build": "1",
+    "$device_type": "Desktop",
+    "$lib": "hangly-windows",
+    "$lib_version": "2.0.0",
+    "$ip": null,
     "charm_count": 2,
     "active_charm_ids": ["Nazar boncuğu", "Hamsa"],
-    "rope_style": "Thread"
+    "rope_style": "Thread",
+    "$set": {
+      "user_name": "Sharan",
+      "name": "Sharan",
+      "username": "Sharan",
+      "platform": "windows",
+      "architecture": "arm64",
+      "app_version": "2.0.0",
+      "os_version": "10.0.26200.0",
+      "$os": "Windows",
+      "$os_version": "10.0.26200.0"
+    }
   }
 }
 ```
+
+**The `$`-prefixed keys are the same facts under the names PostHog's own charts group
+by.** They carry nothing the plain keys do not; they exist because macOS sends them by way
+of the vendor SDK and this build writes its own payloads, so without them a Windows copy
+was absent from every breakdown rather than wrong in one.
+
+**`$ip` is null on purpose.** PostHog derives a country, a region and a city from the
+sending address unless the payload says not to, and omitting the key is how you get that,
+not how you decline it. The name appears three times because a person's display name is
+resolved from `email`, `name` or `username` and `user_name` is in none of those lists — it
+is one name written where it can be read, not three pieces of information.
+
+**`$set` is the same name and the same build facts again, attached to the person rather
+than to the event.** Nothing is in it that is not already above it.
 
 The same list is on the About page, under **Anonymous analytics**, built from the code that
 sends it rather than typed out — so it cannot drift from what actually leaves.

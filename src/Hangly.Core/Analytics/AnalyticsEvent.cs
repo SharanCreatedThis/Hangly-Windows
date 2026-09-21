@@ -32,7 +32,19 @@ public abstract record AnalyticsValue
 
     public static AnalyticsValue Of(IReadOnlyList<string> value) => new List(value);
 
+    /// <summary>A property that is sent as JSON null rather than omitted.</summary>
+    /// <remarks>
+    /// The difference matters for exactly one property. PostHog reads the sending
+    /// address and derives a country, a region and a city from it unless the payload
+    /// carries <c>$ip</c> set to null — omitting the key is how you get the geolocation,
+    /// not how you decline it. Everything else that has no value is simply left out.
+    /// </remarks>
+    public static AnalyticsValue Null { get; } = new Absent();
+
     public sealed record Text(string Value) : AnalyticsValue;
+
+    /// <summary>Explicitly nothing. See <see cref="Null"/>.</summary>
+    public sealed record Absent : AnalyticsValue;
 
     public sealed record Integer(int Value) : AnalyticsValue;
 
@@ -94,6 +106,14 @@ public static class Events
     public static AnalyticsEvent AppFirstLaunch { get; } = new("app_first_launch");
 
     public static AnalyticsEvent AppLaunch { get; } = new("app_launch");
+
+    /// <summary>PostHog's own event for "this is who that identifier belongs to".</summary>
+    /// <remarks>
+    /// Reserved by the product and spelled the way the product spells it, so it is not a
+    /// name this app gets to choose. It is the event that creates a person; <c>$set</c>
+    /// riding along with an ordinary event only updates one that already exists.
+    /// </remarks>
+    public const string Identify = "$identify";
 
     public static AnalyticsEvent AppQuit { get; } = new("app_quit");
 
