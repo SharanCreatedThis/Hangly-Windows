@@ -81,7 +81,7 @@ public sealed class SettingsStore
         Update(settings => settings with { Overlay = change(settings.Overlay) });
 
     /// <summary>Returns everything to how it shipped.</summary>
-    public void Reset() => Settings = new AppSettings();
+    public void Reset() => Settings = AppSettings.Defaults;
 
     private static AppSettings Load(string path, out bool wasRecovered)
     {
@@ -90,7 +90,7 @@ public sealed class SettingsStore
         {
             if (!File.Exists(path))
             {
-                return new AppSettings();
+                return AppSettings.Defaults;
             }
 
             return AppSettings.FromJson(File.ReadAllText(path), out wasRecovered);
@@ -100,7 +100,7 @@ public sealed class SettingsStore
             // An unreadable file is not a reason to refuse to launch. The rope is an
             // ornament; it hangs on the defaults and says so.
             wasRecovered = true;
-            return new AppSettings();
+            return AppSettings.Defaults;
         }
     }
 

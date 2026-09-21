@@ -74,4 +74,39 @@ public static class WindowPlacement
             Diagnostics.Failure("centring a window", exception);
         }
     }
+
+    /// <summary>Lifts <paramref name="window"/> out of the taskbar if it is minimised.</summary>
+    /// <remarks>
+    /// <c>AppWindow.Show</c> does not do this, and neither does <c>Activate</c>: a
+    /// minimised window stays minimised through both, so a menu entry that opens the
+    /// window looked like it had done nothing. <c>OverlappedPresenter.State</c> was tried
+    /// first and does not report the minimisation when it came from outside WinUI, which
+    /// includes the taskbar button, so the question is asked of the window itself.
+    /// </remarks>
+    public static void Restore(Window window)
+    {
+        IntPtr handle = WinRT.Interop.WindowNative.GetWindowHandle(window);
+        if (NativeMethods.IsIconic(handle))
+        {
+            // SW_RESTORE. Puts the window back at the size and place it had before,
+            // which for this one is the only size it has.
+            NativeMethods.ShowWindow(handle, 9);
+        }
+    }
+
+    /// <summary>Fixes a card at the size it was given.</summary>
+    /// <remarks>
+    /// The welcome and follow cards are laid out for one size and have nothing to do with
+    /// extra room, so dragging their edges only breaks the composition. It is also what
+    /// keeps the coffee sheet predictable: a ContentDialog is bounded by the window it
+    /// opens over, and that sheet is sized from the host's height.
+    /// </remarks>
+    public static void FixSize(Window window)
+    {
+        if (window.AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
+        {
+            presenter.IsResizable = false;
+            presenter.IsMaximizable = false;
+        }
+    }
 }

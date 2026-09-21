@@ -126,12 +126,13 @@ public static class RopeStyleTable
 
     /// <summary>The rope a brand-new install hangs its first charm on.</summary>
     /// <remarks>
-    /// Gold chain rather than <see cref="Shipped"/>. The two are different questions:
-    /// <see cref="Shipped"/> is what the macOS build has always drawn and what the
-    /// rendering tests measure against, and moving it would move those. This only decides
-    /// what somebody meets on a first launch.
+    /// Its own name rather than <see cref="Shipped"/>, even while the two agree. They are
+    /// different questions: <see cref="Shipped"/> is what the macOS build has always drawn
+    /// and what the rendering tests measure against, and moving it would move those. This
+    /// only decides what somebody meets on a first launch, and it moves when the author
+    /// changes his mind about what Hangly should look like out of the box.
     /// </remarks>
-    public const RopeStyle FirstRun = RopeStyle.GoldChain;
+    public const RopeStyle FirstRun = RopeStyle.SpiderThread;
 
     /// <summary>Every style, in menu order.</summary>
     public static IReadOnlyList<RopeStyle> All { get; } = Enum.GetValues<RopeStyle>();

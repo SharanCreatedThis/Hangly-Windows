@@ -33,17 +33,23 @@ public class SettingsCodingTests
     /// of them drifts, and nobody notices until an install looks wrong. Changing one is
     /// fine; changing one by accident is what this is here to stop.
     /// </remarks>
-    [Fact(DisplayName = "A new install hangs a nazar on a gold chain, top right")]
+    [Fact(DisplayName = "A new install hangs a spider on a spider thread, near the right")]
     public void FirstInstallDefaults()
     {
         AppSettings settings = AppSettings.FromJson("{}", out _);
         OverlaySettings overlay = settings.Overlay;
 
-        Assert.Equal(["nazar"], overlay.CharmIds);
-        Assert.Equal(RopeStyle.GoldChain, overlay.RopeStyle);
+        Assert.Equal(["spiderMan"], overlay.CharmIds);
+        Assert.Equal(RopeStyle.SpiderThread, overlay.RopeStyle);
         Assert.Equal(OverlayAnchor.TopTrailing, overlay.Anchor);
-        Assert.Equal(0.85, overlay.RopeLength);
-        Assert.Equal(1.45, overlay.CharmSize);
+        Assert.Equal(1.0, overlay.RopeLength);
+        Assert.Equal(1.8, overlay.CharmSize);
+
+        // From an empty document rather than from no document: a file that says "{}" has
+        // been written by something, so the position still migrates from the anchor.
+        // AppSettings.Defaults is where the new-install 0.89 lives.
+        Assert.Null(overlay.HorizontalPosition);
+        Assert.Equal(0.85, AppSettings.Defaults.Overlay.Position);
 
         // The fallback is a different question from the first-run charm, and stays the
         // plain bead: a deleted import must not silently become somebody else's charm.
@@ -64,7 +70,7 @@ public class SettingsCodingTests
         Assert.Equal(0.5, settings.Overlay.Opacity);
 
         // A new field in a future release must not discard every existing preference.
-        Assert.Equal(1.45, settings.Overlay.CharmSize);
+        Assert.Equal(1.8, settings.Overlay.CharmSize);
         Assert.True(settings.Overlay.IsEnabled);
     }
 
@@ -188,7 +194,36 @@ public class SettingsStoreTests : IDisposable
 
         store.Reset();
 
-        Assert.Equal(new AppSettings(), store.Settings);
+        // Defaults rather than `new AppSettings()`: a reset is a new install, and a new
+        // install gets a position rather than inheriting one from the old anchor.
+        Assert.Equal(AppSettings.Defaults, store.Settings);
+    }
+
+    /// <summary>
+    /// The Appearance page's "Restore defaults" writes this, and it has to be the whole
+    /// rope. It used to keep the charms, which meant three charms survived a restore and
+    /// the button had not done what it said.
+    /// </summary>
+    [Fact(DisplayName = "Restoring defaults puts the charms back too, not just the cord")]
+    public void RestoringDefaultsResetsTheWholeRope()
+    {
+        var store = new SettingsStore(Path_);
+        store.UpdateOverlay(overlay => overlay with
+        {
+            CharmIds = ["hamsa", "daruma", "nazar"],
+            CharmCount = 3,
+            RopeStyle = RopeStyle.Neon,
+            CharmSize = 0.6,
+            RopeLength = 1.9,
+            HorizontalPosition = 0.1,
+        });
+
+        store.UpdateOverlay(_ => AppSettings.Defaults.Overlay);
+
+        Assert.Equal(AppSettings.Defaults.Overlay, store.Settings.Overlay);
+        Assert.Equal(["spiderMan"], store.Settings.Overlay.CharmIds);
+        Assert.Equal(1, store.Settings.Overlay.Stack.Count);
+        Assert.Equal(0.85, store.Settings.Overlay.Position);
     }
 
     [Fact(DisplayName = "A corrupt file on disk is recovered from, not fatal")]
@@ -204,7 +239,7 @@ public class SettingsStoreTests : IDisposable
 
     [Fact(DisplayName = "A missing file is not an error")]
     public void MissingFileIsDefaults() =>
-        Assert.Equal(new AppSettings(), new SettingsStore(Path_).Settings);
+        Assert.Equal(AppSettings.Defaults, new SettingsStore(Path_).Settings);
 
     /// <summary>
     /// The generated record equality compared the charm list by reference, so two

@@ -176,7 +176,7 @@ public sealed class AppEnvironment : IDisposable
             return;
         }
 
-        var welcome = new Onboarding.WelcomeWindow(store, OpenCustomize);
+        var welcome = new Onboarding.WelcomeWindow(store, analytics, OpenLibrary);
 
         // Hidden rather than closed when it is dismissed, so the app is still running
         // afterwards. See ProcessLifetime.
@@ -193,7 +193,7 @@ public sealed class AppEnvironment : IDisposable
     /// <summary>Reopens the welcome card on demand, from the About page.</summary>
     public void ShowWelcomeAgain()
     {
-        var welcome = new Onboarding.WelcomeWindow(store, OpenCustomize);
+        var welcome = new Onboarding.WelcomeWindow(store, analytics, OpenLibrary);
         Onboarding.ProcessLifetime.KeepAlive(welcome);
         welcome.SkipToWelcome();
         welcome.Activate();
@@ -593,12 +593,31 @@ public sealed class AppEnvironment : IDisposable
             }
 
             customize.AppWindow.Show();
+
+            // Show does not lift a minimised window out of the taskbar — it stays
+            // minimised and Activate raises nothing, so picking Library off the tray menu
+            // appeared to do nothing at all once the window had been minimised once.
+            Interop.WindowPlacement.Restore(customize);
+
             customize.Activate();
         }
         catch (Exception exception)
         {
             Diagnostics.Failure("customize window", exception);
         }
+    }
+
+    /// <summary>Opens the window on the Library, whatever page it was left on.</summary>
+    /// <remarks>
+    /// Every route that names the Library goes through here — the tray menu entry and the
+    /// welcome card's Explore Library button — because the window is kept alive between
+    /// openings and otherwise comes back on whatever page was last read.
+    /// </remarks>
+    private void OpenLibrary()
+    {
+        OpenCustomize();
+        customize?.ShowLibrary();
+        Diagnostics.Log("opened on the library");
     }
 
     /// <summary>Opens Customize on the About page, showing the update that was found.</summary>
@@ -723,7 +742,7 @@ public sealed class AppEnvironment : IDisposable
                 settings.Overlay.IsEnabled ? "Hide Charm" : "Show Charm",
                 () => store.UpdateOverlay(overlay => overlay with { IsEnabled = !overlay.IsEnabled })),
             MenuEntry.Separator,
-            new MenuEntry("Library", OpenCustomize),
+            new MenuEntry("Library", OpenLibrary),
             MenuEntry.Separator,
             new MenuEntry("Charms", Children: charms),
             new MenuEntry("Rope", Children: ropes),

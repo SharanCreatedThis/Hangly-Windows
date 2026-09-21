@@ -106,17 +106,21 @@ public sealed class FollowPrompt : Window
                 + "turn up on Instagram first.",
             TextWrapping = TextWrapping.Wrap,
         });
-        body.Children.Add(new TextBlock
-        {
-            Text = "@sharan.created.this",
-            Opacity = 0.7,
-            Margin = new Thickness(0, 4, 0, 8),
-        });
+        // The handle used to be a third line of copy here, unlinked. It is in the credit
+        // below now, where it is clickable and where it reads the same as it does in
+        // every other window, so having it twice would be having it twice.
         body.Children.Add(buttons);
+        body.Children.Add(Branding.CreatorCredit.Panel(body, analytics, "follow_card", stacked: true));
 
         Content = body;
 
-        Interop.WindowPlacement.SizeAndCentre(this, 460, 300);
+        // Taller than the 300 it was. The credit is a divider, a line and a button on
+        // its own row; the card had nothing spare, a card that asks a favour is the wrong
+        // place to crowd, and the coffee sheet opens inside this window and can be no
+        // taller than it.
+        Interop.WindowPlacement.SizeAndCentre(this, 460, 440);
+        Interop.WindowIcon.Apply(this);
+        Interop.WindowPlacement.FixSize(this);
 
         // Closing by the title bar is an answer too, and the one macOS calls dismissed.
         Closed += (_, _) => Record();

@@ -36,6 +36,21 @@ internal static class BuyCoffeeSheet
     /// <summary>Where the QR lands beside the executable.</summary>
     private static string QrPath => Path.Combine(AppContext.BaseDirectory, "Assets", "CreatorUPIQR.png");
 
+    /// <summary>How large the code can be over this host without crowding it out.</summary>
+    /// <remarks>
+    /// The rest of the sheet — the dialog's own chrome, a title, a line of thanks, the
+    /// address, two buttons and their spacing — measured at about 390 points over the
+    /// follow card, and a dialog cannot exceed its host. What is left over is the code's.
+    /// The number is measured rather than guessed, twice: at 240 the payment link was off
+    /// the bottom edge entirely, and at 330 it was underneath the dialog's own button
+    /// strip with only its top edge showing.
+    /// </remarks>
+    private static double QrSide(FrameworkElement root)
+    {
+        double available = root.XamlRoot?.Size.Height ?? 0;
+        return available <= 0 ? 150 : Math.Clamp(available - 390, 100, 190);
+    }
+
     /// <summary>Shows the sheet over <paramref name="root"/>.</summary>
     /// <param name="source">Which surface asked, which is all the events record.</param>
     public static async Task ShowAsync(
@@ -48,11 +63,10 @@ internal static class BuyCoffeeSheet
         var address = new TextBlock
         {
             Text = AppInfo.UpiId,
-            IsTextSelectionEnabled = true,
             HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
             FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
         };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(address, "CoffeeUpiId");
 
         var copied = new TextBlock
         {
@@ -63,8 +77,20 @@ internal static class BuyCoffeeSheet
         };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(copied, "CoffeeCopied");
 
-        var copy = new Button { Content = "Copy UPI ID", HorizontalAlignment = HorizontalAlignment.Center };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(copy, "CoffeeCopyButton");
+        // The address is the button.
+        //
+        // It was a line of text with a "Copy UPI ID" button under it, which is two
+        // controls for one idea and one row of height this sheet does not have to spare
+        // over a small window. Clicking the thing you want is what everybody tries first.
+        var copy = new Button
+        {
+            Content = address,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Padding = new Thickness(14, 8, 14, 8),
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(copy, "CoffeeUpiId");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(copy, $"Copy UPI ID {AppInfo.UpiId}");
+        ToolTipService.SetToolTip(copy, "Click to copy");
         copy.Click += (_, _) =>
         {
             var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
@@ -77,11 +103,7 @@ internal static class BuyCoffeeSheet
             analytics.Track(Events.CoffeeCopyUpi(source));
         };
 
-        var open = new Button { Content = "Open payment page", HorizontalAlignment = HorizontalAlignment.Center };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(open, "CoffeeOpenButton");
-        open.Click += (_, _) => _ = Windows.System.Launcher.LaunchUriAsync(new Uri(AppInfo.CoffeeUrl));
-
-        var body = new StackPanel { Spacing = 12, MinWidth = 300 };
+        var body = new StackPanel { Spacing = 10, MinWidth = 260 };
         body.Children.Add(new TextBlock
         {
             Text = "Thank you for using Hangly.",
@@ -99,8 +121,20 @@ internal static class BuyCoffeeSheet
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Child = new Image
                 {
-                    Width = 220,
-                    Height = 220,
+                    // Sized to the window it opens over.
+                    //
+                    // A ContentDialog is laid out inside its host's XamlRoot and can be
+                    // no taller than it. This sheet opens over three windows of very
+                    // different sizes, and a fixed code that suited the Library pushed
+                    // the address and the payment link off the bottom of the follow card
+                    // — not scrolled, cut off. A scroller was tried and only turned a
+                    // clipped sheet into a scrolling one, which is not what anybody wants
+                    // from a QR code.
+                    //
+                    // A third of the host's height, floored so it stays scannable and
+                    // capped so it does not dominate the Library's.
+                    Width = QrSide(root),
+                    Height = QrSide(root),
                     Source = new BitmapImage(new Uri(QrPath)),
                 },
             });
@@ -121,19 +155,28 @@ internal static class BuyCoffeeSheet
             });
         }
 
-        body.Children.Add(address);
         body.Children.Add(copy);
         body.Children.Add(copied);
-        body.Children.Add(open);
 
+        // The payment link is the dialog's own button rather than one more control in the
+        // body.
+        //
+        // A ContentDialog clips its content rather than shrinking it, and this sheet opens
+        // over windows as small as the follow card. Shrinking the code was tried twice and
+        // only moved which control ended up underneath the dialog's button strip. The
+        // button strip is the one part that is always laid out and never clipped, so the
+        // one action that must never go missing lives there.
         var sheet = new ContentDialog
         {
             XamlRoot = root.XamlRoot,
             Title = "Support the Creator",
             Content = body,
+            PrimaryButtonText = "Open payment page",
             CloseButtonText = "Close",
-            DefaultButton = ContentDialogButton.Close,
+            DefaultButton = ContentDialogButton.Primary,
         };
+        sheet.PrimaryButtonClick += (_, _) =>
+            _ = Windows.System.Launcher.LaunchUriAsync(new Uri(AppInfo.CoffeeUrl));
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(sheet, "CoffeeSheet");
 
         await sheet.ShowAsync();

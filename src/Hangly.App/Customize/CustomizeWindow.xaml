@@ -191,9 +191,9 @@
                     on the cord". A footer is supposed to take what is left over, not take
                     it from the menu.
                 -->
+                <StackPanel>
                 <Border
                     x:Name="DetailPanel"
-                    MaxHeight="560"
                     Padding="16,12,16,16"
                     BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
                     BorderThickness="0,1,0,0">
@@ -334,102 +334,77 @@
                                 Text="Its story shows up here."
                                 TextAlignment="Center" />
                         </StackPanel>
-                            <ScrollViewer Visibility="{x:Bind Detail.PanelVisibility, Mode=OneWay}">
-                                <StackPanel Spacing="12">
-                                    <!--
-                                        Smaller than it was. At two hundred points the
-                                        preview was the tallest thing in the sidebar and
-                                        pushed the charm's own description below the fold,
-                                        which is the wrong way round: the picture is
-                                        already on the rope and in the grid, and the words
-                                        are the only place the charm is explained.
-                                    -->
-                                    <Border
-                                        Height="132"
-                                        Padding="12"
-                                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                        CornerRadius="8">
-                                        <Image
-                                            AutomationProperties.AutomationId="DetailImage"
-                                            Source="{x:Bind Detail.Image, Mode=OneWay}"
-                                            Stretch="Uniform" />
-                                    </Border>
+                            <!--
+                                The preview, and nothing else.
 
-                                    <StackPanel Spacing="2">
-                                        <TextBlock
-                                            AutomationProperties.AutomationId="DetailName"
-                                            Style="{StaticResource SubtitleTextBlockStyle}"
-                                            Text="{x:Bind Detail.DisplayName, Mode=OneWay}"
-                                            TextWrapping="Wrap" />
-                                        <TextBlock
-                                            AutomationProperties.AutomationId="DetailRegion"
-                                            CharacterSpacing="60"
-                                            FontSize="11"
-                                            FontWeight="SemiBold"
-                                            Opacity="0.55"
-                                            Text="{x:Bind Detail.Region, Mode=OneWay}"
-                                            TextWrapping="Wrap"
-                                            Visibility="{x:Bind Detail.RegionVisibility, Mode=OneWay}" />
-                                        <TextBlock
-                                            AutomationProperties.AutomationId="DetailCategory"
-                                            Margin="0,2,0,0"
-                                            Opacity="0.75"
-                                            Style="{StaticResource CaptionTextBlockStyle}"
-                                            Text="{x:Bind Detail.Category, Mode=OneWay}"
-                                            TextWrapping="Wrap"
-                                            Visibility="{x:Bind Detail.CategoryVisibility, Mode=OneWay}" />
-                                    </StackPanel>
+                                This held the charm's name, its region, its category, its
+                                story, its tags, whether it was on the rope and a
+                                favourite button — a column of text in a pane 300 points
+                                wide, which meant it scrolled, which meant a scrollbar
+                                down the side of the sidebar and the size slider above it
+                                pushed against the top edge. None of it was information
+                                somebody was in the sidebar to read: the name is on the
+                                tile, the story is on the tile's tooltip, the star is on
+                                the tile, and the rope is visible on screen.
 
-                                    <TextBlock
-                                        AutomationProperties.AutomationId="DetailDescription"
-                                        Opacity="0.85"
-                                        Style="{StaticResource BodyTextBlockStyle}"
-                                        Text="{x:Bind Detail.Description, Mode=OneWay}"
-                                        TextWrapping="Wrap" />
-
-                                    <ItemsControl
-                                        AutomationProperties.AutomationId="DetailTags"
-                                        ItemTemplate="{StaticResource TagTemplate}"
-                                        ItemsSource="{x:Bind Detail.Tags, Mode=OneWay}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <muxc:ItemsWrapGrid Orientation="Horizontal" />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                    </ItemsControl>
-
-                                    <Border
-                                        Margin="0,4,0,0"
-                                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                                        BorderThickness="0,1,0,0" />
-
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <FontIcon
-                                            FontSize="14"
-                                            Glyph="{x:Bind Detail.RopeGlyph, Mode=OneWay}"
-                                            Opacity="0.8" />
-                                        <TextBlock
-                                            AutomationProperties.AutomationId="DetailRopeState"
-                                            Style="{StaticResource BodyTextBlockStyle}"
-                                            Text="{x:Bind Detail.RopeLabel, Mode=OneWay}" />
-                                    </StackPanel>
-
-                                    <Button
-                                        x:Name="DetailFavourite"
-                                        AutomationProperties.AutomationId="DetailFavourite"
-                                        Click="OnDetailFavouriteClicked"
-                                        HorizontalAlignment="Stretch">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <FontIcon FontSize="14" Glyph="{x:Bind Detail.FavouriteGlyph, Mode=OneWay}" />
-                                            <TextBlock Text="Favourite" />
-                                        </StackPanel>
-                                    </Button>
-                                </StackPanel>
-                            </ScrollViewer>
+                                What is left is the one thing the sidebar is for — a look
+                                at the charm, large. It cannot overflow, so there is no
+                                scroller here any more.
+                            -->
+                            <Border
+                                Height="200"
+                                Padding="16"
+                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                CornerRadius="8"
+                                Visibility="{x:Bind Detail.PanelVisibility, Mode=OneWay}">
+                                <Image
+                                    AutomationProperties.AutomationId="DetailImage"
+                                    AutomationProperties.Name="{x:Bind Detail.DisplayName, Mode=OneWay}"
+                                    Source="{x:Bind Detail.Image, Mode=OneWay}"
+                                    Stretch="Uniform" />
+                            </Border>
                     </Grid>
                     </StackPanel>
                   </ScrollViewer>
                 </Border>
+
+                    <!--
+                        Who made this, at the foot of the pane and on all four pages.
+
+                        In the pane rather than on each page because it belongs to the
+                        app rather than to any one part of it. At the foot because that
+                        is where a credit goes and because the alternative was tried:
+                        PaneCustomContent, the only other slot, renders *above* the page
+                        names, which put the byline over the navigation.
+
+                        There is room for it now. The panel above used to be a column of
+                        name, region, story, tags and buttons capped at 560 points and
+                        scrolling inside a 300-point pane; it is a single preview image,
+                        so the pane holds four page names, a charm and this with space
+                        left and nothing to scroll.
+                    -->
+                    <StackPanel
+                        x:Name="CreatorCreditPane"
+                        Padding="16,16,16,18"
+                        Spacing="2">
+                        <TextBlock
+                            CharacterSpacing="120"
+                            FontSize="11"
+                            Opacity="0.5"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="CREATED BY" />
+                        <HyperlinkButton
+                            x:Name="CreatorHandleLink"
+                            AutomationProperties.AutomationId="CreatorHandle"
+                            AutomationProperties.Name="Creator on Instagram"
+                            Click="OnInstagramClicked"
+                            Content="@sharan.created.this"
+                            FontSize="13"
+                            HorizontalAlignment="Left"
+                            MinHeight="0"
+                            Padding="0" />
+                    </StackPanel>
+                </StackPanel>
             </muxc:NavigationView.PaneFooter>
 
             <Grid>
@@ -500,9 +475,9 @@
                             AutomationProperties.Name="Charms on the cord"
                             MaxColumns="3"
                             SelectionChanged="OnCountChanged">
-                            <x:String>1</x:String>
-                            <x:String>2</x:String>
-                            <x:String>3</x:String>
+                            <x:String>1 charm</x:String>
+                            <x:String>2 charms</x:String>
+                            <x:String>3 charms</x:String>
                         </muxc:RadioButtons>
 
                         <muxc:ListView
@@ -810,13 +785,20 @@
 
                     Who Hangly is on the left, what you can do with it on the right.
                 -->
-                <Grid x:Name="AboutPage" Margin="24,16,24,16" Visibility="Collapsed">
+                <Grid
+                    x:Name="AboutPage"
+                    Margin="24,16,24,16"
+                    VerticalAlignment="Center"
+                    Visibility="Collapsed">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
-                    <StackPanel Margin="0,0,16,0" Spacing="14">
+                    <StackPanel
+                        Margin="0,0,16,0"
+                        VerticalAlignment="Center"
+                        Spacing="14">
                         <StackPanel Orientation="Horizontal" Spacing="16">
                             <Image
                                 x:Name="AppIcon"
@@ -849,33 +831,60 @@
                         </StackPanel>
 
                         <!--
-                            The creator card. macOS ships CreatorCard and BuyCoffeeSheet,
-                            and a UPI QR in its bundle, so the coffee flow there is a sheet
-                            rather than a link. Every line of copy here is quoted from the
-                            macOS binary; see Docs/LIBRARY-AUDIT.md.
+                            The creator card.
+
+                            On the left, under what the app says about itself, because
+                            that is the column about who and what this is — the right
+                            column is the one you do things in. It also evens the page
+                            out: the right had the help, the updates, the numbers, the
+                            secret and the analytics, and the left had four lines and a
+                            lot of air.
+
+                            macOS ships CreatorCard and BuyCoffeeSheet, and a UPI QR in
+                            its bundle, so the coffee flow there is a sheet rather than a
+                            link. Every line of copy here is quoted from the macOS binary;
+                            see Docs/LIBRARY-AUDIT.md.
                         -->
                         <Border
                             x:Name="CreatorCard"
-                            Padding="18"
+                            Padding="18,16,18,16"
                             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             BorderThickness="1"
                             CornerRadius="8">
-                            <StackPanel Spacing="12">
-                                <TextBlock
-                                    Style="{StaticResource BodyStrongTextBlockStyle}"
-                                    Text="Support the Creator" />
-                                <TextBlock
-                                    Opacity="0.8"
-                                    Style="{StaticResource BodyTextBlockStyle}"
-                                    Text="Thank you for using Hangly."
-                                    TextWrapping="Wrap" />
+                            <StackPanel Spacing="10">
                                 <!--
-                                    Wraps rather than running off the edge: the card is
-                                    half the page wide now and three buttons in a row did
-                                    not fit, so "Suggest a charm" lost its last word.
+                                    Small caps and letter-spaced, which is the one piece
+                                    of typographic emphasis on the page. It is a label for
+                                    what follows rather than a heading competing with
+                                    "Milestones" above it, so it is smaller than the
+                                    headings and not bolder.
                                 -->
-                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock
+                                    CharacterSpacing="120"
+                                    FontSize="11"
+                                    Opacity="0.55"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="CREATED BY" />
+                                <TextBlock
+                                    x:Name="CreatorName"
+                                    Style="{StaticResource SubtitleTextBlockStyle}"
+                                    Text="@sharan.created.this" />
+                                <TextBlock
+                                    Opacity="0.65"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="Photography • Film • Design • Code" />
+
+                                <!--
+                                    Coffee is the accented one and it is first, because it
+                                    is the only one of the four that is an offer rather
+                                    than a direction. The rest are links, which is what
+                                    keeps the row from reading as a toolbar.
+                                -->
+                                <StackPanel
+                                    Margin="0,4,0,0"
+                                    Orientation="Horizontal"
+                                    Spacing="8">
                                     <Button
                                         x:Name="CoffeeButton"
                                         AutomationProperties.AutomationId="CoffeeButton"
@@ -883,15 +892,23 @@
                                         Content="Buy Creator a Coffee"
                                         Style="{StaticResource AccentButtonStyle}" />
                                 </StackPanel>
-                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                <StackPanel
+                                    Margin="-6,0,0,0"
+                                    Orientation="Horizontal">
+                                    <HyperlinkButton
+                                        x:Name="CreatorSiteLink"
+                                        AutomationProperties.AutomationId="CreatorSiteLink"
+                                        Content="Website" />
                                     <HyperlinkButton
                                         x:Name="InstagramLink"
+                                        AutomationProperties.AutomationId="InstagramLink"
                                         Click="OnInstagramClicked"
                                         Content="Instagram" />
                                     <HyperlinkButton
                                         x:Name="SuggestLink"
+                                        AutomationProperties.AutomationId="SuggestLink"
                                         Click="OnSuggestClicked"
-                                        Content="Suggest a charm" />
+                                        Content="Suggest a Charm" />
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -904,7 +921,10 @@
                         -->
                     </StackPanel>
 
-                    <StackPanel Grid.Column="1" Spacing="14">
+                    <StackPanel
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Spacing="14">
                         <StackPanel Spacing="8">
                             <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Help" />
                             <Button

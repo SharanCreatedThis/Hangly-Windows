@@ -50,6 +50,22 @@ public static class AppInfo
 
     public static string WebsiteUrl => "https://www.sharancreatedthis.in/products/hangly";
 
+    /// <summary>The creator's site, as every creator credit spells it.</summary>
+    /// <remarks>
+    /// One spelling, with the <c>www</c> and without a path. <see cref="WebsiteUrl"/> is
+    /// a different thing wearing a similar name — it is Hangly's own product page, which
+    /// the About page's "Website" link has always meant — so the two are named apart
+    /// rather than merged. A credit that says "Website" under the creator's handle means
+    /// the creator's site, and now goes there.
+    /// </remarks>
+    public static string CreatorSiteUrl => "https://www.sharancreatedthis.in";
+
+    /// <summary>The creator's handle, written the one way it is written.</summary>
+    public static string CreatorHandle => "@sharan.created.this";
+
+    /// <summary>The four things the creator makes, in the order macOS lists them.</summary>
+    public static string CreatorDisciplines => "Photography • Film • Design • Code";
+
     public static string GitHubUrl => "https://github.com/SharanCreatedThis/Hangly-Windows";
 
     /// <summary>Where the update feed lives.</summary>

@@ -67,7 +67,7 @@
       development build that claims a version that was never released is a build whose
       About page cannot be trusted in a bug report.
     -->
-    <Version>0.9.0</Version>
+    <Version>0.9.2</Version>
     <Copyright>Copyright © 2026 sharancreatedthis</Copyright>
 
     <!--
@@ -76,14 +76,19 @@
       The macOS build reads these out of its bundle for the same reason: a PostHog
       *project* key is the publishable kind that is meant to ship inside a client, so
       this is about keeping it swappable per configuration rather than keeping it secret.
-      Empty is a supported state and the default one — an app built with no key runs with
-      no analytics at all, and says so on the About page.
 
-          dotnet publish ... -p:HanglyAnalyticsKey=phc_xxx
+      The key is stated here rather than injected. It used to default to empty and be
+      passed in from a repository secret, and the secret did not exist: every v0.9.1
+      build went out with no key, so the provider was never constructed and not one
+      Windows event was ever sent. A write-only key that already ships inside a public
+      binary gains nothing from being held somewhere a build can silently fail to read.
+      It can still be overridden per publish, and an empty override is still supported.
+
+          dotnet publish ... -p:HanglyAnalyticsKey=
     -->
     <HanglyAnalyticsHost Condition="'$(HanglyAnalyticsHost)' == ''">us.i.posthog.com</HanglyAnalyticsHost>
-    <HanglyAnalyticsKey Condition="'$(HanglyAnalyticsKey)' == ''"></HanglyAnalyticsKey>
-    <HanglyBuildNumber Condition="'$(HanglyBuildNumber)' == ''">1</HanglyBuildNumber>
+    <HanglyAnalyticsKey Condition="'$(HanglyAnalyticsKey)' == ''">phc_sCpDUENKdFpt5Db9Fvjh46yJw6ffkEhF6v2W2TbJBwiK</HanglyAnalyticsKey>
+    <HanglyBuildNumber Condition="'$(HanglyBuildNumber)' == ''">3</HanglyBuildNumber>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
     <!--

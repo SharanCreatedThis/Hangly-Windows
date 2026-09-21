@@ -6,6 +6,41 @@ pulls the section out and the release workflow hands it to both.
 
 Headings are `## <version> — <date>`. Nothing else is a version heading.
 
+## 0.9.2 — 2026-09-22
+
+Hangly now says who made it, quietly, in the places you would look.
+
+**New**
+
+- The creator's name and handle appear in the sidebar on every page — Library, Create,
+  Appearance and About — and the handle opens Instagram.
+- A creator card on the About page, with the website, Instagram, a charm suggestion and
+  Buy Creator a Coffee in one place.
+- The same credit on the welcome card and on the "Enjoying Hangly?" card, each with the
+  website and coffee links beside it.
+- The UPI address in the coffee sheet copies when you click it.
+
+**Improved**
+
+- Small charms are much sharper. The artwork is reduced in steps now rather than sampled
+  down in one go, so a charm at 50% keeps its detail instead of breaking up into speckle.
+- The About page fits without scrolling, and its two columns balance.
+- The sidebar shows the charm larger, and nothing in it scrolls.
+- Hangly wears its own icon in the title bar and the task switcher.
+- New installs hang a Spider-Man on a spider thread, and Restore defaults puts the whole
+  rope back rather than only the cord.
+
+**Fixed**
+
+- Library on the tray menu opens the Library, not whichever page you last read, and it
+  works when the window is minimised.
+- The rope stays pinned where it meets the top of the screen instead of sliding along the
+  edge while the charm swings.
+- The cord ends at the charm's clamp rather than running on through it.
+- Collection previews are no longer cropped.
+- Windows now reaches the analytics project at all. Every 0.9.1 build shipped without its
+  key, so nothing was ever sent; names and platform now arrive with it.
+
 ## 0.9.1 — 2026-09-21
 
 - Fixes the update check, which failed on every launch of 0.9.0. GitHub's "latest

@@ -58,11 +58,10 @@ public static partial class CharmCatalog
     /// deleted import silently becoming somebody else's charm.
     ///
     /// <para>This is a different question — what somebody should meet on their first
-    /// launch — and the answer is the nazar. It reads as a charm at a glance, it is the
-    /// one most people recognise, and a plain grey bead is a poor first impression of a
-    /// catalogue of seventy.</para>
+    /// launch. Chosen by the app's author from the rope he keeps it on, which is the only
+    /// evidence available about what the thing looks best hanging.</para>
     /// </remarks>
-    public const string FirstRunId = "nazar";
+    public const string FirstRunId = "spiderMan";
 
     /// <summary>The name of the collection a charm belongs to, or empty if it has none.</summary>
     /// <remarks>

@@ -24,12 +24,12 @@ public sealed record OverlaySettings
     public double Opacity { get; init; } = 1.0;
 
     /// <summary>How large the charm is drawn, as a multiple of the shipped size.</summary>
-    /// <summary>145% on a new install: see <see cref="CharmCatalog.FirstRunId"/>.</summary>
-    public double CharmSize { get; init; } = 1.45;
+    /// <summary>180% on a new install: see <see cref="CharmCatalog.FirstRunId"/>.</summary>
+    public double CharmSize { get; init; } = 1.8;
 
     /// <summary>How far the charm hangs, as a multiple of the shipped rope.</summary>
-    /// <summary>85% on a new install, so the charm sits nearer the top edge.</summary>
-    public double RopeLength { get; init; } = 0.85;
+    /// <summary>The shipped length on a new install, which is what macOS hangs.</summary>
+    public double RopeLength { get; init; } = 1.0;
 
     /// <summary>
     /// Top right on a new install, out of the way of what is usually in the middle.
@@ -353,9 +353,30 @@ public sealed record AppSettings
     /// </remarks>
     public const int DisplayNameLimit = 40;
 
+    /// <summary>What a machine with no settings file starts with.</summary>
+    /// <remarks>
+    /// <b>Not the same thing as the property defaults, and deliberately.</b> Every
+    /// <c>init</c> value on this record is doing two jobs: it is the value a new install
+    /// gets, and it is the value a key missing from an existing file falls back to. For
+    /// almost everything those want the same answer.
+    ///
+    /// <para><see cref="OverlaySettings.HorizontalPosition"/> is the exception. Null there
+    /// means "nobody has chosen a position yet", which is what lets
+    /// <see cref="OverlaySettings.Position"/> fall back to the old three-corner
+    /// <see cref="OverlaySettings.Anchor"/> and open a pre-position settings file with the
+    /// charm exactly where it was. Giving the property itself a number would move every
+    /// one of those installs. So the new-install position is stated here, where only a
+    /// machine with no file at all can see it.</para>
+    /// </remarks>
+    public static AppSettings Defaults { get; } = new()
+    {
+        Overlay = new OverlaySettings { HorizontalPosition = 0.85 },
+    };
+
     public int SchemaVersion { get; init; } = 1;
 
-    public bool LaunchAtLogin { get; init; }
+    /// <summary>On by default: a desktop ornament that is not there is not an ornament.</summary>
+    public bool LaunchAtLogin { get; init; } = true;
 
     public bool HasSeenWelcome { get; init; }
 

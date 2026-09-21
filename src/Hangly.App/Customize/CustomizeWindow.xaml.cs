@@ -127,6 +127,7 @@ public sealed partial class CustomizeWindow : Window
     private void ResizeToDefault()
     {
         Interop.WindowPlacement.SizeAndCentre(this, 1120, 800);
+        Interop.WindowIcon.Apply(this);
         FixTheSize();
     }
 
@@ -820,6 +821,11 @@ public sealed partial class CustomizeWindow : Window
     private void OnSectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         string page = (args.SelectedItem as NavigationViewItem)?.Tag as string ?? "charms";
+        ApplySection(page);
+    }
+
+    private void ApplySection(string page)
+    {
         CharmsPage.Visibility = page == "charms" ? Visibility.Visible : Visibility.Collapsed;
         CreatePage.Visibility = page == "create" ? Visibility.Visible : Visibility.Collapsed;
         AppearancePage.Visibility = page == "appearance" ? Visibility.Visible : Visibility.Collapsed;
@@ -881,16 +887,47 @@ public sealed partial class CustomizeWindow : Window
     /// </remarks>
     public void ShowUpdates(Services.UpdateCheck found)
     {
+        ShowSection("about");
+        ShowUpdateResult(found);
+    }
+
+    /// <summary>Puts the window on the Library, wherever it was left.</summary>
+    /// <remarks>
+    /// The window is built once and hidden on close, so it comes back showing whatever
+    /// page was open when it was dismissed. That is right for the title-bar X and wrong
+    /// for a menu entry that names a page: somebody who last read About and then picked
+    /// Library off the tray menu got About again, and reasonably called it a bug.
+    /// </remarks>
+    public void ShowLibrary() => ShowSection("charms");
+
+    /// <summary>Selects the navigation item carrying <paramref name="tag"/>.</summary>
+    /// <remarks>
+    /// Selecting the item is what runs <see cref="OnSectionChanged"/>, which owns page
+    /// visibility. Setting the pages directly here would leave the pane highlighting one
+    /// page while another was on screen. When the wanted item is already selected the
+    /// selection does not change and no event is raised, so the pages are reconciled
+    /// directly in that case.
+    /// </remarks>
+    private void ShowSection(string tag)
+    {
         foreach (object item in Nav.MenuItems)
         {
-            if (item is NavigationViewItem entry && (entry.Tag as string) == "about")
+            if (item is not NavigationViewItem entry || (entry.Tag as string) != tag)
+            {
+                continue;
+            }
+
+            if (ReferenceEquals(Nav.SelectedItem, entry))
+            {
+                ApplySection(tag);
+            }
+            else
             {
                 Nav.SelectedItem = entry;
-                break;
             }
-        }
 
-        ShowUpdateResult(found);
+            return;
+        }
     }
 
     private async void OnInstallUpdate(object sender, RoutedEventArgs args)
@@ -1053,6 +1090,9 @@ public sealed partial class CustomizeWindow : Window
         GitHubLink.NavigateUri = new Uri(AppInfo.GitHubUrl);
         ReleaseNotesLink.NavigateUri = new Uri(AppInfo.ReleaseNotesUrl);
         InstagramLink.NavigateUri = new Uri(AppInfo.InstagramUrl);
+        CreatorHandleLink.NavigateUri = new Uri(AppInfo.InstagramUrl);
+        CreatorSiteLink.NavigateUri = new Uri(AppInfo.CreatorSiteUrl);
+        CreatorName.Text = AppInfo.CreatorHandle;
         ShowMilestones();
     }
 
@@ -1237,23 +1277,6 @@ public sealed partial class CustomizeWindow : Window
         Detail.IsFavourite = settings.Library.FavouriteCharmIds.Contains(detailed.Id);
     }
 
-    private void OnDetailFavouriteClicked(object sender, RoutedEventArgs args)
-    {
-        if (detailed is null)
-        {
-            return;
-        }
-
-        string id = detailed.Id;
-        store.Update(settings => settings with
-        {
-            Library = settings.Library.WithFavouriteToggled(id),
-        });
-
-        RefreshDetailState();
-        MarkFavourites();
-    }
-
     private void OnCountChanged(object sender, SelectionChangedEventArgs args)
     {
         if (isLoading || CountChoice.SelectedIndex < 0)
@@ -1345,13 +1368,24 @@ public sealed partial class CustomizeWindow : Window
         store.Update(settings => settings with { LaunchAtLogin = launchAtLogin.IsEnabled });
     }
 
-    private void OnReset(object sender, RoutedEventArgs args)
-    {
-        // The charms are not part of "appearance", and the macOS window says so on the
-        // confirmation: cord, size and position go back, your charms stay.
-        IReadOnlyList<string> keep = Overlay.CharmIds;
-        store.UpdateOverlay(_ => new OverlaySettings { CharmIds = keep });
-    }
+    /// <summary>Puts the rope back to exactly what a new install hangs.</summary>
+    /// <remarks>
+    /// <b>The charms go back too.</b> This used to keep them — macOS's confirmation says
+    /// cord, size and position go back and your charms stay — but a button called
+    /// "Restore defaults" that leaves three charms on the cord has not restored the
+    /// defaults, and that is what it was asked to do.
+    ///
+    /// <para><see cref="AppSettings.Defaults"/> rather than <c>new OverlaySettings()</c>,
+    /// which is the same distinction the store draws when there is no file: the plain
+    /// record leaves the position null, meaning "not chosen", and the charm would land
+    /// hard against the right edge instead of at the 85% a new install gets.</para>
+    ///
+    /// <para>What is <em>not</em> restored: the name, the analytics identifier, the
+    /// milestones, the favourites and the recents. None of those is a default anybody is
+    /// asking to go back to, and two of them cannot be recovered once discarded.</para>
+    /// </remarks>
+    private void OnReset(object sender, RoutedEventArgs args) =>
+        store.UpdateOverlay(_ => AppSettings.Defaults.Overlay);
 
     /// <summary>Only an imported charm can be deleted, so the button only appears for one.</summary>
     private void UpdateDeleteButton(string charmId)

@@ -34,15 +34,21 @@ namespace Hangly.App.Onboarding;
 public sealed class WelcomeWindow : Window
 {
     private readonly SettingsStore store;
+    private readonly Hangly.Core.Analytics.AnalyticsManager analytics;
     private readonly Action openLibrary;
     private readonly TextBox name;
     private readonly Button start;
     private readonly StackPanel askPanel;
     private readonly StackPanel welcomePanel;
+    private readonly Grid body;
 
-    public WelcomeWindow(SettingsStore store, Action openLibrary)
+    public WelcomeWindow(
+        SettingsStore store,
+        Hangly.Core.Analytics.AnalyticsManager analytics,
+        Action openLibrary)
     {
         this.store = store;
+        this.analytics = analytics;
         this.openLibrary = openLibrary;
 
         Title = "Welcome to Hangly";
@@ -100,13 +106,19 @@ public sealed class WelcomeWindow : Window
         // Empty until the name is known, because the first thing it says is the name.
         welcomePanel = new StackPanel { Spacing = 10, Visibility = Visibility.Collapsed };
 
-        var body = new Grid { Margin = new Thickness(28) };
+        body = new Grid { Margin = new Thickness(28) };
         body.Children.Add(askPanel);
         body.Children.Add(welcomePanel);
+
+        // Signed on the first step too, quietly, under the name box. Somebody who never
+        // gets past this screen has still been told who made the thing.
+        askPanel.Children.Add(Branding.CreatorCredit.Line());
 
         Content = body;
 
         Interop.WindowPlacement.SizeAndCentre(this, 560, 480);
+        Interop.WindowIcon.Apply(this);
+        Interop.WindowPlacement.FixSize(this);
 
         // Dismissing without a name writes nothing, so the card returns next launch rather
         // than leaving the app nameless.
@@ -226,6 +238,7 @@ public sealed class WelcomeWindow : Window
         buttons.Children.Add(begin);
         buttons.Children.Add(explore);
         panel.Children.Add(buttons);
+        panel.Children.Add(Branding.CreatorCredit.Panel(body, analytics, "welcome", ownAccent: true));
 
         return panel;
     }
