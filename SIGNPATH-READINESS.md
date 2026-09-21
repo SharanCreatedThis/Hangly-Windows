@@ -29,7 +29,7 @@ SignPath Foundation's published conditions, each with what this repository actua
 |---|---|---|---|
 | 1 | An OSI-approved licence, with no commercial dual-licensing | **Met** | `gh api repos/SharanCreatedThis/Hangly-Windows/license` returns `spdx_id = MIT`, `name = MIT License`, `key = mit`. **[MEASURED]** — and it did not, until today: see §2 |
 | 2 | A public repository | **Met** | `gh repo view` reports `visibility=PUBLIC`. **[MEASURED]** |
-| 3 | **Already released in the form that should be signed** | **Met, with a question** | `v0.9.0` is published with twelve assets for two architectures. It is marked **pre-release**, and whether that satisfies "released" is §3. **[MEASURED]** |
+| 3 | **Already released in the form that should be signed** | **Met, with a question** | `v0.9.1` is published with twelve assets for two architectures, and `v0.9.0` before it. Both are marked **pre-release**, and whether that satisfies "released" is §3. **[MEASURED]** |
 | 4 | Actively maintained | **Met** | Continuous commit history, CI green on every commit, an issue template and a security policy. **[MEASURED]** |
 | 5 | Functionality described on a download page | **Met** | The README opens with what Hangly is, shows two screenshots, and the release page carries the changelog for that version. **[MEASURED]** |
 | 6 | No malware or security-circumvention tooling | **Met** | It hangs a charm on a desktop. `SECURITY.md` describes the actual attack surface — imported SVG, the charm store, the updater — and a 42-file hostile corpus is in the test suite. **[VERIFIED]** |
@@ -114,8 +114,8 @@ There is nothing here that needs explaining away.
 
 ## 6. Recommendation
 
-**Submit, once `v0.9.1` is published** — which supersedes the beta and is the build with a
-working update check.
+**Submit now.** `v0.9.1` is published — the build with a working update check, verified
+updating itself from GitHub — and nothing else in this repository needs doing first.
 
 Do it with the pre-release question written into the application (§3). Everything else is
 in place and nothing further in this repository needs doing first.

@@ -134,8 +134,9 @@ parts of the macOS version of Hangly -- the same author's code -- kept so the Wi
 can be checked against the original behaviour. It is not third-party code and it is not
 built or shipped.
 
-The current public release, v0.9.1, is marked as a pre-release because it is in beta with
-a small group of testers. If SignPath Foundation requires a stable, non-pre-release
+The current public release is v0.9.1, published at
+https://github.com/SharanCreatedThis/Hangly-Windows/releases/tag/v0.9.1 and marked as a
+pre-release because it is in beta with a small group of testers. If SignPath Foundation requires a stable, non-pre-release
 version before signing, please say so and I will apply again once v1.0 ships -- I would
 rather ask than assume.
 ```
