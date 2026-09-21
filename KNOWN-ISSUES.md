@@ -29,6 +29,24 @@ reinstall remembers your charms. Delete that folder to be rid of them. **[VERIFI
 
 ---
 
+## Fixed since the first beta
+
+These were the first round of tester reports, and they are done. If you are updating from
+0.9.1 rather than installing fresh, note that **the new defaults and the welcome flow only
+appear on a new profile** — you keep the charm and rope you already chose, which is the
+point.
+
+- The app no longer shuts down after you type your name. It used to, and you had to start
+  it a second time.
+- There is a welcome step after the name, so it is clear setup finished.
+- Hangly starts with Windows by default, and appears in Startup Apps. Turn it off in
+  **Customize → Appearance**.
+- The Customize window opens in the middle of the screen instead of wherever Windows felt
+  like putting it.
+- The Library gives browsing most of the window, has a **Charms / Ropes** switch, and shows
+  three or four times as many collections at once.
+- A new install hangs a nazar on a gold chain at the top right.
+
 ## Known problems
 
 **Opening the Library costs about 140 MB of memory and does not give it back** when you
