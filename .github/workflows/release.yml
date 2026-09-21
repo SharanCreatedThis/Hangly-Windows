@@ -70,9 +70,16 @@ jobs:
       - name: Check the analytics key made it in
         shell: pwsh
         run: |
+          # Searched as bytes rather than as text. An AssemblyMetadata value lives in the
+          # custom-attribute blob as UTF-8, and asking Select-String for 'unicode' -- which
+          # means UTF-16 -- found nothing and failed a build that was perfectly fine.
           $dll = Join-Path publish 'Hangly.dll'
-          $found = Select-String -Path $dll -Pattern 'phc_' -Encoding unicode -Quiet
-          if (-not $found) { Write-Error 'No PostHog key in the published assembly.'; exit 1 }
+          $bytes = [System.IO.File]::ReadAllBytes($dll)
+          $text = [System.Text.Encoding]::UTF8.GetString($bytes)
+          if (-not $text.Contains('phc_')) {
+            Write-Error 'No PostHog key in the published assembly.'
+            exit 1
+          }
           Write-Host 'analytics key present'
 
       - name: Install vpk
