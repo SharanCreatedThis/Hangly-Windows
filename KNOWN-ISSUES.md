@@ -15,8 +15,11 @@ Labels are about **how each is known**: **[MEASURED]** on the author's machine,
 is not code-signed. Click More info → Run anyway. Signing is being arranged through
 SignPath Foundation. **[VERIFIED]**
 
-**The download is about 120 MB.** It contains its own copy of .NET, so there is nothing
-else to install. Updates after the first are about a quarter of a megabyte. **[MEASURED]**
+**The download is about 120 MB**, and **so is each update.** It contains its own copy of
+.NET, so there is nothing else to install and nothing else to keep up to date. Velopack can
+ship small differences between versions instead, and the release pipeline is not set up to
+produce them yet — so updating from one beta to the next downloads the whole thing again.
+Measured: the 0.9.0 → 0.9.1 update was 122.9 MB and took 68 seconds. **[MEASURED]**
 
 **The charm draws over full-screen windows**, including games and video. There is no
 "hide when something is full-screen" behaviour yet. **[MEASURED]**

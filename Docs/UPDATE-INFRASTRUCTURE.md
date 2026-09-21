@@ -120,7 +120,7 @@ Performed on 21 September 2026, Windows 11 ARM64, on a real install.
 | The installed copy asks the live GitHub API | `update check: Hangly is up to date.` — a real answer from `api.github.com`, not an error | **[MEASURED]** |
 | Detection | `CheckForUpdates : 0.9.1 available`, `IsInstalled: True`, `CurrentVersion: 0.9.0` | **[MEASURED]** |
 | The release's notes reach the client | 144 characters of `NotesMarkdown` | **[MEASURED]** |
-| Delta rather than a full download | `deltas to target: 1`, `base release: 0.9.0` | **[MEASURED]** |
+| Delta rather than a full download | `deltas to target: 1`, `base release: 0.9.0` — **only because both versions were packed into one directory by hand.** Releases built by CI carry no delta; see below | **[MEASURED]** |
 | Download | complete in 11.1 s | **[MEASURED]** |
 | Apply and restart | Velopack handed over to `Update.exe`; the app came back on its own | **[MEASURED]** |
 | Version afterwards | `0.9.1.0`, and the uninstall key's `DisplayVersion` moved with it | **[MEASURED]** |
@@ -151,6 +151,32 @@ The launch counter moved 102 → 103, which is the app starting, not data being 
 in the catalogue is dropped when settings are read. Eleven seasonal charms were removed
 before this release, so a favourite of one of those disappears. That is the settings clamp
 working as designed, not the update losing data. **[MEASURED]**
+
+### The same thing again, against the live GitHub source
+
+Repeated on 21 September 2026 with both releases published, using the same `GithubSource`
+Hangly itself builds:
+
+```
+Source             : GithubSource (prerelease: true)
+Feed               : https://github.com/SharanCreatedThis/Hangly-Windows
+IsInstalled        : True
+CurrentVersion     : 0.9.0
+CheckForUpdates    : 0.9.1 available
+  package          : Hangly-0.9.1-win-arm64-full.nupkg
+  size             : 122864582 bytes
+  deltas to target : 0
+DownloadUpdates    : complete in 67951 ms
+ApplyUpdatesAndRestart: handing over to Update.exe
+```
+
+Afterwards: version `0.9.1.0`, uninstall key `DisplayVersion 0.9.1`, every user setting
+identical, and the new build's own check reporting `Hangly is up to date.` — the failure
+that v0.9.0 shipped with, gone. **[MEASURED]**
+
+**`deltas to target: 0` is the finding.** The release workflow packs in a clean checkout,
+so `vpk` has no previous package to diff against and every release is a full download.
+`Docs/DISTRIBUTION.md` §2 has the detail and the fix.
 
 ### Uninstall
 

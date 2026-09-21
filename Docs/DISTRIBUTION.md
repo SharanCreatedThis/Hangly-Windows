@@ -118,8 +118,20 @@ Measured on win-arm64, 0.9.0, before any trimming:
 
 Two things follow. The first download is 120.8 MB rather than 400 MB, because the
 installer is compressed — the 400 MB figure is the on-disk number, not the number that
-decides whether somebody waits. And every update after the first is a fifth of a
-megabyte, so payload size is a first-impression problem only.
+decides whether somebody waits.
+
+**The delta figure does not apply to releases built by CI, and that was measured the hard
+way.** `vpk pack` computes a delta by diffing against the previous package *in its output
+directory*, and the release workflow starts every run in a clean checkout with an empty
+`releases/`. There is nothing to diff against, so each release carries a full package and
+no delta. The v0.9.0 → v0.9.1 update downloaded **122,864,582 bytes** from GitHub with
+`deltas to target: 0`, taking 68 seconds. The 0.2 MB delta measured earlier came from
+packing two versions into the same directory by hand, which is what CI does not do.
+
+Fixing it means fetching the previous release's `.nupkg` into `releases/` before the pack
+step so `vpk` has a base. Worth doing before there are many users; it is not a
+correctness problem, only a size one, and it is written here rather than left as a
+pleasant assumption.
 
 Most of the 400 MB is satellite locale directories (`af-ZA`, `am-ET`, `ar-SA`, …) and
 unused runtime. Trimming is tracked in §5 and has not been done.
