@@ -59,7 +59,7 @@ public sealed class RopeRenderer
         double charmRadius = snapshot.Charms.Count > 0 ? snapshot.Charms[^1].Radius : 10;
         double width = RopeStyleAppearanceTable.WidthFor(style, charmRadius);
 
-        DrawCord(session, snapshot, appearance, width);
+        DrawCord(session, snapshot, appearance, width, charmRadius);
         DrawBeads(session, snapshot, appearance);
         DrawCharms(session, snapshot);
     }
@@ -73,7 +73,8 @@ public sealed class RopeRenderer
         CanvasDrawingSession session,
         RopeSnapshot snapshot,
         RopeAppearance appearance,
-        double width)
+        double width,
+        double charmRadius)
     {
         using CanvasPathBuilder builder = BuildSpline(session, snapshot.Points);
         using var path = CanvasGeometry.CreatePath(builder);
@@ -90,10 +91,10 @@ public sealed class RopeRenderer
             }
         }
 
-        // A shadow under the cord, cast the same way the charm's is: down and a little
-        // right, soft, and the same opacity. A cord with no shadow over a charm that has
-        // one reads as two objects lit by different suns.
-        DrawCordShadow(session, path, width);
+        // A shadow under the cord, falling the same way and the same distance as the
+        // charm's. A cord with no shadow over a charm that has one reads as two objects
+        // lit by different suns.
+        DrawCordShadow(session, path, width, charmRadius);
 
         DrawCylinder(session, path, appearance, width);
 
@@ -165,21 +166,46 @@ public sealed class RopeRenderer
 
     /// <summary>The cord's own drop shadow.</summary>
     /// <remarks>
-    /// Same direction and same opacity as the charm's, which is the point: they are lit
-    /// by the same light. Drawn as one offset stroke rather than through a blur, for the
-    /// reason on the type — a blur is an off-screen pass per frame, and at this width the
-    /// cord's shadow is a couple of points across, where a blur would be invisible and a
-    /// soft edge is already what antialiasing gives.
+    /// <b>The same light as the charm's.</b> This used to fall down and to the right by a
+    /// fraction of the cord's own width, which is two mistakes: the charm's shadow falls
+    /// straight down, and a couple of points of cord cast a shadow a couple of points
+    /// wide, which never cleared its own edge. It was a dark line along the cord rather
+    /// than a shadow on the desktop, and the report was simply that the rope had none.
+    /// Both now take their fall from the charm's radius through the one ratio, so the
+    /// distance is the same for the cord and for the thing hanging on it.
+    ///
+    /// <para><b>Two passes, not one.</b> The wider, fainter one first and the tighter one
+    /// over it, which is how macOS softens it — "two offset low-alpha passes" — and is
+    /// what antialiasing can give without a blur. A blur is an off-screen pass per frame,
+    /// which this renderer exists to avoid.</para>
     /// </remarks>
-    private static void DrawCordShadow(CanvasDrawingSession session, CanvasGeometry path, double width)
+    private static void DrawCordShadow(
+        CanvasDrawingSession session,
+        CanvasGeometry path,
+        double width,
+        double charmRadius)
     {
-        DrawOffset(
-            session,
-            path,
-            Color.FromArgb((byte)Math.Round(255 * CordShadowOpacity), 0, 0, 0),
-            (float)(width * 1.35),
-            (float)(width * CordShadowOffset),
-            (float)(width * CordShadowOffset * 2));
+        // Down and to the right, because the light is up and to the left — the same light
+        // the cord's own shading is painted for, and the beads with it.
+        //
+        // Straight down was tried and is wrong here for a reason worth keeping: the cord
+        // hangs vertical almost all the time, so a shadow directly below it lands exactly
+        // on the cord and is never seen. The charm gets away with falling straight down
+        // because it is a wide disc; a line cannot.
+        //
+        // The distance is the charm's, so one light casts both, and never less than the
+        // cord is wide — below that the shadow is still hidden under its own caster.
+        double distance = Math.Max(charmRadius * CharmShadowOffsetRatio, width * 1.6);
+        var fall = (float)(distance * ShadowDiagonal);
+
+        Color near = Color.FromArgb((byte)Math.Round(255 * CordShadowOpacity), 0, 0, 0);
+        Color far = Color.FromArgb((byte)Math.Round(255 * CordShadowOpacity * 0.55), 0, 0, 0);
+
+        // The wider, fainter pass first and the tighter one over it: two offset low-alpha
+        // strokes are how macOS softens this, and it is what antialiasing can give
+        // without a blur.
+        DrawOffset(session, path, far, (float)(width * 2.1), fall * 1.5f, fall * 1.5f);
+        DrawOffset(session, path, near, (float)(width * 1.35), fall, fall);
     }
 
     /// <summary>Strokes the path shifted, without disturbing the caller's transform.</summary>
@@ -208,8 +234,18 @@ public sealed class RopeRenderer
     /// </remarks>
     private const double CordShadowOpacity = 0.16;
 
-    /// <summary>How far it falls, as a fraction of the cord's width.</summary>
-    private const double CordShadowOffset = 0.22;
+    /// <summary>
+    /// How far a shadow falls below what casts it, as a fraction of the charm's radius.
+    /// </summary>
+    /// <remarks>
+    /// The charm's number, stated once and used by both. `CharmArtworkCache` owns the
+    /// charm's own shadow and carries the same ratio; if that one moves this must move
+    /// with it, because the whole point is that one light casts both.
+    /// </remarks>
+    private const double CharmShadowOffsetRatio = 0.041;
+
+    /// <summary>One axis of a 45° fall, so a diagonal offset travels the stated distance.</summary>
+    private const double ShadowDiagonal = 0.7071067811865476;
 
     /// <summary>The pattern worked along the cord.</summary>
     /// <remarks>
@@ -297,7 +333,24 @@ public sealed class RopeRenderer
     private static CanvasPathBuilder BuildSpline(CanvasDrawingSession session, IReadOnlyList<Vec2> points)
     {
         var builder = new CanvasPathBuilder(session);
-        builder.BeginFigure(ToVector(points[0]));
+
+        // The cord starts at the top of the canvas rather than at the anchor. The anchor
+        // sits a hundredth of the canvas down — `RopeConfiguration.Layout.AnchorFraction`
+        // — which on macOS is hidden behind the menu bar the overlay hangs under. Windows
+        // has nothing up there, so that hundredth read as a rope beginning in mid-air a
+        // few pixels below the edge of the screen.
+        //
+        // Drawn rather than simulated: the anchor is a fixed point and the cord above it
+        // cannot move, so this is a straight line up to the edge and no physics changes.
+        if (points[0].Y > 0)
+        {
+            builder.BeginFigure(new System.Numerics.Vector2((float)points[0].X, 0));
+            builder.AddLine(ToVector(points[0]));
+        }
+        else
+        {
+            builder.BeginFigure(ToVector(points[0]));
+        }
 
         for (int index = 1; index < points.Count - 1; index++)
         {

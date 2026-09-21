@@ -405,6 +405,12 @@ public sealed class OverlayWindow : IDisposable
     private void HangCharms(IReadOnlyList<CharmDescriptor> charms)
     {
         renderer.Charms = charms;
+
+        // What is actually on the cord, with the bead count each charm's artwork was
+        // measured to have. Cheap, once per change, and it is what a report of "my charm
+        // has beads it should not have" is answered with.
+        Diagnostics.Log(
+            "hanging " + string.Join(", ", charms.Select(charm => $"{charm.Id} beads={charm.Beads.Count}")));
         rope.SetCharmStack([.. charms.Select(charm => charm.Metrics)]);
         rope.SetBeads([.. charms.Select(charm => charm.Beads)]);
     }

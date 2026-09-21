@@ -76,13 +76,17 @@ public static class CharmLibrary
             // will be drawn, which is what keeps its swing and its picture in agreement.
             CharmCatalog.MetricsFor(entry, regions).Scaled(size),
             entry.Palette,
-            // A charm whose artwork draws no beads gets the standard three. That is
-            // every created charm: a photograph has no cord above the subject, and a
-            // charm hanging on a bare string beside seventy that hang on threaded ones
-            // looks like a mistake rather than a choice.
-            CharmCatalog.BeadsFor(entry, regions) is { Count: > 0 } measured
-                ? measured
-                : CharmCatalog.DefaultBeads,
+            // Only the beads the artwork actually draws. A charm that was drawn without
+            // them hangs on a bare cord, which is how it was drawn and how macOS hangs it
+            // — `Charm.beads` there defaults to none and nothing synthesises any.
+            //
+            // Three standard beads used to be invented for any charm that measured none.
+            // That was meant for a charm created from a photograph, which has no cord
+            // above its subject; what it actually did was thread beads onto all
+            // fifty-five built-ins whose catalogue entry says BeadCount: 0, so Captain
+            // America's shield hung under three gold balls that exist nowhere in its
+            // artwork.
+            CharmCatalog.BeadsFor(entry, regions),
             regions?.Body ?? WholeArtwork,
             regions?.Beads ?? []);
     }
