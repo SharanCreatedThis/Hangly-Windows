@@ -361,24 +361,23 @@ public sealed class RopeRenderer
         // charm somewhere down the rope, and giving those a head drew a cord from the top
         // of the screen down to each of them — one rope per charm, which is exactly what
         // it looked like.
-        if (head && points[0].Y > 0)
-        {
-            builder.BeginFigure(ToVector(HeadAbove(points[0], points[1])));
-            builder.AddLine(ToVector(points[0]));
-        }
-        else
-        {
-            builder.BeginFigure(ToVector(points[0]));
-        }
+        // Prepended rather than drawn as its own line, so the anchor becomes a control
+        // point of the spline and the cord curves into it instead of meeting it at a
+        // corner. The point itself is directly above the anchor and never moves.
+        IReadOnlyList<Vec2> path = head && points[0].Y > 0
+            ? Headed(points)
+            : points;
 
-        for (int index = 1; index < points.Count - 1; index++)
+        builder.BeginFigure(ToVector(path[0]));
+
+        for (int index = 1; index < path.Count - 1; index++)
         {
-            Vec2 control = points[index];
-            Vec2 finish = (points[index] + points[index + 1]) * 0.5;
+            Vec2 control = path[index];
+            Vec2 finish = (path[index] + path[index + 1]) * 0.5;
             builder.AddQuadraticBezier(ToVector(control), ToVector(finish));
         }
 
-        builder.AddLine(ToVector(points[^1]));
+        builder.AddLine(ToVector(path[^1]));
         builder.EndFigure(CanvasFigureLoop.Open);
         return builder;
     }
@@ -420,7 +419,8 @@ public sealed class RopeRenderer
             hidden.Clear();
             foreach (CharmPlacement charm in charms)
             {
-                if (Crossing(from, to, charm.Center, charm.Radius * charm.KnotInset) is { } span)
+                double covered = charm.Radius * charm.KnotInset * KnotCoverage;
+                if (Crossing(from, to, charm.Center, covered) is { } span)
                 {
                     hidden.Add(span);
                 }
@@ -521,46 +521,50 @@ public sealed class RopeRenderer
 
     private static Vec2 Lerp(Vec2 from, Vec2 to, double at) => from + ((to - from) * at);
 
-    /// <summary>
-    /// Where the cord meets the top of the canvas, carrying on the line it is already on.
-    /// </summary>
+    /// <summary>The cord's nodes with the point it leaves the screen by in front.</summary>
     /// <remarks>
-    /// <b>Along the rope, not straight up.</b> This piece was drawn vertically at first,
-    /// which is right only while the rope hangs still. The moment it swings, the first
-    /// segment leaves the anchor at an angle and a vertical line above it meets that
-    /// angle at a corner — a visible fold a few pixels below the edge of the screen, in
-    /// the one place a rope should look like it carries on past it.
+    /// <b>Directly above the anchor, and fixed there.</b> The anchor sits a hundredth of
+    /// the canvas down — <c>RopeConfiguration.Layout.AnchorFraction</c> — which on macOS
+    /// is hidden behind the menu bar the overlay hangs under. Windows has nothing up
+    /// there, so that hundredth read as a rope beginning in mid-air a few pixels below the
+    /// edge of the screen. This closes it.
     ///
-    /// <para>Extending along the first segment's own direction instead makes the join
-    /// collinear, so there is nothing to see: the cord runs off the top of the screen the
-    /// way a rope runs off the top of a photograph.</para>
+    /// <para><b>Why it does not follow the rope.</b> It did, briefly: the head was
+    /// extended along the first segment's own direction so the join would be collinear and
+    /// show no fold. But the first segment swings, and a head that follows it slides along
+    /// the top edge every frame — the cord's end wandering across the screen instead of
+    /// staying where it is pinned. Worse near horizontal, where the distance to the edge
+    /// divided by a vanishing vertical component sends it a long way sideways and then
+    /// snaps it back when the cap catches it.</para>
     ///
-    /// <para>The sideways reach is capped. At the far end of a drag the first segment can
-    /// be close to horizontal, and following it would send this piece a long way across
-    /// the canvas to cover a gap a few points tall. Past the cap it falls back to
-    /// vertical, which is wrong by a corner nobody will see at that angle and right about
-    /// staying where the rope is.</para>
+    /// <para>The anchor is a fixed point, so what is above it is a fixed point too. The
+    /// fold that motivated following the rope is gone anyway: this is prepended to the
+    /// spline rather than drawn as a straight line to the anchor, which makes the anchor a
+    /// control point and turns the corner into a curve.</para>
     /// </remarks>
-    private static Vec2 HeadAbove(Vec2 anchor, Vec2 next)
+    private static IReadOnlyList<Vec2> Headed(IReadOnlyList<Vec2> points)
     {
-        Vec2 along = anchor - next;
-
-        // Not rising: there is no direction to follow, so go straight up.
-        if (along.Y >= -Precision.UlpOfOne)
-        {
-            return new Vec2(anchor.X, 0);
-        }
-
-        double reach = anchor.Y / -along.Y;
-        double sideways = along.X * reach;
-
-        return Math.Abs(sideways) > anchor.Y * HeadSidewaysLimit
-            ? new Vec2(anchor.X, 0)
-            : new Vec2(anchor.X + sideways, 0);
+        var path = new List<Vec2>(points.Count + 1) { new(points[0].X, 0) };
+        path.AddRange(points);
+        return path;
     }
 
-    /// <summary>How far the cord's head may lean, as a multiple of how tall it is.</summary>
-    private const double HeadSidewaysLimit = 3;
+    /// <summary>
+    /// How much of the knot circle the cord is cut back by, as a fraction of it.
+    /// </summary>
+    /// <remarks>
+    /// <b>The measured circle, and no less.</b> This was 0.82 for a while, on the
+    /// reasoning that the charm is drawn after the cord so cord running <em>under</em> the
+    /// artwork is invisible while cord stopping short of it is a gap — err into the charm,
+    /// and only the gap can ever be seen.
+    ///
+    /// <para>That reasoning holds only where the artwork is opaque, and at the clamp it is
+    /// not: the loop a charm hangs by is a ring with a hole in it, so cord pushed past the
+    /// clamp shows straight through and runs on down across the charm's face. macOS ends
+    /// the cord at the clamp's edge and the difference was plain with the two side by
+    /// side.</para>
+    /// </remarks>
+    private const double KnotCoverage = 1.0;
 
     /// <summary>The beads on the cord, drawn from the artwork they were measured in.</summary>
     /// <remarks>

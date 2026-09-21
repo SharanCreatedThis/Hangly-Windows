@@ -62,6 +62,8 @@ public sealed class CharmArtworkCache : IDisposable
 {
     private readonly string directory;
     private readonly Dictionary<string, SKSvg> documents = [];
+    private readonly Dictionary<string, SKImage?> naturals = [];
+    private readonly Dictionary<(string File, int Level), SKImage?> levels = [];
     private readonly Dictionary<(string File, int Size, Rect Region), CanvasBitmap> rasters = [];
     private readonly Dictionary<(string File, int Beads, int Body), CharmArtworkRegions?> regions = [];
     private readonly ICanvasResourceCreator resourceCreator;
@@ -112,14 +114,30 @@ public sealed class CharmArtworkCache : IDisposable
         float rotation = (float)(placement.Angle - (Math.PI / 2));
         session.Transform = System.Numerics.Matrix3x2.CreateRotation(rotation, center) * previous;
 
+        // Sized from the raster rather than from the radius. `pixels` was rounded to a
+        // whole number of device pixels; the radius was not, so a destination of
+        // `radius * 2` points asked Direct2D to resample the bitmap by a hair either way
+        // on top of whatever Skia had already done. Deriving the destination back from
+        // `pixels` makes the bitmap land on device pixels one for one, and leaves the
+        // rotation as the only resample in the path.
+        double side = pixels / density;
         var destination = new Windows.Foundation.Rect(
-            placement.Center.X - placement.Radius,
-            placement.Center.Y - placement.Radius,
-            placement.Radius * 2,
-            placement.Radius * 2);
+            placement.Center.X - (side / 2),
+            placement.Center.Y - (side / 2),
+            side,
+            side);
 
         DrawShadow(session, bitmap, destination, placement.Radius);
-        session.DrawImage(bitmap, destination);
+
+        // Cubic rather than the default linear, because the rotation resamples every
+        // charm that is not hanging dead straight and linear is where the rim of the
+        // shield picked up its stair-stepping.
+        session.DrawImage(
+            bitmap,
+            destination,
+            new Windows.Foundation.Rect(0, 0, bitmap.SizeInPixels.Width, bitmap.SizeInPixels.Height),
+            1f,
+            Microsoft.Graphics.Canvas.CanvasImageInterpolation.HighQualityCubic);
 
         session.Transform = previous;
     }
@@ -454,7 +472,7 @@ public sealed class CharmArtworkCache : IDisposable
             (square - (bounds.Width * scale)) / 2,
             (square - (bounds.Height * scale)) / 2);
         canvas.Scale(scale);
-        canvas.DrawPicture(document.Picture);
+        DrawSource(canvas, fileName, document.Picture, bounds, scale);
         canvas.Flush();
 
         using SKImage image = surface.Snapshot();
@@ -478,6 +496,178 @@ public sealed class CharmArtworkCache : IDisposable
         return bitmap;
     }
 
+    /// <summary>Draws the artwork into <paramref name="canvas"/> at whatever scale is set.</summary>
+    /// <remarks>
+    /// <b>Why this is not just DrawPicture.</b> Every charm in the bundle is an SVG
+    /// wrapping one embedded PNG — Captain America is a 492x556 raster inside a 492x556
+    /// viewBox — so replaying the picture into a small surface is a bitmap downscale, and
+    /// Skia performs it with the sampling the picture recorded, which is a single
+    /// unfiltered stage. That is what the parity measurement found: Windows kept 87% of a
+    /// Lanczos reference's mean gradient but with *higher* peaks than the reference, the
+    /// signature of under-filtered sampling rather than blur. On screen it reads as the
+    /// rim of the shield breaking up into noise.
+    ///
+    /// <para><b>Why this is not the supersampling that was already tried.</b> That
+    /// rasterised at twice the *target* size and filtered down with a Mitchell cubic, and
+    /// measured worse — twice a small target is still far below the source, so the first
+    /// stage had already thrown the detail away before the second stage ran. This renders
+    /// at the source's own size, where there is nothing to lose because an embedded image
+    /// maps one to one, and then performs exactly one filtered downscale from it.</para>
+    ///
+    /// <para>Only when shrinking. A charm drawn larger than its source is the one case
+    /// where the picture has something a bitmap does not — a genuine vector path stays
+    /// sharp at any size — so that path replays the picture as before.</para>
+    /// </remarks>
+    private void DrawSource(SKCanvas canvas, string fileName, SKPicture picture, SKRect bounds, float scale)
+    {
+        if (scale >= 1)
+        {
+            canvas.DrawPicture(picture);
+            return;
+        }
+
+        SKImage? source = Reduced(fileName, picture, bounds, scale);
+        if (source is null)
+        {
+            canvas.DrawPicture(picture);
+            return;
+        }
+
+        canvas.DrawImage(source, bounds, Downscale);
+    }
+
+    /// <summary>The artwork halved until it is within one step of the size asked for.</summary>
+    /// <remarks>
+    /// <b>Why halving and not a better filter.</b> A resampler is a reconstruction filter:
+    /// it reads a fixed neighbourhood around each destination sample — four pixels across
+    /// for any of the cubics — and it does not widen that neighbourhood as the scale
+    /// factor grows. Drawing a 492-pixel source into a 110-pixel box therefore reads about
+    /// four source pixels out of every twenty and never looks at the rest, whatever the
+    /// filter is called. The pixels it skips are the detail, and what it returns instead
+    /// is noise: the grain on the rim of the shield.
+    ///
+    /// <para>Halving is the fix because a 2:1 step with a linear filter reads all four
+    /// pixels that fall in each output pixel and averages them — a box filter, exactly the
+    /// decimation the ratio calls for. Repeated, it carries every source pixel down into
+    /// the result. What reaches <see cref="Downscale"/> is then never more than a factor of
+    /// two away, which is the range a reconstruction filter is actually good at.</para>
+    ///
+    /// <para>Cached per file per level, so the chain is built once and the steady state
+    /// rasterises nothing. Each level is a quarter of the one above it, so the whole chain
+    /// costs a third more than the full-size image alone.</para>
+    /// </remarks>
+    private SKImage? Reduced(string fileName, SKPicture picture, SKRect bounds, float scale)
+    {
+        SKImage? source = Natural(fileName, picture, bounds);
+        if (source is null)
+        {
+            return null;
+        }
+
+        // How many times the artwork can be halved before it would pass the size wanted.
+        double wanted = Math.Max(bounds.Width * scale, 1);
+        int level = 0;
+        for (double side = source.Width; side / 2 >= wanted && level < MaxReductions; level++)
+        {
+            side /= 2;
+        }
+
+        for (int step = 1; step <= level; step++)
+        {
+            if (levels.TryGetValue((fileName, step), out SKImage? existing))
+            {
+                source = existing ?? source;
+                continue;
+            }
+
+            SKImage? halved = Halve(source);
+            levels[(fileName, step)] = halved;
+            if (halved is null)
+            {
+                break;
+            }
+
+            source = halved;
+        }
+
+        return source;
+    }
+
+    /// <summary>One 2:1 reduction, which a linear filter performs as a box average.</summary>
+    private static SKImage? Halve(SKImage source)
+    {
+        int width = Math.Max(source.Width / 2, 1);
+        int height = Math.Max(source.Height / 2, 1);
+
+        using var surface = SKSurface.Create(new SKImageInfo(
+            width,
+            height,
+            SKColorType.Bgra8888,
+            SKAlphaType.Premul));
+
+        if (surface is null)
+        {
+            return null;
+        }
+
+        surface.Canvas.Clear(SKColors.Transparent);
+        surface.Canvas.DrawImage(
+            source,
+            new SKRect(0, 0, width, height),
+            new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None));
+        surface.Canvas.Flush();
+        return surface.Snapshot();
+    }
+
+    /// <summary>A floor on the chain, so a degenerate size cannot loop.</summary>
+    private const int MaxReductions = 8;
+
+    /// <summary>The artwork rendered once at its own size, to be filtered down from.</summary>
+    /// <remarks>
+    /// Cached per file and never per size: it is the thing every size is derived from.
+    /// One 492x556 BGRA image is under a megabyte, and there are three on the cord at
+    /// most.
+    /// </remarks>
+    private SKImage? Natural(string fileName, SKPicture picture, SKRect bounds)
+    {
+        if (naturals.TryGetValue(fileName, out SKImage? cached))
+        {
+            return cached;
+        }
+
+        int width = (int)Math.Ceiling(bounds.Width);
+        int height = (int)Math.Ceiling(bounds.Height);
+        SKImage? rendered = null;
+
+        if (width > 0 && height > 0)
+        {
+            using var surface = SKSurface.Create(new SKImageInfo(
+                width,
+                height,
+                SKColorType.Bgra8888,
+                SKAlphaType.Premul));
+
+            surface.Canvas.Clear(SKColors.Transparent);
+            surface.Canvas.Translate(-bounds.Left, -bounds.Top);
+            surface.Canvas.DrawPicture(picture);
+            surface.Canvas.Flush();
+            rendered = surface.Snapshot();
+        }
+
+        naturals[fileName] = rendered;
+        return rendered;
+    }
+
+    /// <summary>The filter for the last step, which is never more than a factor of two.</summary>
+    /// <remarks>
+    /// Mitchell, the soft cubic. It was the wrong choice for the abandoned supersampling
+    /// because it was being asked to do the whole reduction on its own, where softness is
+    /// lost detail. After the halving chain it is doing a factor of two at most, where
+    /// softness is what keeps an edge from stair-stepping — which is the difference
+    /// between the two builds side by side.
+    /// </remarks>
+    private static readonly SKSamplingOptions Downscale = new(SKCubicResampler.Mitchell);
+
     private SKSvg? Document(string fileName)
     {
         if (documents.TryGetValue(fileName, out SKSvg? cached))
@@ -499,6 +689,20 @@ public sealed class CharmArtworkCache : IDisposable
 
     public void Dispose()
     {
+        foreach (SKImage? image in naturals.Values)
+        {
+            image?.Dispose();
+        }
+
+        naturals.Clear();
+
+        foreach (SKImage? image in levels.Values)
+        {
+            image?.Dispose();
+        }
+
+        levels.Clear();
+
         foreach (CanvasBitmap bitmap in rasters.Values)
         {
             bitmap.Dispose();
