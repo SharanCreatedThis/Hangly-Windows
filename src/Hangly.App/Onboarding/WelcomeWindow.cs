@@ -79,6 +79,7 @@ public sealed class WelcomeWindow : Window
         });
         askPanel.Children.Add(Line("A charm hangs from the top of your screen, on a rope, and swings."));
         askPanel.Children.Add(Line("Drag it anywhere along the top of your screen."));
+        askPanel.Children.Add(Line("It takes about a minute to set up."));
         askPanel.Children.Add(new TextBlock
         {
             Text = "What should Hangly call you?",
@@ -178,11 +179,26 @@ public sealed class WelcomeWindow : Window
             panel.Children.Add(row);
         }
 
+        // Where Hangly lives, written for Windows rather than for a Mac menu bar.
+        //
+        // This used to say "right-click the Hangly icon near the clock", which assumes the
+        // icon is visible. On Windows 11 it is not: new notification icons go into the
+        // overflow behind the chevron by default, so the sentence described something the
+        // person could not see and sent them hunting. It now says where to look, that it
+        // may be hidden, and how to get it out -- and the Explore Library button beside it
+        // means nobody has to find the icon at all to finish setting up.
         panel.Children.Add(new TextBlock
         {
-            Text = "Your charm is already hanging at the top of the screen. Right-click the "
-                + "Hangly icon near the clock whenever you want to change it.",
+            Text = "Your charm is already hanging at the top right of your screen.",
             Margin = new Thickness(0, 12, 0, 0),
+            TextWrapping = TextWrapping.Wrap,
+        });
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Hangly lives next to the clock, and Windows usually tucks new icons "
+                + "away behind the ˄ arrow down there. Click the arrow to find it, and drag "
+                + "it out onto the taskbar if you would like it to stay put. Right-click it "
+                + "any time to change your charm, or to quit.",
             Opacity = 0.7,
             TextWrapping = TextWrapping.Wrap,
             Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
@@ -223,6 +239,25 @@ public sealed class WelcomeWindow : Window
         return panel;
     }
 
+    /// <summary>Opens straight on the second step, for somebody who already has a name.</summary>
+    public void SkipToWelcome() => ShowWelcomeStep();
+
+    private void ShowWelcomeStep()
+    {
+        welcomePanel.Children.Clear();
+
+        StackPanel built = BuildWelcome();
+        while (built.Children.Count > 0)
+        {
+            UIElement child = built.Children[0];
+            built.Children.RemoveAt(0);
+            welcomePanel.Children.Add(child);
+        }
+
+        askPanel.Visibility = Visibility.Collapsed;
+        welcomePanel.Visibility = Visibility.Visible;
+    }
+
     private void OnStart(object sender, RoutedEventArgs args)
     {
         string chosen = name.Text.Trim();
@@ -237,18 +272,9 @@ public sealed class WelcomeWindow : Window
             DisplayName = chosen,
         });
 
-        // The name is saved before the second step is shown, so closing the window from
+        // The name is saved before the second step is shown, so dismissing the window from
         // here on is finishing rather than abandoning.
-        StackPanel built = BuildWelcome();
-        while (built.Children.Count > 0)
-        {
-            UIElement child = built.Children[0];
-            built.Children.RemoveAt(0);
-            welcomePanel.Children.Add(child);
-        }
-
-        askPanel.Visibility = Visibility.Collapsed;
-        welcomePanel.Visibility = Visibility.Visible;
+        ShowWelcomeStep();
         Diagnostics.Log("welcome card: name accepted, showing the welcome step");
     }
 

@@ -64,6 +64,24 @@ public static partial class CharmCatalog
     /// </remarks>
     public const string FirstRunId = "nazar";
 
+    /// <summary>The name of the collection a charm belongs to, or empty if it has none.</summary>
+    /// <remarks>
+    /// Imported charms have no collection, which is why this can be empty rather than
+    /// falling back to something that sounds like one.
+    /// </remarks>
+    public static string CollectionNameOf(CharmCatalogEntry entry)
+    {
+        foreach (CharmCollection collection in Collections)
+        {
+            if (string.Equals(collection.Id, entry.CategoryId, StringComparison.Ordinal))
+            {
+                return collection.Name;
+            }
+        }
+
+        return string.Empty;
+    }
+
     private static Dictionary<string, CharmCatalogEntry>? index;
 
     /// <summary>

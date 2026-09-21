@@ -36,6 +36,16 @@ public sealed class CharmDetail : INotifyPropertyChanged
     /// <summary>Where the charm is from, shown in small capitals above the name.</summary>
     public string Region { get; private set; } = string.Empty;
 
+    /// <summary>
+    /// The collection this charm belongs to, shown beside its region.
+    /// </summary>
+    /// <remarks>
+    /// Which collection a charm came from is the one fact the detail panel was missing:
+    /// somebody looking at a charm they found through search had no way of knowing it was
+    /// a Marvel charm or a Tamil Spiritual one without going back and filtering.
+    /// </remarks>
+    public string Category { get; private set; } = string.Empty;
+
     public string Description { get; private set; } = string.Empty;
 
     public IReadOnlyList<string> Tags { get; private set; } = [];
@@ -48,6 +58,9 @@ public sealed class CharmDetail : INotifyPropertyChanged
     public Visibility PanelVisibility => HasCharm ? Visibility.Visible : Visibility.Collapsed;
 
     public Visibility PlaceholderVisibility => HasCharm ? Visibility.Collapsed : Visibility.Visible;
+
+    public Visibility CategoryVisibility =>
+        Category.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 
     public Visibility RegionVisibility =>
         string.IsNullOrWhiteSpace(Region) ? Visibility.Collapsed : Visibility.Visible;
@@ -98,12 +111,15 @@ public sealed class CharmDetail : INotifyPropertyChanged
         HasCharm = entry is not null;
         DisplayName = entry?.DisplayName ?? string.Empty;
         Region = entry?.Region ?? string.Empty;
+        Category = entry is null ? string.Empty : CharmCatalog.CollectionNameOf(entry);
         Description = entry?.Description ?? string.Empty;
         Tags = entry?.Tags ?? [];
         Image = image;
 
         Notify(nameof(DisplayName));
         Notify(nameof(Region));
+        Notify(nameof(Category));
+        Notify(nameof(CategoryVisibility));
         Notify(nameof(Description));
         Notify(nameof(Tags));
         Notify(nameof(Image));

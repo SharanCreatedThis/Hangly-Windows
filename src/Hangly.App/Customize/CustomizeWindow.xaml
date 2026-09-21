@@ -63,10 +63,10 @@
                  added without anyone drawing a cover for it. -->
             <DataTemplate x:Key="CollectionTemplate" x:DataType="local:CollectionCard">
                 <Grid
-                    Width="268"
-                    Margin="0,0,12,12"
+                    Width="222"
+                    Margin="0,0,10,10"
                     Tapped="OnCollectionTapped"
-                    Padding="14"
+                    Padding="12"
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1"
@@ -75,7 +75,7 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <Grid Width="64" Height="64" Margin="0,0,12,0">
+                    <Grid Width="54" Height="54" Margin="0,0,10,0">
                         <Image
                             Width="40"
                             Height="40"
@@ -182,7 +182,7 @@
                 -->
                 <Grid x:Name="CharmsPage" Margin="0,0,0,0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="296" />
+                        <ColumnDefinition Width="278" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
@@ -362,6 +362,14 @@
                                             Text="{x:Bind Detail.Region, Mode=OneWay}"
                                             TextWrapping="Wrap"
                                             Visibility="{x:Bind Detail.RegionVisibility, Mode=OneWay}" />
+                                        <TextBlock
+                                            AutomationProperties.AutomationId="DetailCategory"
+                                            Margin="0,2,0,0"
+                                            Opacity="0.75"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Text="{x:Bind Detail.Category, Mode=OneWay}"
+                                            TextWrapping="Wrap"
+                                            Visibility="{x:Bind Detail.CategoryVisibility, Mode=OneWay}" />
                                     </StackPanel>
 
                                     <TextBlock
@@ -821,6 +829,28 @@
                                 </StackPanel>
                             </StackPanel>
                         </Border>
+
+                        <!--
+                            Getting back to the welcome. Somebody who dismissed it in three
+                            seconds had no way to see what Hangly does again, short of
+                            editing a settings file; it is the only place that explains
+                            where the app lives and how to reach it.
+                        -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Help" />
+                            <Button
+                                x:Name="ShowWelcomeButton"
+                                AutomationProperties.AutomationId="ShowWelcomeButton"
+                                Click="OnShowWelcomeClicked"
+                                Content="Show welcome again"
+                                HorizontalAlignment="Left" />
+                            <TextBlock
+                                MaxWidth="560"
+                                Opacity="0.7"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="What Hangly is, where it lives, and how to get back to it."
+                                TextWrapping="Wrap" />
+                        </StackPanel>
 
                         <!-- Updates. A check is a GET for a static file, so this says
                              what it found and nothing about who asked. -->

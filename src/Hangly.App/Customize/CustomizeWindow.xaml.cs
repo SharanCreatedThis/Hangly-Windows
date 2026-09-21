@@ -802,6 +802,15 @@ public sealed partial class CustomizeWindow : Window
 
     private Services.Updater updater => environment.Updates;
 
+    /// <summary>Shows the welcome card again, from the beginning.</summary>
+    /// <remarks>
+    /// The name is already known, so the card opens on its second step — the part that
+    /// says what Hangly is and where it lives. Asking somebody to retype a name they gave
+    /// once would be a strange way to answer "how do I get back to that screen".
+    /// </remarks>
+    private void OnShowWelcomeClicked(object sender, RoutedEventArgs args) =>
+        environment.ShowWelcomeAgain();
+
     private async void OnCheckForUpdates(object sender, RoutedEventArgs args)
     {
         CheckUpdateButton.IsEnabled = false;

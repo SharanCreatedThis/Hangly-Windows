@@ -190,6 +190,16 @@ public sealed class AppEnvironment : IDisposable
         Diagnostics.Log("welcome card shown");
     }
 
+    /// <summary>Reopens the welcome card on demand, from the About page.</summary>
+    public void ShowWelcomeAgain()
+    {
+        var welcome = new Onboarding.WelcomeWindow(store, OpenCustomize);
+        Onboarding.ProcessLifetime.KeepAlive(welcome);
+        welcome.SkipToWelcome();
+        welcome.Activate();
+        Diagnostics.Log("welcome card reopened from About");
+    }
+
     /// <summary>Shows the follow card when it is due.</summary>
     public void ShowFollowIfDue()
     {
