@@ -69,12 +69,26 @@ public sealed class Updater
     /// and nobody is offered it.
     ///
     /// <para>No access token: unauthenticated requests are enough for a public repository,
-    /// and a token in a shipped binary is a token that has been given away. Pre-releases
-    /// are excluded, so a draft or a beta tag never reaches someone who asked for
-    /// stable.</para>
+    /// and a token in a shipped binary is a token that has been given away.</para>
+    ///
+    /// <para><b>Pre-releases are included, and that is not the obvious choice.</b> With
+    /// them excluded, <see cref="GithubSource"/> asks GitHub for
+    /// <c>/releases/latest</c> — an endpoint that <em>omits pre-releases entirely</em> and
+    /// answers <b>404</b> when every release is one. Velopack turns that into an
+    /// exception, so the check does not report "up to date"; it fails. Measured the
+    /// moment v0.9.0 went out as a pre-release: <c>update check failed:
+    /// HttpRequestException</c>, on every launch, for every tester, for as long as the
+    /// beta is the newest thing published.</para>
+    ///
+    /// <para>Including them makes the source enumerate <c>/releases</c> instead, which
+    /// lists everything, and Velopack then picks the highest version — so a stable v1.0
+    /// still wins over any 0.9.x beta. <b>The cost is real and belongs to the future:</b>
+    /// once people are running a stable release, publishing a pre-release will offer it to
+    /// them. Either stop publishing pre-releases at that point, or set this back to false
+    /// — see <c>Docs/DISTRIBUTION.md</c> §2.</para>
     /// </remarks>
     private UpdateManager Manager() => new(
-        new GithubSource(feedUrl, accessToken: null, prerelease: false),
+        new GithubSource(feedUrl, accessToken: null, prerelease: true),
         new UpdateOptions { ExplicitChannel = Channel });
 
     /// <summary>Whether this copy can update itself at all.</summary>

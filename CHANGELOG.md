@@ -6,6 +6,13 @@ pulls the section out and the release workflow hands it to both.
 
 Headings are `## <version> — <date>`. Nothing else is a version heading.
 
+## 0.9.1 — 2026-09-21
+
+- Fixes the update check, which failed on every launch of 0.9.0. GitHub's "latest
+  release" only counts full releases, and answers with an error when every release is a
+  beta — so a beta could never see the beta that followed it. It asks a different way now.
+- If you are on 0.9.0, please install this one over the top; 0.9.0 cannot fetch it itself.
+
 ## 0.9.0 — 2026-09-21
 
 The first Hangly for Windows.

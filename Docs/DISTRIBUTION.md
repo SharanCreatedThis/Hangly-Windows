@@ -83,9 +83,27 @@ One channel per architecture, because a channel is a single line of releases and
 machine must never be offered an x64 package. The channel name is part of the feed's file
 name, so the two live side by side in one directory.
 
-The feed is **static files over HTTPS**. There is no server component, which is what keeps
-the update check anonymous: it is a plain GET for a file, exactly as Sparkle's appcast is
-on macOS. See §4.
+The feed is **static files over HTTPS**, published as GitHub release assets. There is no
+Hangly server, which is what keeps the update check anonymous. See §4.
+
+### Pre-releases, and the flag that has to change at v1.0
+
+`Updater.Manager()` builds its `GithubSource` with **`prerelease: true`**, and that has to
+be revisited before v1.0 ships.
+
+With it false, Velopack asks GitHub for `/releases/latest`. That endpoint **excludes
+pre-releases** and returns **404** when every release is one — which Velopack raises as an
+exception, so the update check does not report "nothing new", it fails. Measured the day
+v0.9.0 was published as a pre-release: `update check failed: HttpRequestException`, on
+every launch.
+
+With it true the source enumerates `/releases`, which lists everything, and the highest
+version wins — so a stable v1.0 is still preferred over any 0.9.x beta.
+
+**The cost arrives later.** Once people are running a stable release, publishing any
+pre-release will offer it to them. Before v1.0 either stop publishing pre-releases, or set
+the flag back to false — by which time there will be a stable release for
+`/releases/latest` to find, and the 404 that forced this cannot happen.
 
 ### Sizes, measured
 
