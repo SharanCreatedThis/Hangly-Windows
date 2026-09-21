@@ -50,6 +50,12 @@ Roughly two thirds of the macOS app, by line count:
 
 None of it is blocked; all of it is work.
 
+> **This list is where the port stood when it was written, and is kept for that.** Every
+> item on it except the Studio and sound has since been built. The roadmap settled on
+> 21 September 2026 is: **weather and seasons are removed permanently**, **sound is
+> v1.1**, and **Creator Studio is v1.1** — the **Create** tab is v1.0's answer to making
+> your own charm. `STATUS.md` and `Docs/RELEASE-READINESS.md` are the current picture.
+
 ---
 
 ## 2. What was carried across unchanged
@@ -420,4 +426,6 @@ width, that is worth reconciling, and the deviation is deliberate and documented
    visual. Consider generating it from the Swift source rather than typing it.
 4. **The Customize window.** The largest remaining piece, and the one with the most room
    to be a Windows app rather than a translated Mac one.
-5. Weather, seasons, sound, Studio — in whatever order matters to you.
+5. ~~Weather, seasons, sound, Studio — in whatever order matters to you.~~ Superseded.
+   Weather and seasons were removed from the roadmap permanently; sound and Creator
+   Studio are v1.1. What follows step 4 is release hardening, not more features.

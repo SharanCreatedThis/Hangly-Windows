@@ -17,17 +17,21 @@ what was rewritten rather than transcribed, and why.
 
 | | |
 |---|---|
-| Solver, models, settings, placement | Ported — **67 / 67 tests passing on Windows CI** |
-| Overlay window, tray, renderer, artwork | **Compiles and publishes** on x64 and ARM64; never launched |
-| Charms on the rope | **One** — the plain bead, as an explicit bootstrap |
-| Studio and photo import | **Not started** |
+| Solver, models, settings, placement | Ported — **759 / 759 tests passing on Windows CI** |
+| Overlay window, tray, renderer, artwork | Runs on Windows 11 ARM64 and x64; packaged with Velopack |
+| Charms on the rope | **70**, up to three at a time, each at its own size |
+| Create your own | SVG, PNG and JPG, through the **Create** tab |
+| Creator Studio and photo subject extraction | **v1.1** |
+| Sound | **v1.1** |
+| Weather and seasonal charms | **Removed from the roadmap permanently** |
 
-Roughly **25%** ported by weighted line count. The hardest quarter, and the one where
-being approximately right is the same as being wrong, is the part that is done.
+**v1.0 is 80% complete**; `Docs/RELEASE-READINESS.md` shows the weighting and
+`RELEASE-HARDENING-AUDIT.md` lists what is holding it up.
 
-The next thing that matters is not more code — it is running the thing on real Windows
-hardware and finding out whether the overlay is genuinely transparent. See
-[STATUS.md §6](STATUS.md#6-next-milestone).
+The next thing that matters is not more code. It is release hardening: the blockers in
+[RELEASE-HARDENING-AUDIT.md](RELEASE-HARDENING-AUDIT.md), publishing v0.9.0 so the update
+path can be proved against a real feed, and the manual QA matrix. See
+[STATUS.md §8](STATUS.md#8-next-milestone).
 
 ---
 

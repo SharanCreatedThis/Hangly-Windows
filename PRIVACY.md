@@ -167,11 +167,12 @@ See `Docs/DISTRIBUTION.md` for how releases are built and signed.
 
 ## Weather
 
-**Not in this build, and not planned for v1.** The macOS app can optionally ask
-Open-Meteo what the weather is in one city you type. Windows ships no weather feature at
-all — no service, no setting, no analytics event — so it makes no such request and there
-is no city stored anywhere. If that ever changes, this document is updated before it
-ships, not after.
+**Not in this build, and removed from the roadmap permanently.** The macOS app can
+optionally ask Open-Meteo what the weather is in one city you type. Hangly for Windows
+ships no weather feature at all — no service, no setting, no analytics event — so it
+makes no such request and there is no city stored anywhere, and there is no version of
+Hangly for Windows planned in which it does. Seasonal charms are removed on the same
+terms. If that ever changes, this document is updated before it ships, not after.
 
 ## Permissions
 

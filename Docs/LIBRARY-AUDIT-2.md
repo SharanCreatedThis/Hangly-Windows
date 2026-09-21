@@ -104,7 +104,7 @@ stale thumbnail(s) of 70 live`, cache **70 files, 3.62 MB**.
 | Thumbnail cache | 70 files, 3.62 MB, in `%TEMP%\Hangly\thumbnails\256` |
 | Process memory, Library open | 104.9 MB |
 | Process memory, overlay only | 60.3 MB |
-| Cost of a Library visit | ~45 MB |
+| Cost of a Library visit | ~45 MB *(superseded: re-measured at **153 MB** on 21 Sep — `RELEASE-HARDENING-AUDIT.md` §5.3)* |
 
 That 45 MB is the same shape macOS reports for its own Library — its RC2 audit measured a
 visit at 37 MB and recovered about 9 MB of it on close **[DOC]**. Windows does not yet

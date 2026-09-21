@@ -7,7 +7,13 @@ a project convinces itself it is nearly finished.
 - **Build:** green. All three CI jobs pass on `windows-latest`.
 - **Runs:** yes — Windows 11 ARM64 at 200%. The rope hangs on the desktop, is transparent,
   and can be thrown.
-- **Features:** roughly 71% ported. Charms, the Library, importing your own, customization, About and analytics are in.
+- **Features:** **v1.0 is 80% complete** — see `Docs/RELEASE-READINESS.md` for the
+  weighting. Charms, the Library, Create, importing your own, customization, About,
+  onboarding, analytics and auto-update are in. Signing, the manual QA matrix and the
+  hardening findings are what is left.
+- **Roadmap, settled 21 September 2026:** weather and seasonal charms are **removed
+  permanently**. Sound is **v1.1**. The **Create tab is the v1.0 answer** to making your
+  own charm and **Creator Studio is v1.1**, not a v1.0 blocker.
 
 ---
 
@@ -127,48 +133,48 @@ were. Full write-up in PORTING.md §3.
   over a thirty-second drag, allocation fell from 154 MB/s to 0.7 MB/s and gen-2
   collections from 1,040 to 7. What remains is memory bandwidth, and it is only spent
   while the rope is awake.
-- **Beads are drawn as ellipses, not as sprites cut from the artwork.** Their number,
-  size, position and weight are all measured from the artwork and are correct — the
-  solver carries exactly the beads the designer drew. What differs from macOS is only
-  how they are *painted*: a disc tinted with the cord's palette, rather than that part of
-  the SVG. It reads well because a bead is a bead, and it is a parity gap all the same.
-- **Imports are SVG only.** macOS imports photographs; this build does not. See
-  PORTING.md — it is the largest single parity gap left.
-- **There is no Studio**, and no macOS-style "open it in the Studio before it lands"
-  step: an import goes straight into the Library.
+- **The tray icon does not survive an Explorer restart.** Nothing handles
+  `TaskbarCreated`, so when Explorer restarts the icon goes and does not come back — and
+  the tray menu is the only route to Customize. **[MEASURED]** in
+  `RELEASE-HARDENING-AUDIT.md`, and a release blocker.
+- **A Library visit costs 153 MB of working set and returns none of it.** The window
+  hides rather than closes, deliberately, but the cost of that decision is three times
+  what was previously recorded. **[MEASURED]**
+- **There is no Creator Studio**, and no macOS-style "open it in the Studio before it
+  lands" step: an import goes straight into the Library. That is the v1.0 design — the
+  **Create** tab is how you make a charm here — and the Studio is a v1.1 item.
 
 ## 4. What remains to be ported
 
-Ordered by what unblocks the most.
+Everything v1.0 needs is written. What is left is one piece of macOS's app that v1.0 does
+not need, one that is deferred, and one small thing.
 
-| Subsystem | Swift lines | Notes |
+| Subsystem | Swift lines | When |
 |---|---:|---|
-| **Charm Library** | ~1,800 | Browser, search, categories, favourites. |
-| **Charm Studio** | ~2,400 | Editor, pipeline, undo stack. **Deferred: explicitly out of scope for v1.** |
-| **Custom charm import** | ~1,200 | Image processor, store, dialogs. |
-| **Menu bar artwork** | ~400 | The animated tray icon. Currently a static icon. |
-| **Welcome, updates, analytics** | ~900 | |
+| **Creator Studio** | ~2,400 | **v1.1.** Editor, pipeline, undo stack. The Create tab is v1.0's answer and is finished. |
+| **Photo import with subject extraction** | ~600 | **v1.1.** Raster import works; macOS's subject cut-out does not exist here. |
+| **Sound** | ~500 | **v1.1.** Deferred deliberately; no playback has ever been written. |
+| **Menu bar artwork** | ~400 | Unscheduled. The animated tray icon; currently static. |
+
+Weather and seasonal charms are not on this list and will not be. See the scope section
+at the end.
 
 ## 5. Completion
 
-**Roughly 71%** by weighted line count of the macOS source.
+**v1.0 is 80% complete** by the weighting in `Docs/RELEASE-READINESS.md`, which is the one
+place these numbers are worked out. By weighted line count of the macOS source the port is
+**roughly 84%**.
 
-That number understates progress in one way and overstates it in another, and both are
-worth saying:
-
-- It **understates** it because the hardest and least forgiving part is finished. The
-  solver is the piece where being approximately right is the same as being wrong, and it
-  is done and asserted to 1e-9 against the original.
-- It **overstates** it because the remaining 75% is mostly UI, and UI is where a port
-  stops being a transcription and starts being design work. Those lines will not come as
-  fast as the solver's did.
+Line count is the weaker of the two numbers and is kept only because it is comparable
+with where this started. What is left of it is Creator Studio, which is a v1.1 item, so
+the line-count figure can stall at 84% without v1.0 being any further away.
 
 | | Ported |
 |---|---|
 | Physics | ~100% |
-| App shell and services | ~40% |
-| Models | ~60% |
-| Views | ~52% |
+| App shell and services | ~90% |
+| Models | ~95% |
+| Views | ~80% |
 
 ## 6. Distribution
 
@@ -298,47 +304,58 @@ would be worse than saying so.
 | `macos_version` → `windows_version` | The same key holding a different kind of number would make the two datasets disagree about what the word means |
 | Transport | Hand-written against PostHog's capture endpoint rather than their SDK. The macOS build wraps the SDK behind the same provider seam; here the wrapper was the whole job, and a file this size can be read to check what leaves |
 | No batching | Each event is its own request. macOS lets the SDK queue; at a handful of events per session there is nothing to gain and a queue is something to lose on a crash |
-| Events defined but never fired | `charm_imported`, `charm_saved`, `charm_reordered`, `collection_charm_selected`, nothing — every defined event now has a call site. Named now so both platforms report the same act under the same name later |
-| Import input format | **SVG here, photographs on macOS.** The biggest gap in this milestone; see PORTING.md |
-| Import review step | macOS opens every interactive import in the Studio first. Here it goes straight into the Library |
-| About page | One page, not the macOS four-band layout: no statistics, no secrets button, no creator card, no in-app release-notes or coffee sheets — both links open a browser |
-| Library layout | A grid with chips above it. macOS has hero cards for the collections, a detail panel describing the charm you are reading about, a tag cloud, and a rope shelf with its own swatches — none of which are here. Choosing a charm hangs it; there is no "read about it without hanging it" |
+| Events defined but never fired | **One: `collection_charm_selected`.** Found by the hardening audit; the other twenty-four all have a call site. This row used to claim every event had one |
+| Import input format | SVG, PNG and JPG here. macOS additionally cuts the subject out of a photograph; that is a v1.1 item |
+| Import review step | macOS opens every interactive import in the Studio first. Here the **Create** tab is the review step, and an import from the menu or a drop goes straight into the Library |
+| About page | Hero, statistics, secrets, creator card, milestones, the UPI coffee sheet and in-app release notes are all there now. This row used to say none of them were |
+| Library layout | Grid, search, collection hero cards, a detail panel and reorder are all there now. macOS's tag cloud and rope shelf are not |
 | Charm metadata | macOS keeps physics in the Swift catalogue and Library facts in `CharmLibrary.json`. Here the generator merges both into one table by id, so a charm is described in exactly one place |
 | Recently used | **An addition, not a port.** macOS has favourites and no recents |
 | Rope composition | macOS has no count control at all — the number of charms is a consequence of how many places are filled. Here it is still a one-two-three picker |
 
 ## 8. Next milestone
 
-Everything a person does with Hangly day to day now exists: install it, pick a charm,
-decide how many hang, choose a cord, see what it is collecting and switch that off.
+**Release hardening, and nothing else.** Everything a person does with Hangly day to day
+exists: install it, pick a charm, decide how many hang, choose a cord, make one of their
+own, see what it is collecting and switch that off. The remaining work is making sure it
+holds up, not adding to it.
 
 `PRIVACY.md` is in this repository and describes this build rather than the macOS one,
 including the features it does not have. It should be updated **before** anything it
 describes ships, not after.
 
-What remains for v1, in the order that unblocks the most:
+What remains for v1.0, in the order that unblocks the most:
 
-1. **Raster import** — the formats macOS actually accepts, and drag-and-drop from
-   Explorer. The SVG path is done; the photograph path is the gap.
-2. **The welcome flow, the follow card, and the tray artwork.**
-4. **Packaging, signing and the v0.9.0 pre-release**, which is blocked on SignPath
-   answering whether a pre-release satisfies "already released".
+1. **The hardening blockers** — `RELEASE-HARDENING-AUDIT.md`, starting with the tray icon
+   that does not come back after an Explorer restart.
+2. **Publish v0.9.0 and verify a live update against the published feed.** Nothing else
+   can prove the update path, because there has never been a release to update from.
+3. **Send the SignPath enquiry**, which has been drafted and unsent for weeks and is the
+   longest lead time in the project.
+4. **The manual QA matrix** — scaling, multi-monitor, sleep/wake, and the Windows 10 1809
+   floor the manifest claims and nothing has tested.
 
-**Charm Studio is deferred — explicitly out of scope for v1.**
+**Creator Studio, photo subject extraction and sound are v1.1.** None of them is a v1.0
+blocker.
 
 ---
 
 ## Scope: what this build deliberately does not have
 
-Cut for v1 on 21 September 2026, and cut rather than hidden. There is no disabled code,
-no feature flag and no dormant branch for any of these — they are gone from the source,
-the settings document, the analytics table, the tests and the docs.
+Cut on 21 September 2026, and cut rather than hidden. There is no disabled code, no
+feature flag and no dormant branch for any of these — they are gone from the source, the
+settings document, the analytics table, the tests and the docs.
+
+**Weather and seasonal charms are removed permanently.** They are not deferred to a later
+version, they are not in any backlog, and they are not counted as parity gaps. **Sound is
+deferred to v1.1** — the code below was still removed, so bringing it back is a port and
+not an un-hiding.
 
 | Cut | What went with it |
 |---|---|
 | **Weather** | The `weather_effect_toggled` analytics event, and the reference to a weather city in the privacy copy. Nothing else existed; the feature was never ported. |
 | **Seasonal packs** | The `seasonal` category, and the eleven charms filed under it — Snowflake, Bell, Candy Cane, Pumpkin, Ghost, Bat, Diya, Lotus, Lantern, Firework and Lucky Coin — with their artwork. The catalogue is **70 charms**, not macOS's 81. |
-| **Sound** | `CharmSound`, the `Sound` field on every catalogue entry, and `SoundEnabled` / `SoundVolume` in the settings document. No playback had ever been written. |
+| **Sound** — *deferred to v1.1, not removed* | `CharmSound`, the `Sound` field on every catalogue entry, and `SoundEnabled` / `SoundVolume` in the settings document. No playback had ever been written. |
 
 The generator is where the catalogue difference is expressed: `SOURCES` no longer reads
 `SeasonalCharmCatalog.swift` and `DROPPED_CATEGORIES` names the category. `reference/swift/`

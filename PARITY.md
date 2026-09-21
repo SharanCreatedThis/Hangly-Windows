@@ -216,16 +216,16 @@ documentation, and the Windows source. Not estimated.
 | Analytics | PostHog, 25 events | PostHog, 25 events, inspector | **Parity** (Windows adds the inspector) |
 | Custom import — SVG | Yes | Yes | **Parity** |
 | Custom import — photo | Vision subject extraction | **None** | **Missing** — §5 |
-| Charm Studio | Full window, staged pipeline | **None** | **Missing** — §6 |
-| Sound | `CharmSound`, per-charm, volume | Settings carry it; no playback | **Missing** |
+| Charm Studio | Full window, staged pipeline | **None**; the **Create** tab is v1.0's answer | **v1.1** — §6 |
+| Sound | `CharmSound`, per-charm, volume | Removed rather than left as a control that does nothing | **v1.1** |
 | Welcome popup | `Welcome*` strings present | None | **Missing** |
 | Follow popup | `Follow*` strings present | None | **Missing** |
 | Coffee flow | `CreatorUPIQR.png/jpg` ships in the bundle | Link only | **Partial** |
 | Secrets button | `AboutSecrets`, `SecretVault`, "Tell me a secret" | None | **Missing** |
 | Release notes | `Release Notes` strings | Link to GitHub | **Partial** |
 | Statistics view | `AboutStatistics` | None | **Missing** |
-| Weather charms | `WeatherService`, settings UI, analytics event | None | **Missing** — §8 |
-| Seasonal packs | `SeasonalCoordinator`, `SeasonalSettings` | Catalogue entries only, no rotation | **Missing** — §8 |
+| Weather charms | `WeatherService`, settings UI, analytics event | None | **Removed from the roadmap** — not a gap, §8 |
+| Seasonal packs | `SeasonalCoordinator`, `SeasonalSettings` | None; the category and its eleven charms were cut | **Removed from the roadmap** — not a gap, §8 |
 
 Sound is worth calling out: `CharmSound` is already ported and every catalogue entry
 carries its value, and `soundEnabled`/`soundVolume` are already in the settings
@@ -308,11 +308,15 @@ their arrangement is not.
 
 ---
 
-## 8. Weather and Seasonal packs — reverse the earlier recommendation
+## 8. Weather and Seasonal packs — removed from the roadmap
 
-I previously suggested treating these as speculative. **That was wrong, and the
-evidence says so plainly.** Both are complete, shipping production features of macOS
-2.0.0:
+> **Settled 21 September 2026: neither will be built for Windows, at any version.** They
+> are not deferred, not backlogged and not counted as parity gaps in
+> `Docs/RELEASE-READINESS.md`. What follows is kept because it is the evidence of what
+> macOS has, which is worth recording; it is not a plan.
+
+The earlier note in this section argued for building them, on the evidence that both are
+complete, shipping production features of macOS 2.0.0:
 
 - `WeatherService`, `WeatherFetching`, `WeatherSettings`, `WeatherStatusRow`,
   `CurrentWeather`, `WeatherCondition`, `WeatherMood`, `WeatherPlace`,
@@ -339,16 +343,16 @@ Ranked by visible-difference-per-day, with correctness before features.
 |---|---|---|---|
 | 1 | **Beads from artwork** (§1.1) | ~0.5 day | Largest visible difference; machinery already exists; likely also resolves §3 |
 | 2 | **Charm drop shadow, remove halo disc** (§1.2) | ~1 day | Second largest; removes a construct with no macOS counterpart |
-| 3 | **Sound playback** (§4) | ~1 day | A shipped control that does nothing is a bug, not a gap |
+| 3 | ~~**Sound playback** (§4)~~ | — | **Deferred to v1.1.** The control was removed rather than left doing nothing |
 | 4 | **Library detail sidebar** (§2) | ~2 days | Data is already there for all 81 charms |
 | 5 | **Collection pack cards** (§2) | ~2 days | Catalogue already carries pack membership |
 | 6 | **Reorder + per-charm size** (§2) | ~2 days | Completes the Library |
 | 7 | **About: statistics, secrets, UPI coffee, release notes** (§7) | ~3 days | Personality; self-contained |
 | 8 | **Welcome / Follow popups** (§7) | ~1 day | Small, first-run polish |
 | 9 | **Photo import, strategies 1 and 3** (§5) | ~2 days | Ships value without a model dependency |
-| 10 | **Weather + Seasonal** (§8) | ~1 week | Confirmed production feature |
+| 10 | ~~**Weather + Seasonal** (§8)~~ | — | **Removed from the roadmap permanently.** Not deferred, not backlogged, not a parity gap |
 | 11 | **Photo import via ONNX** (§5) | ~1 week | Unlocks 12 |
-| 12 | **Studio** (§6) | ~2–3 weeks | Largest; gated on 11 |
+| 12 | **Creator Studio** (§6) | ~2–3 weeks | **v1.1**, not a v1.0 blocker. The Create tab is v1.0's answer |
 
 Items 1–3 are correctness and should land before anything in §2 onward.
 

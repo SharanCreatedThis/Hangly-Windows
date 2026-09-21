@@ -250,7 +250,7 @@ the macOS settings, capture 1/2/3, and restore.
 
 ---
 
-## 6. Sound — audit only, not implemented
+## 6. Sound — **deferred to v1.1**, audit only
 
 **[BINARY]** 18 sound-related strings in the macOS binary. **[SWIFT]** `CharmSound` is an
 enum over material classes — `.glass`, and others — carried per catalogue entry, not a
@@ -271,7 +271,10 @@ does — this is a question for you, not something the repository can answer.
 
 ---
 
-## 7. Weather and Seasonal **[BINARY]**
+## 7. Weather and Seasonal — **removed from the roadmap permanently**
+
+> Settled 21 September 2026. Neither will be built for Windows at any version, and
+> neither is counted as a parity gap. What follows records what macOS has. **[BINARY]**
 
 Both are complete production features of the shipping release, not experiments:
 
@@ -321,14 +324,14 @@ repository.
 
 ## 9. Priority
 
-1. **Sound playback** — a shipped control that does nothing (needs your answer on assets)
+1. ~~**Sound playback**~~ — **v1.1.** The control was removed rather than left doing nothing
 2. **Library detail sidebar** — data already exists for all 81 charms
 3. **Collection pack cards** — catalogue already carries pack membership
 4. **Reorder and per-charm size**
 5. **About: statistics, secrets, UPI coffee, release notes**
 6. **Photo import** without a model dependency
-7. **Weather and Seasonal**
-8. **Studio** — gated on 6
+7. ~~**Weather and Seasonal**~~ — **removed from the roadmap permanently**
+8. **Creator Studio** — **v1.1**; the Create tab is v1.0's answer
 
 ## 10. What is still inferred, and what would fix that
 

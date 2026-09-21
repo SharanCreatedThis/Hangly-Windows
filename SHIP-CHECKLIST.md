@@ -39,6 +39,21 @@ is left.
 
 ## 2. Blocking the first public release
 
+### 2.0 The release hardening audit's blockers
+
+`RELEASE-HARDENING-AUDIT.md`, 21 September 2026. Its verdict is **no-go until these four
+are done**, and its reasoning is not repeated here.
+
+- [ ] **B1** — nothing stops a second copy running, and the two overwrite each other's
+      settings. **[MEASURED]**
+- [ ] **B2** — the tray icon does not survive an Explorer restart, which leaves the app
+      running with no way to reach its own menu. **[MEASURED]**
+- [ ] **B3** — the existing `v0.9.0` draft predates five rendering fixes; delete it and
+      re-cut. **[MEASURED]**
+- [ ] **B4** — `PRIVACY.md` and `Docs/DISTRIBUTION.md` describe an update check that
+      fetches a static file; the code asks the GitHub Releases API. **[VERIFIED]**
+
+
 ### 2.1 The update path has never run against a published feed
 
 Everything either side of it is verified. `UpdateManager` has never fetched a real
@@ -97,8 +112,9 @@ Recorded so they are decisions rather than oversights.
       first-impression problem only. `PublishTrimmed` is **not** safe without proof: WinUI
       and Win2D reach for types through reflection and COM activation, and a trimmed build
       that launches can still fail on a path nobody exercised until a user did.
-- [ ] **A Library visit costs ~45 MB and never gives it back**; macOS reclaims its share on
-      close.
+- [ ] **A Library visit costs 153 MB of working set and 599 handles and gives none of it
+      back** — **[MEASURED]**, `RELEASE-HARDENING-AUDIT.md` §5.3. macOS reclaims its
+      share on close.
 - [ ] **Uninstall leaves `%APPDATA%\Hangly`**, so settings survive an uninstall and
       reinstall. Whether that is wanted is a decision nobody has made.
 - [ ] **Launch at login across an update** — the registry entry should name Velopack's
@@ -108,10 +124,14 @@ Recorded so they are decisions rather than oversights.
 
 Not missing. Removed, or scheduled.
 
-- **Weather, seasonal packs, sound** — complete, shipping macOS features, removed from
-  Windows deliberately. No placeholder, disabled, hidden or dormant code remains. They
-  return when there is a reason, not because macOS has them.
-- **Creator Studio and photo-AI import** — v1.1.
+- **Weather and seasonal charms** — **removed from the roadmap permanently.** Complete,
+  shipping macOS features, and not Windows features at any version. No placeholder,
+  disabled, hidden or dormant code remains.
+- **Sound** — **v1.1.** Removed from the source rather than left as a control that does
+  nothing, so bringing it back is a port.
+- **Creator Studio and photo subject extraction** — **v1.1.** The **Create** tab is
+  v1.0's answer to making your own charm and is finished; the Studio is not a v1.0
+  blocker.
 
 ## 5. The one-line test
 
