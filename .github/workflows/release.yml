@@ -115,14 +115,16 @@ jobs:
 
           # Only the download page needs this. Someone reading the same notes on the
           # About page has already installed the thing and been warned once.
-          Add-Content notes.md @'
-
----
-
-**This build is not code-signed.** SmartScreen will warn the first time you run it.
-Docs/DISTRIBUTION.md explains why, and what changes once SignPath Foundation has signed
-a release.
-'@
+          #
+          # Written a line at a time rather than as a here-string: a here-string's
+          # terminator has to sit at the start of its line, and a line at the start of a
+          # line inside a YAML block scalar ends the block. The workflow file stopped
+          # being a workflow file.
+          Add-Content notes.md ''
+          Add-Content notes.md '---'
+          Add-Content notes.md ''
+          Add-Content notes.md '**This build is not code-signed.** SmartScreen will warn the first time you run it.'
+          Add-Content notes.md 'Docs/DISTRIBUTION.md explains why, and what changes once SignPath Foundation has signed a release.'
 
       - uses: actions/download-artifact@v7
         with:
