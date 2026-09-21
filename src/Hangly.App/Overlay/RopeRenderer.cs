@@ -62,9 +62,10 @@ public sealed class RopeRenderer
 
         // One piece of cord per gap the charms leave, so a charm's own loop is where the
         // cord ends rather than something the cord is drawn through.
-        foreach (List<Vec2> run in VisibleRuns(snapshot.Points, snapshot.Charms))
+        List<List<Vec2>> runs = VisibleRuns(snapshot.Points, snapshot.Charms);
+        for (int index = 0; index < runs.Count; index++)
         {
-            DrawCord(session, run, appearance, width, charmRadius);
+            DrawCord(session, runs[index], appearance, width, charmRadius, head: index == 0);
         }
         DrawBeads(session, snapshot, appearance);
         DrawCharms(session, snapshot);
@@ -80,9 +81,10 @@ public sealed class RopeRenderer
         IReadOnlyList<Vec2> run,
         RopeAppearance appearance,
         double width,
-        double charmRadius)
+        double charmRadius,
+        bool head)
     {
-        using CanvasPathBuilder builder = BuildSpline(session, run);
+        using CanvasPathBuilder builder = BuildSpline(session, run, head);
         using var path = CanvasGeometry.CreatePath(builder);
 
         // The glow first and underneath: three progressively wider, fainter strokes. No
@@ -336,7 +338,13 @@ public sealed class RopeRenderer
     /// The quadratic spline through the node midpoints, with each node as a control
     /// point — the same curve the solver threads its beads on.
     /// </summary>
-    private static CanvasPathBuilder BuildSpline(CanvasDrawingSession session, IReadOnlyList<Vec2> points)
+    /// <param name="head">
+    /// Whether to carry the cord up to the top of the canvas before the first point.
+    /// </param>
+    private static CanvasPathBuilder BuildSpline(
+        CanvasDrawingSession session,
+        IReadOnlyList<Vec2> points,
+        bool head)
     {
         var builder = new CanvasPathBuilder(session);
 
@@ -348,7 +356,12 @@ public sealed class RopeRenderer
         //
         // Drawn rather than simulated: the anchor is a fixed point and the cord above it
         // cannot move, so this is a straight line up to the edge and no physics changes.
-        if (points[0].Y > 0)
+        //
+        // Only for the piece that starts at the anchor. Every other piece starts under a
+        // charm somewhere down the rope, and giving those a head drew a cord from the top
+        // of the screen down to each of them — one rope per charm, which is exactly what
+        // it looked like.
+        if (head && points[0].Y > 0)
         {
             builder.BeginFigure(new System.Numerics.Vector2((float)points[0].X, 0));
             builder.AddLine(ToVector(points[0]));
