@@ -173,7 +173,11 @@ public class HostileSvgAudit
             lines.Add($"{Path.GetFileName(file),-28} {verdict}");
         }
 
-        File.WriteAllLines(@"C:\Mac\Home\Documents\hangly-shots\hostile.txt", lines);
+        // Written beside the test binary, not to a fixed path. The first version of this
+        // wrote to the share this VM happens to mount, which passed here and failed on
+        // CI -- a machine that has no such drive. The table is worth keeping; the
+        // assumption about where it lands was not.
+        File.WriteAllLines(Path.Combine(AppContext.BaseDirectory, "hostile-corpus.txt"), lines);
     }
 }
 
