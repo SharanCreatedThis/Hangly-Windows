@@ -34,12 +34,16 @@ namespace Hangly.App.Onboarding;
 public sealed class WelcomeWindow : Window
 {
     private readonly SettingsStore store;
+    private readonly Action openLibrary;
     private readonly TextBox name;
     private readonly Button start;
+    private readonly StackPanel askPanel;
+    private readonly StackPanel welcomePanel;
 
-    public WelcomeWindow(SettingsStore store)
+    public WelcomeWindow(SettingsStore store, Action openLibrary)
     {
         this.store = store;
+        this.openLibrary = openLibrary;
 
         Title = "Welcome to Hangly";
 
@@ -54,7 +58,7 @@ public sealed class WelcomeWindow : Window
 
         start = new Button
         {
-            Content = "Get started",
+            Content = "Continue",
             HorizontalAlignment = HorizontalAlignment.Right,
 
             // A required name is only required if the button says so before it is pressed
@@ -67,21 +71,21 @@ public sealed class WelcomeWindow : Window
         name.TextChanged += (_, _) => start.IsEnabled = name.Text.Trim().Length > 0;
         start.Click += OnStart;
 
-        var body = new StackPanel { Spacing = 10, Margin = new Thickness(28) };
-        body.Children.Add(new TextBlock
+        askPanel = new StackPanel { Spacing = 10 };
+        askPanel.Children.Add(new TextBlock
         {
             Text = "Welcome to Hangly",
             Style = (Style)Application.Current.Resources["TitleTextBlockStyle"],
         });
-        body.Children.Add(Line("A charm hangs from the top of your screen, on a rope, and swings."));
-        body.Children.Add(Line("Drag it anywhere along the top of your screen."));
-        body.Children.Add(new TextBlock
+        askPanel.Children.Add(Line("A charm hangs from the top of your screen, on a rope, and swings."));
+        askPanel.Children.Add(Line("Drag it anywhere along the top of your screen."));
+        askPanel.Children.Add(new TextBlock
         {
             Text = "What should Hangly call you?",
             Margin = new Thickness(0, 12, 0, 0),
         });
-        body.Children.Add(name);
-        body.Children.Add(new TextBlock
+        askPanel.Children.Add(name);
+        askPanel.Children.Add(new TextBlock
         {
             Text = "Used to greet you, and sent with usage data while that is switched on. "
                 + "Hangly never reads your Windows or Microsoft account name. "
@@ -90,7 +94,14 @@ public sealed class WelcomeWindow : Window
             TextWrapping = TextWrapping.Wrap,
             Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
         });
-        body.Children.Add(start);
+        askPanel.Children.Add(start);
+
+        // Empty until the name is known, because the first thing it says is the name.
+        welcomePanel = new StackPanel { Spacing = 10, Visibility = Visibility.Collapsed };
+
+        var body = new Grid { Margin = new Thickness(28) };
+        body.Children.Add(askPanel);
+        body.Children.Add(welcomePanel);
 
         Content = body;
 
@@ -108,13 +119,12 @@ public sealed class WelcomeWindow : Window
             (int)Math.Round(560 * scale),
             (int)Math.Round(480 * scale)));
 
-        // Closing without a name writes nothing, so the card returns next launch rather
-        // than leaving the app nameless. The alternative — refusing to close — traps
-        // someone who opened it by accident on a machine they cannot log out of.
-        Closed += (_, _) => Diagnostics.Log(
+        // Dismissing without a name writes nothing, so the card returns next launch rather
+        // than leaving the app nameless.
+        AppWindow.Closing += (_, _) => Diagnostics.Log(
             store.Settings.DisplayName.Length > 0
                 ? "welcome card completed"
-                : "welcome card closed without a name; it will be shown again");
+                : "welcome card dismissed without a name; it will be shown again");
     }
 
     /// <summary>Whether onboarding still has to happen.</summary>
@@ -125,6 +135,93 @@ public sealed class WelcomeWindow : Window
     /// </remarks>
     public static bool IsNeeded(AppSettings settings) =>
         !settings.HasSeenWelcome || settings.DisplayName.Length == 0;
+
+    /// <summary>
+    /// The second step: what Hangly is, and two ways out of it.
+    /// </summary>
+    /// <remarks>
+    /// <b>Why there is a second step at all.</b> The first build asked for a name and
+    /// closed, and testers read that as the whole of setup — they had typed something into
+    /// a box and been returned to their desktop, with no sense that anything had been
+    /// installed. Several said they thought it had failed. The name is a question Hangly
+    /// asks; it is not a welcome.
+    ///
+    /// <para>Two buttons rather than one, because the person who wants to go and look at
+    /// seventy charms and the person who wants their desktop back are both in the room,
+    /// and making the second one dismiss an invitation is how you annoy them.</para>
+    /// </remarks>
+    private StackPanel BuildWelcome()
+    {
+        var panel = new StackPanel { Spacing = 10 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"Welcome, {store.Settings.DisplayName}",
+            Style = (Style)Application.Current.Resources["TitleTextBlockStyle"],
+        });
+        panel.Children.Add(Line("A tiny charm that hangs from your screen."));
+
+        foreach (string item in new[]
+        {
+            "Browse charms from around the world",
+            "Create your own charm from a picture",
+            "Change the rope, where it hangs and how big it is",
+        })
+        {
+            var row = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 8,
+                Margin = new Thickness(0, 2, 0, 2),
+            };
+            row.Children.Add(new TextBlock { Text = "•", Opacity = 0.6 });
+            row.Children.Add(Line(item));
+            panel.Children.Add(row);
+        }
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Your charm is already hanging at the top of the screen. Right-click the "
+                + "Hangly icon near the clock whenever you want to change it.",
+            Margin = new Thickness(0, 12, 0, 0),
+            Opacity = 0.7,
+            TextWrapping = TextWrapping.Wrap,
+            Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
+        });
+
+        var explore = new Button { Content = "Explore Library" };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(explore, "WelcomeExplore");
+        explore.Click += (_, _) =>
+        {
+            Diagnostics.Log("welcome: explore library");
+            openLibrary();
+            ProcessLifetime.Dismiss(this);
+        };
+
+        var begin = new Button
+        {
+            Content = "Start Using Hangly",
+            Style = (Style)Application.Current.Resources["AccentButtonStyle"],
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(begin, "WelcomeBegin");
+        begin.Click += (_, _) =>
+        {
+            Diagnostics.Log("welcome: start using hangly");
+            ProcessLifetime.Dismiss(this);
+        };
+
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Spacing = 8,
+            Margin = new Thickness(0, 16, 0, 0),
+        };
+        buttons.Children.Add(explore);
+        buttons.Children.Add(begin);
+        panel.Children.Add(buttons);
+
+        return panel;
+    }
 
     private void OnStart(object sender, RoutedEventArgs args)
     {
@@ -140,7 +237,19 @@ public sealed class WelcomeWindow : Window
             DisplayName = chosen,
         });
 
-        Close();
+        // The name is saved before the second step is shown, so closing the window from
+        // here on is finishing rather than abandoning.
+        StackPanel built = BuildWelcome();
+        while (built.Children.Count > 0)
+        {
+            UIElement child = built.Children[0];
+            built.Children.RemoveAt(0);
+            welcomePanel.Children.Add(child);
+        }
+
+        askPanel.Visibility = Visibility.Collapsed;
+        welcomePanel.Visibility = Visibility.Visible;
+        Diagnostics.Log("welcome card: name accepted, showing the welcome step");
     }
 
     private static TextBlock Line(string text) => new()

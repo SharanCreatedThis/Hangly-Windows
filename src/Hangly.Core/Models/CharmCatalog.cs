@@ -49,6 +49,21 @@ public static partial class CharmCatalog
     /// </remarks>
     public const string DefaultId = "circle";
 
+    /// <summary>The charm a brand-new install hangs.</summary>
+    /// <remarks>
+    /// Deliberately not <see cref="DefaultId"/>, which is the <em>fallback</em> — what a
+    /// rope falls back to when the charm it names has been deleted or was written by a
+    /// build that had one this one does not. That has to stay the plain bead: it is the
+    /// one charm that is always present and always correct, and swapping it would mean a
+    /// deleted import silently becoming somebody else's charm.
+    ///
+    /// <para>This is a different question — what somebody should meet on their first
+    /// launch — and the answer is the nazar. It reads as a charm at a glance, it is the
+    /// one most people recognise, and a plain grey bead is a poor first impression of a
+    /// catalogue of seventy.</para>
+    /// </remarks>
+    public const string FirstRunId = "nazar";
+
     private static Dictionary<string, CharmCatalogEntry>? index;
 
     /// <summary>

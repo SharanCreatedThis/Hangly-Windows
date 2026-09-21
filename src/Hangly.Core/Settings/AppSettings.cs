@@ -24,19 +24,24 @@ public sealed record OverlaySettings
     public double Opacity { get; init; } = 1.0;
 
     /// <summary>How large the charm is drawn, as a multiple of the shipped size.</summary>
-    public double CharmSize { get; init; } = 1.0;
+    /// <summary>145% on a new install: see <see cref="CharmCatalog.FirstRunId"/>.</summary>
+    public double CharmSize { get; init; } = 1.45;
 
     /// <summary>How far the charm hangs, as a multiple of the shipped rope.</summary>
-    public double RopeLength { get; init; } = 1.0;
+    /// <summary>85% on a new install, so the charm sits nearer the top edge.</summary>
+    public double RopeLength { get; init; } = 0.85;
 
-    public OverlayAnchor Anchor { get; init; } = OverlayAnchor.TopCenter;
+    /// <summary>
+    /// Top right on a new install, out of the way of what is usually in the middle.
+    /// </summary>
+    public OverlayAnchor Anchor { get; init; } = OverlayAnchor.TopTrailing;
 
     /// <summary>User nudge from the anchor, in points.</summary>
     public double OffsetX { get; init; }
 
     public double OffsetY { get; init; }
 
-    public RopeStyle RopeStyle { get; init; } = RopeStyleTable.Shipped;
+    public RopeStyle RopeStyle { get; init; } = RopeStyleTable.FirstRun;
 
     /// <summary>Index of the display to hang on, in the order the system reports them.</summary>
     public int DisplayIndex { get; init; }
@@ -49,7 +54,7 @@ public sealed record OverlaySettings
     /// than dropped, because a file written by a newer build should cost the user a
     /// different charm and not an empty rope.
     /// </remarks>
-    public IReadOnlyList<string> CharmIds { get; init; } = [CharmCatalog.DefaultId];
+    public IReadOnlyList<string> CharmIds { get; init; } = [CharmCatalog.FirstRunId];
 
     /// <summary>Every place on the rope, in use or not, from the anchor down.</summary>
     /// <remarks>

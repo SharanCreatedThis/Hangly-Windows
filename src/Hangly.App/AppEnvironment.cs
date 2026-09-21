@@ -176,7 +176,11 @@ public sealed class AppEnvironment : IDisposable
             return;
         }
 
-        var welcome = new Onboarding.WelcomeWindow(store);
+        var welcome = new Onboarding.WelcomeWindow(store, OpenCustomize);
+
+        // Hidden rather than closed when it is dismissed, so the app is still running
+        // afterwards. See ProcessLifetime.
+        Onboarding.ProcessLifetime.KeepAlive(welcome);
 
         // The follow card waits for onboarding to finish rather than racing it: IsDue
         // refuses while a name is still owed, so asking again once the welcome window
@@ -195,6 +199,7 @@ public sealed class AppEnvironment : IDisposable
         }
 
         var prompt = new Onboarding.FollowPrompt(store, analytics);
+        Onboarding.ProcessLifetime.KeepAlive(prompt);
         prompt.Activate();
         prompt.Shown();
         Diagnostics.Log("follow card shown");
@@ -206,6 +211,22 @@ public sealed class AppEnvironment : IDisposable
         // the entry while Hangly was not running, so the stored flag is corrected from
         // the system before anything reads it.
         Diagnostics.Log($"bootstrap starting; settings at {SettingsStore.DefaultPath}");
+
+        // On a first run, switch it on rather than merely defaulting the flag to true.
+        //
+        // Reconciliation below reads the registry and corrects the stored flag from it, so
+        // a default of true with no registry entry would be turned back to false on the
+        // very next line -- the flag follows the system, not the other way round. Somebody
+        // who turns it off later has seen the welcome card, so this cannot undo their
+        // choice.
+        //
+        // Default on because Hangly is a desktop ornament: an ornament that has to be
+        // started by hand every morning is one that gets started once.
+        if (Onboarding.WelcomeWindow.IsNeeded(store.Settings) && !launchAtLogin.IsEnabled)
+        {
+            launchAtLogin.SetEnabled(true);
+            Diagnostics.Log($"first run: launch at login switched on ({launchAtLogin.IsEnabled})");
+        }
 
         bool actuallyEnabled = launchAtLogin.IsEnabled;
         if (actuallyEnabled != store.Settings.LaunchAtLogin)
@@ -695,6 +716,7 @@ public sealed class AppEnvironment : IDisposable
         analytics.Stop();
         customize?.AllowClose();
         customize = null;
+        Onboarding.ProcessLifetime.Release();
         Application.Current.Exit();
     }
 

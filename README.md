@@ -22,7 +22,7 @@ in C# on WinUI 3, .NET 9 and Win2D. Windows 10 and 11, x64 and ARM64.
 - **Seventy charms**, in collections — protection, luck, ritual, and a few from stories
   you will recognise. Search them, favourite them, see what you hung recently.
 - **Up to three on one cord**, each at its own size, in any order you drag them into.
-- **Five rope styles.** Each one is a different set of solver values rather than a
+- **Nine rope styles.** Each one is a different set of solver values rather than a
   different picture, so a gold chain hangs differently from a thread.
 - **Real physics.** Twenty segments solved with Verlet integration at a fixed 240 Hz,
   whatever the display is doing. Beads ride the cord as particles in their own right.

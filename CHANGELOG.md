@@ -21,6 +21,6 @@ The first Hangly for Windows.
   a real one would.
 - Seventy charms, in collections, with favourites and a record of what you hung recently.
 - Up to three charms on one rope, each at its own size.
-- Five rope styles, and a charm you can drag, flick and drop wherever you like.
+- Nine rope styles, and a charm you can drag, flick and drop wherever you like.
 - Create your own charm from a picture or an SVG.
 - Runs on ARM64 and x64, and updates itself.

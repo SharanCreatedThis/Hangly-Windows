@@ -176,7 +176,7 @@ public sealed class FollowPrompt : Window
     {
         answer = chosen;
         Record();
-        Close();
+        ProcessLifetime.Dismiss(this);
     }
 
     /// <summary>

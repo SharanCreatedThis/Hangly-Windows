@@ -21,7 +21,36 @@ public class SettingsCodingTests
 
         Assert.False(recovered);
         Assert.Equal(new AppSettings(), settings);
-        Assert.Equal(RopeStyleTable.Shipped, settings.Overlay.RopeStyle);
+        Assert.Equal(RopeStyleTable.FirstRun, settings.Overlay.RopeStyle);
+    }
+
+    /// <summary>
+    /// What somebody meets on a brand-new install, pinned.
+    /// </summary>
+    /// <remarks>
+    /// These are a product decision rather than a physical constant, and the reason they
+    /// are asserted is that they are invisible from inside the code: nothing fails if one
+    /// of them drifts, and nobody notices until an install looks wrong. Changing one is
+    /// fine; changing one by accident is what this is here to stop.
+    /// </remarks>
+    [Fact(DisplayName = "A new install hangs a nazar on a gold chain, top right")]
+    public void FirstInstallDefaults()
+    {
+        AppSettings settings = AppSettings.FromJson("{}", out _);
+        OverlaySettings overlay = settings.Overlay;
+
+        Assert.Equal(["nazar"], overlay.CharmIds);
+        Assert.Equal(RopeStyle.GoldChain, overlay.RopeStyle);
+        Assert.Equal(OverlayAnchor.TopTrailing, overlay.Anchor);
+        Assert.Equal(0.85, overlay.RopeLength);
+        Assert.Equal(1.45, overlay.CharmSize);
+
+        // The fallback is a different question from the first-run charm, and stays the
+        // plain bead: a deleted import must not silently become somebody else's charm.
+        Assert.Equal("circle", CharmCatalog.DefaultId);
+
+        // Clamping must not reject what the app ships with.
+        Assert.Equal(overlay, overlay.Clamped());
     }
 
     [Fact(DisplayName = "A partial document keeps the defaults for what it omits")]
@@ -35,7 +64,7 @@ public class SettingsCodingTests
         Assert.Equal(0.5, settings.Overlay.Opacity);
 
         // A new field in a future release must not discard every existing preference.
-        Assert.Equal(1.0, settings.Overlay.CharmSize);
+        Assert.Equal(1.45, settings.Overlay.CharmSize);
         Assert.True(settings.Overlay.IsEnabled);
     }
 

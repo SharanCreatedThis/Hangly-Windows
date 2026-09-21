@@ -124,6 +124,15 @@ public static class RopeStyleTable
     /// </summary>
     public const RopeStyle Shipped = RopeStyle.SpiderThread;
 
+    /// <summary>The rope a brand-new install hangs its first charm on.</summary>
+    /// <remarks>
+    /// Gold chain rather than <see cref="Shipped"/>. The two are different questions:
+    /// <see cref="Shipped"/> is what the macOS build has always drawn and what the
+    /// rendering tests measure against, and moving it would move those. This only decides
+    /// what somebody meets on a first launch.
+    /// </remarks>
+    public const RopeStyle FirstRun = RopeStyle.GoldChain;
+
     /// <summary>Every style, in menu order.</summary>
     public static IReadOnlyList<RopeStyle> All { get; } = Enum.GetValues<RopeStyle>();
 

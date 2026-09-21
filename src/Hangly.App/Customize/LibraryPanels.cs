@@ -183,3 +183,11 @@ public sealed class SlotTile
 
     public Microsoft.UI.Xaml.Media.ImageSource? Image { get; }
 }
+
+/// <summary>One rope in the Library's rope list.</summary>
+/// <remarks>
+/// A name and a sentence, and no picture. The five ropes differ in how they move rather
+/// than in how they are drawn — each is a different set of solver values — so a thumbnail
+/// of a cord would show five near-identical lines and tell somebody nothing.
+/// </remarks>
+public sealed record RopeChoiceItem(string Name, string Description);

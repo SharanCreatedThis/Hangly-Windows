@@ -15,9 +15,9 @@
             -->
             <DataTemplate x:Key="CharmTemplate" x:DataType="local:CharmTile">
                 <Grid
-                    Width="96"
-                    Height="116"
-                    Padding="4"
+                    Width="84"
+                    Height="102"
+                    Padding="3"
                     AutomationProperties.Name="{x:Bind DisplayName, Mode=OneTime}"
                     ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneTime}">
                     <Border
@@ -41,12 +41,12 @@
                         ToolTipService.ToolTip="{x:Bind FavouriteLabel, Mode=OneWay}" />
                     <StackPanel VerticalAlignment="Center">
                         <Image
-                            Width="56"
-                            Height="56"
+                            Width="48"
+                            Height="48"
                             Stretch="Uniform"
                             Source="{x:Bind Image, Mode=OneTime}" />
                         <TextBlock
-                            Margin="0,6,0,0"
+                            Margin="0,4,0,0"
                             HorizontalAlignment="Center"
                             MaxLines="2"
                             Style="{StaticResource CaptionTextBlockStyle}"
@@ -165,9 +165,24 @@
 
             <Grid>
                 <!-- Library -->
+                <!--
+                    Browsing is the point of this page, so browsing gets the room.
+
+                    It did not, and testers said so: the detail panel held a fixed column
+                    whether or not anything was selected, and above the charms sat the
+                    title, the cord summary, the one-two-three picker, the places on the
+                    rope and a size slider — about three hundred and eighty points of
+                    controls between the window's top edge and the first charm, on an
+                    eight-hundred-point window. Three rows of charms were visible where
+                    there was room for six.
+
+                    Everything about *the rope you have* now lives in the sidebar, which
+                    was mostly empty, and everything about *charms you might want* has the
+                    rest. The names are unchanged, so the code behind this did not move.
+                -->
                 <Grid x:Name="CharmsPage" Margin="0,0,0,0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="288" />
+                        <ColumnDefinition Width="296" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
@@ -177,11 +192,120 @@
                         the selection", so picking a charm changes the rope and this
                         reports what changed rather than offering a second way to do it.
                     -->
+                    <!--
+                        The sidebar: the rope you have. What is on it, how many places,
+                        which one is chosen and how big it is — then the charm that place
+                        is holding. It scrolls as one thing, because it is one subject.
+                    -->
                     <Border
                         x:Name="DetailPanel"
                         Padding="20,16,20,20"
                         BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
                         BorderThickness="0,0,1,0">
+                      <ScrollViewer VerticalScrollBarVisibility="Auto">
+                       <StackPanel>
+                        <!-- What is on the rope now, and how many places there are. -->
+                        <StackPanel Margin="0,0,0,16" Spacing="10">
+                            <TextBlock
+                                x:Name="CordSummary"
+                                Style="{StaticResource BodyTextBlockStyle}"
+                                Text="On the cord" />
+                            <muxc:RadioButtons
+                                x:Name="CountChoice"
+                                Header="Charms on the cord"
+                                MaxColumns="3"
+                                SelectionChanged="OnCountChanged">
+                                <x:String>1</x:String>
+                                <x:String>2</x:String>
+                                <x:String>3</x:String>
+                            </muxc:RadioButtons>
+                            <!--
+                                The places on the rope. A ListView rather than a row of
+                                buttons because reordering is a drag on macOS, and a ListView
+                                is the one WinUI control that does drag-reorder without the
+                                drop logic being written here.
+                            -->
+                            <muxc:ListView
+                                x:Name="SlotList"
+                                AllowDrop="True"
+                                AutomationProperties.Name="Charms on the cord, drag to reorder"
+                                CanDragItems="True"
+                                CanReorderItems="True"
+                                IsItemClickEnabled="True"
+                                ItemClick="OnSlotItemClicked"
+                                ReorderMode="Enabled"
+                                SelectionMode="Single">
+                                <muxc:ListView.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <muxc:ItemsStackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </muxc:ListView.ItemsPanel>
+                                <muxc:ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="local:SlotTile">
+                                        <StackPanel Width="96" Padding="4" Spacing="2">
+                                            <Image
+                                                Width="52"
+                                                Height="52"
+                                                HorizontalAlignment="Center"
+                                                Source="{x:Bind Image, Mode=OneWay}"
+                                                Stretch="Uniform" />
+                                            <TextBlock
+                                                HorizontalAlignment="Center"
+                                                MaxLines="1"
+                                                Style="{StaticResource CaptionTextBlockStyle}"
+                                                Text="{x:Bind Name, Mode=OneWay}"
+                                                TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </muxc:ListView.ItemTemplate>
+                            </muxc:ListView>
+
+                            <!--
+                                Explicit move controls beside the drag.
+
+                                macOS reorders by dragging and so does this, but a drag is the
+                                only way it offers, and a drag cannot be done from the keyboard
+                                or verified by a test. These buttons do the same thing through
+                                the same path, which is what makes reordering something this
+                                build can promise rather than hope for.
+                            -->
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button
+                                    x:Name="MoveUpButton"
+                                    AutomationProperties.AutomationId="MoveUpButton"
+                                    AutomationProperties.Name="Move this charm up the cord"
+                                    Click="OnMoveSlotUp"
+                                    Content="Move up" />
+                                <Button
+                                    x:Name="MoveDownButton"
+                                    AutomationProperties.AutomationId="MoveDownButton"
+                                    AutomationProperties.Name="Move this charm down the cord"
+                                    Click="OnMoveSlotDown"
+                                    Content="Move down" />
+                            </StackPanel>
+
+                            <!-- The chosen place's own size: a trim against the master
+                                 slider, not a second copy of it. -->
+                            <StackPanel x:Name="SlotSizePanel" Spacing="2">
+                                <TextBlock
+                                    x:Name="SlotSizeLabel"
+                                    AutomationProperties.AutomationId="SlotSizeLabel"
+                                    Style="{StaticResource CaptionTextBlockStyle}" />
+                                <Slider
+                                    x:Name="SlotSizeSlider"
+                                    Width="300"
+                                    HorizontalAlignment="Left"
+                                    AutomationProperties.AutomationId="SlotSizeSlider"
+                                    AutomationProperties.Name="Size of the chosen charm"
+                                    LargeChange="0.1"
+                                    Maximum="1.6"
+                                    Minimum="0.6"
+                                    SmallChange="0.05"
+                                    StepFrequency="0.05"
+                                    ValueChanged="OnSlotSizeChanged" />
+                            </StackPanel>
+                        </StackPanel>
+
                         <Grid>
                             <StackPanel
                                 x:Name="DetailPlaceholder"
@@ -204,9 +328,17 @@
 
                             <ScrollViewer Visibility="{x:Bind Detail.PanelVisibility, Mode=OneWay}">
                                 <StackPanel Spacing="12">
+                                    <!--
+                                        Smaller than it was. At two hundred points the
+                                        preview was the tallest thing in the sidebar and
+                                        pushed the charm's own description below the fold,
+                                        which is the wrong way round: the picture is
+                                        already on the rope and in the grid, and the words
+                                        are the only place the charm is explained.
+                                    -->
                                     <Border
-                                        Height="200"
-                                        Padding="16"
+                                        Height="132"
+                                        Padding="12"
                                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                         CornerRadius="8">
                                         <Image
@@ -279,124 +411,69 @@
                                 </StackPanel>
                             </ScrollViewer>
                         </Grid>
+                       </StackPanel>
+                      </ScrollViewer>
                     </Border>
 
                     <Grid Grid.Column="1" Margin="24,16,24,16">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Library" />
-
-                    <!-- What is on the rope now, and how many places there are. -->
-                    <StackPanel Grid.Row="1" Margin="0,12,0,12" Spacing="10">
+                    <!--
+                        Charms or ropes, as one switch. macOS puts the same two words at
+                        the top of its library and this build had no equivalent at all:
+                        ropes were on the Appearance page, two clicks away and in a
+                        different room from the thing they hang.
+                    -->
+                    <!--
+                        The switch sits beside the title rather than at the far right of
+                        the window, and that is not only taste: the charm hangs from the
+                        top right corner of the screen by default and draws over whatever
+                        is under it, so anything in that corner of this window is behind a
+                        charm some of the time.
+                    -->
+                    <Grid Margin="0,0,0,12" ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
                         <TextBlock
-                            x:Name="CordSummary"
-                            Style="{StaticResource BodyTextBlockStyle}"
-                            Text="On the cord" />
-                        <muxc:RadioButtons
-                            x:Name="CountChoice"
-                            Header="Charms on the cord"
-                            MaxColumns="3"
-                            SelectionChanged="OnCountChanged">
-                            <x:String>1</x:String>
-                            <x:String>2</x:String>
-                            <x:String>3</x:String>
-                        </muxc:RadioButtons>
-                        <!--
-                            The places on the rope. A ListView rather than a row of
-                            buttons because reordering is a drag on macOS, and a ListView
-                            is the one WinUI control that does drag-reorder without the
-                            drop logic being written here.
-                        -->
+                            VerticalAlignment="Center"
+                            Style="{StaticResource TitleTextBlockStyle}"
+                            Text="Library" />
                         <muxc:ListView
-                            x:Name="SlotList"
-                            AllowDrop="True"
-                            AutomationProperties.Name="Charms on the cord, drag to reorder"
-                            CanDragItems="True"
-                            CanReorderItems="True"
-                            IsItemClickEnabled="True"
-                            ItemClick="OnSlotItemClicked"
-                            ReorderMode="Enabled"
+                            x:Name="BrowseMode"
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            AutomationProperties.AutomationId="BrowseMode"
+                            AutomationProperties.Name="Browse charms or ropes"
+                            SelectionChanged="OnBrowseModeChanged"
                             SelectionMode="Single">
                             <muxc:ListView.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <muxc:ItemsStackPanel Orientation="Horizontal" />
                                 </ItemsPanelTemplate>
                             </muxc:ListView.ItemsPanel>
-                            <muxc:ListView.ItemTemplate>
-                                <DataTemplate x:DataType="local:SlotTile">
-                                    <StackPanel Width="96" Padding="4" Spacing="2">
-                                        <Image
-                                            Width="52"
-                                            Height="52"
-                                            HorizontalAlignment="Center"
-                                            Source="{x:Bind Image, Mode=OneWay}"
-                                            Stretch="Uniform" />
-                                        <TextBlock
-                                            HorizontalAlignment="Center"
-                                            MaxLines="1"
-                                            Style="{StaticResource CaptionTextBlockStyle}"
-                                            Text="{x:Bind Name, Mode=OneWay}"
-                                            TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                </DataTemplate>
-                            </muxc:ListView.ItemTemplate>
+                            <x:String>Charms</x:String>
+                            <x:String>Ropes</x:String>
                         </muxc:ListView>
-
-                        <!--
-                            Explicit move controls beside the drag.
-
-                            macOS reorders by dragging and so does this, but a drag is the
-                            only way it offers, and a drag cannot be done from the keyboard
-                            or verified by a test. These buttons do the same thing through
-                            the same path, which is what makes reordering something this
-                            build can promise rather than hope for.
-                        -->
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button
-                                x:Name="MoveUpButton"
-                                AutomationProperties.AutomationId="MoveUpButton"
-                                AutomationProperties.Name="Move this charm up the cord"
-                                Click="OnMoveSlotUp"
-                                Content="Move up" />
-                            <Button
-                                x:Name="MoveDownButton"
-                                AutomationProperties.AutomationId="MoveDownButton"
-                                AutomationProperties.Name="Move this charm down the cord"
-                                Click="OnMoveSlotDown"
-                                Content="Move down" />
-                        </StackPanel>
-
-                        <!-- The chosen place's own size: a trim against the master
-                             slider, not a second copy of it. -->
-                        <StackPanel x:Name="SlotSizePanel" Spacing="2">
-                            <TextBlock
-                                x:Name="SlotSizeLabel"
-                                AutomationProperties.AutomationId="SlotSizeLabel"
-                                Style="{StaticResource CaptionTextBlockStyle}" />
-                            <Slider
-                                x:Name="SlotSizeSlider"
-                                Width="300"
-                                HorizontalAlignment="Left"
-                                AutomationProperties.AutomationId="SlotSizeSlider"
-                                AutomationProperties.Name="Size of the chosen charm"
-                                LargeChange="0.1"
-                                Maximum="1.6"
-                                Minimum="0.6"
-                                SmallChange="0.05"
-                                StepFrequency="0.05"
-                                ValueChanged="OnSlotSizeChanged" />
-                        </StackPanel>
-                    </StackPanel>
+                    </Grid>
 
                     <!-- Search and the chips. A category is a filter, and a filter is one
                          click that leaves the charms where they are. -->
-                    <StackPanel Grid.Row="2" Margin="0,0,0,12" Spacing="10">
+                    <StackPanel x:Name="CharmTools" Grid.Row="1" Margin="0,0,0,10" Spacing="8">
                         <StackPanel Orientation="Horizontal" Spacing="10">
+                            <AutoSuggestBox
+                                x:Name="SearchBox"
+                                Width="300"
+                                AutomationProperties.Name="Search charms"
+                                PlaceholderText="Search charms, places, materials"
+                                QueryIcon="Find"
+                                TextChanged="OnSearchChanged" />
                             <Button
                                 x:Name="ImportButton"
                                 AutomationProperties.Name="Import a charm"
@@ -418,14 +495,6 @@
                                 TextWrapping="Wrap" />
                         </StackPanel>
 
-                        <AutoSuggestBox
-                            x:Name="SearchBox"
-                            MaxWidth="420"
-                            HorizontalAlignment="Left"
-                            AutomationProperties.Name="Search charms"
-                            PlaceholderText="Search charms, places, materials"
-                            QueryIcon="Find"
-                            TextChanged="OnSearchChanged" />
                         <ScrollViewer
                             HorizontalScrollBarVisibility="Auto"
                             HorizontalScrollMode="Auto"
@@ -434,7 +503,7 @@
                         </ScrollViewer>
                     </StackPanel>
 
-                    <Grid Grid.Row="3">
+                    <Grid Grid.Row="2">
                         <ScrollViewer x:Name="ResultsScroller">
                             <StackPanel>
                             <!-- Collections, as cards. Shown only when nothing is
@@ -470,6 +539,37 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                             </StackPanel>
+                        </ScrollViewer>
+
+                        <!--
+                            Ropes. Five of them, each a different set of solver values
+                            rather than a different picture, which is why the description
+                            talks about how it moves and not what it looks like.
+                        -->
+                        <ScrollViewer x:Name="RopesScroller" Visibility="Collapsed">
+                            <muxc:ListView
+                                x:Name="RopeList"
+                                AutomationProperties.AutomationId="RopeList"
+                                AutomationProperties.Name="Rope styles"
+                                IsItemClickEnabled="True"
+                                ItemClick="OnRopeListClicked"
+                                SelectionMode="Single">
+                                <muxc:ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="local:RopeChoiceItem">
+                                        <StackPanel Margin="0,6,0,6" Spacing="2">
+                                            <TextBlock
+                                                Style="{StaticResource BodyStrongTextBlockStyle}"
+                                                Text="{x:Bind Name, Mode=OneTime}" />
+                                            <TextBlock
+                                                MaxWidth="520"
+                                                Opacity="0.7"
+                                                Style="{StaticResource CaptionTextBlockStyle}"
+                                                Text="{x:Bind Description, Mode=OneTime}"
+                                                TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </muxc:ListView.ItemTemplate>
+                            </muxc:ListView>
                         </ScrollViewer>
 
                         <!-- Empty states. Which one depends on why there is nothing. -->

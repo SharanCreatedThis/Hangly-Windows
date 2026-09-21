@@ -133,9 +133,49 @@ public sealed partial class CustomizeWindow : Window
             scale = 1;
         }
 
-        AppWindow.Resize(new Windows.Graphics.SizeInt32(
+        var size = new Windows.Graphics.SizeInt32(
             (int)Math.Round(1120 * scale),
-            (int)Math.Round(800 * scale)));
+            (int)Math.Round(800 * scale));
+
+        AppWindow.Resize(size);
+        CentreOnDisplay(size);
+    }
+
+    /// <summary>Puts the window in the middle of the display it opened on.</summary>
+    /// <remarks>
+    /// <b>Nothing was positioning it at all.</b> The window was resized and never moved,
+    /// so it opened wherever Windows put it — which for a new top-level window is a
+    /// cascade from the top-left corner, and for a window this size on a scaled display is
+    /// most of the way off the edge. Testers described it as landing "near screen edges"
+    /// and "random", and both were fair: the placement was whatever the shell felt like,
+    /// and it moved every time.
+    ///
+    /// <para>Only on the way up. The window hides rather than closes, so from the second
+    /// time onwards it comes back exactly where it was left — which is the behaviour
+    /// somebody who moved it deliberately expects, and re-centring on every open would
+    /// throw that away.</para>
+    /// </remarks>
+    private void CentreOnDisplay(Windows.Graphics.SizeInt32 size)
+    {
+        try
+        {
+            Microsoft.UI.Windowing.DisplayArea area = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(
+                AppWindow.Id,
+                Microsoft.UI.Windowing.DisplayAreaFallback.Primary);
+
+            // The work area, not the whole display, so a taskbar does not push the window
+            // down by its own height.
+            Windows.Graphics.RectInt32 work = area.WorkArea;
+
+            AppWindow.Move(new Windows.Graphics.PointInt32(
+                work.X + Math.Max(0, (work.Width - size.Width) / 2),
+                work.Y + Math.Max(0, (work.Height - size.Height) / 2)));
+        }
+        catch (Exception exception)
+        {
+            // A window in the wrong place is still a usable window.
+            Services.Diagnostics.Failure("centring the customize window", exception);
+        }
     }
 
     /// <summary>Lets the window close for good, on the way out of the application.</summary>
@@ -456,7 +496,62 @@ public sealed partial class CustomizeWindow : Window
         foreach (RopeStyle style in RopeStyleTable.All)
         {
             RopeChoice.Items.Add(RopeStyleTable.DisplayNameOf(style));
+            RopeList.Items.Add(new RopeChoiceItem(
+                RopeStyleTable.DisplayNameOf(style),
+                RopeStyleTable.SummaryOf(style)));
         }
+
+        BrowseMode.SelectedIndex = 0;
+    }
+
+    /// <summary>
+    /// Swaps the browse area between charms and ropes.
+    /// </summary>
+    /// <remarks>
+    /// The two share the space rather than sitting side by side, because they are
+    /// alternatives: nobody is choosing a rope and a charm in the same glance. Everything
+    /// that only applies to charms — the search box, the collection chips, importing —
+    /// goes with them.
+    /// </remarks>
+    private void OnBrowseModeChanged(object sender, SelectionChangedEventArgs args)
+    {
+        bool ropes = BrowseMode.SelectedIndex == 1;
+
+        ResultsScroller.Visibility = ropes ? Visibility.Collapsed : Visibility.Visible;
+        CharmTools.Visibility = ropes ? Visibility.Collapsed : Visibility.Visible;
+        FilterChips.Visibility = ropes ? Visibility.Collapsed : Visibility.Visible;
+        RopesScroller.Visibility = ropes ? Visibility.Visible : Visibility.Collapsed;
+
+        if (ropes)
+        {
+            EmptyState.Visibility = Visibility.Collapsed;
+            RopeList.SelectedIndex = RopeStyleTable.All.ToList().IndexOf(Overlay.RopeStyle);
+        }
+        else
+        {
+            ShowResults();
+        }
+    }
+
+    /// <summary>Choosing a rope from the Library, which is the same act as choosing it
+    /// from Appearance and goes through the same one write path.</summary>
+    private void OnRopeListClicked(object sender, ItemClickEventArgs args)
+    {
+        int index = RopeList.Items.IndexOf(args.ClickedItem);
+        if (index < 0 || index >= RopeStyleTable.All.Count)
+        {
+            return;
+        }
+
+        RopeStyle style = RopeStyleTable.All[index];
+        if (style == Overlay.RopeStyle)
+        {
+            return;
+        }
+
+        store.UpdateOverlay(overlay => overlay with { RopeStyle = style });
+        analytics.Track(Events.RopeStyleChanged(style));
+        RopeList.SelectedIndex = index;
     }
 
     private void BuildAnchorChoices()
@@ -477,6 +572,10 @@ public sealed partial class CustomizeWindow : Window
 
             CountChoice.SelectedIndex = overlay.CharmIds.Count - 1;
             RopeChoice.SelectedIndex = RopeStyleTable.All.ToList().IndexOf(overlay.RopeStyle);
+            if (BrowseMode.SelectedIndex == 1)
+            {
+                RopeList.SelectedIndex = RopeChoice.SelectedIndex;
+            }
             RopeDescription.Text = RopeStyleTable.SummaryOf(overlay.RopeStyle);
             AnchorChoice.SelectedIndex = Array.IndexOf(Enum.GetValues<OverlayAnchor>(), overlay.Anchor);
 
