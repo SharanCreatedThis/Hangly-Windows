@@ -701,18 +701,48 @@ public sealed partial class CustomizeWindow : Window
 
     // --- Updates ------------------------------------------------------------------
 
-    private readonly Services.Updater updater = new(Services.AppInfo.UpdateFeedUrl);
+    private Services.Updater updater => environment.Updates;
 
     private async void OnCheckForUpdates(object sender, RoutedEventArgs args)
     {
         CheckUpdateButton.IsEnabled = false;
         UpdateMessage.Text = "Checking…";
 
-        Services.UpdateCheck result = await updater.CheckAsync();
+        ShowUpdateResult(await updater.CheckAsync());
+        CheckUpdateButton.IsEnabled = true;
+    }
 
+    /// <summary>Puts the result of a check on the About page.</summary>
+    private void ShowUpdateResult(Services.UpdateCheck result)
+    {
         UpdateMessage.Text = result.Message;
         InstallUpdateButton.Visibility = result.HasUpdate ? Visibility.Visible : Visibility.Collapsed;
-        CheckUpdateButton.IsEnabled = true;
+
+        UpdateNotes.Text = result.HasNotes ? Services.Updater.PlainNotes(result.Notes!) : string.Empty;
+        UpdateNotesPanel.Visibility = UpdateNotes.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// Opens the About page showing an update the quiet background check already found.
+    /// </summary>
+    /// <remarks>
+    /// The tray line and this page have to agree, so the result found at launch is handed
+    /// over rather than fetched again: a second check moments later could answer
+    /// differently if a release were being published at that exact moment, and the one
+    /// thing worse than no news is two versions of it.
+    /// </remarks>
+    public void ShowUpdates(Services.UpdateCheck found)
+    {
+        foreach (object item in Nav.MenuItems)
+        {
+            if (item is NavigationViewItem entry && (entry.Tag as string) == "about")
+            {
+                Nav.SelectedItem = entry;
+                break;
+            }
+        }
+
+        ShowUpdateResult(found);
     }
 
     private async void OnInstallUpdate(object sender, RoutedEventArgs args)
@@ -724,6 +754,7 @@ public sealed partial class CustomizeWindow : Window
         // fails, the installed copy is untouched and the message says so.
         UpdateMessage.Text = await updater.DownloadAndApplyAsync();
         InstallUpdateButton.IsEnabled = true;
+        UpdateNotesPanel.Visibility = Visibility.Collapsed;
     }
 
     // --- Create -------------------------------------------------------------------

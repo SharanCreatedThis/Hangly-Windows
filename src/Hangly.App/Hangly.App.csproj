@@ -56,8 +56,18 @@
          is one place they are written and the window cannot disagree with the binary. -->
     <Product>Hangly</Product>
     <Company>sharancreatedthis</Company>
-    <Version>2.0.0</Version>
-    <FileVersion>2.0.0.0</FileVersion>
+    <!--
+      One version, set here and overridden by the release build with -p:Version=. The
+      file version is deliberately NOT stated separately: MSBuild derives it from this,
+      so a 0.9.0 package reports 0.9.0 rather than whatever was last typed here. It used
+      to say 2.0.0.0 unconditionally, which made every package's properties disagree with
+      the release it came from.
+
+      0.9.0 rather than the macOS build's 2.0.0: this is the first Windows release, and a
+      development build that claims a version that was never released is a build whose
+      About page cannot be trusted in a bug report.
+    -->
+    <Version>0.9.0</Version>
     <Copyright>Copyright © 2026 sharancreatedthis</Copyright>
 
     <!--

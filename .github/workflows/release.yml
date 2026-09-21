@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '9.0.x'
 
@@ -48,6 +48,12 @@ jobs:
             exit 1
           }
           "version=$version" >> $env:GITHUB_OUTPUT
+
+      # Fails here rather than after a twenty-minute build if the release was never
+      # written up. The same file reaches the package and the release page.
+      - name: Read the release notes
+        shell: pwsh
+        run: ./tools/release-notes.ps1 -Version ${{ steps.version.outputs.version }} -OutFile notes.md
 
       - name: Publish
         shell: pwsh
@@ -72,7 +78,8 @@ jobs:
             --packVersion ${{ steps.version.outputs.version }} `
             --packDir publish --mainExe Hangly.exe `
             --packTitle Hangly --packAuthors sharancreatedthis `
-            --outputDir releases --runtime ${{ matrix.rid }} --channel ${{ matrix.rid }}
+            --outputDir releases --runtime ${{ matrix.rid }} --channel ${{ matrix.rid }} `
+            --releaseNotes notes.md
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
       - name: Check the feed names its own channel
@@ -85,7 +92,7 @@ jobs:
           }
           Get-Content $feed -Raw | Write-Host
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: hangly-${{ matrix.rid }}
           path: releases/
@@ -96,7 +103,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+
+      # The release page says exactly what the app will show on its About page, because
+      # both come out of the same section of CHANGELOG.md.
+      - name: Read the release notes
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}' -replace '^v', ''
+          ./tools/release-notes.ps1 -Version $version -OutFile notes.md
+
+          # Only the download page needs this. Someone reading the same notes on the
+          # About page has already installed the thing and been warned once.
+          Add-Content notes.md @'
+
+---
+
+**This build is not code-signed.** SmartScreen will warn the first time you run it.
+Docs/DISTRIBUTION.md explains why, and what changes once SignPath Foundation has signed
+a release.
+'@
+
+      - uses: actions/download-artifact@v7
         with:
           path: staged
 
@@ -107,10 +135,4 @@ jobs:
         with:
           files: staged/**/*
           draft: true
-          generate_release_notes: true
-          body: |
-            Hangly for Windows ${{ github.ref_name }}.
-
-            **This build is not code-signed.** SmartScreen will warn the first time you
-            run it. Docs/DISTRIBUTION.md explains why, and what changes once SignPath
-            Foundation has signed a release.
+          body_path: notes.md

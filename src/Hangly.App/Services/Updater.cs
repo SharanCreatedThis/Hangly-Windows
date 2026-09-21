@@ -13,9 +13,12 @@ namespace Hangly.App.Services;
 /// <summary>What a check found.</summary>
 /// <param name="Version">The version available, or null when there is none.</param>
 /// <param name="Message">What to tell the person.</param>
-public readonly record struct UpdateCheck(string? Version, string Message)
+public readonly record struct UpdateCheck(string? Version, string Message, string? Notes = null)
 {
     public bool HasUpdate => Version is not null;
+
+    /// <summary>Whether there is anything to read about this release.</summary>
+    public bool HasNotes => !string.IsNullOrWhiteSpace(Notes);
 }
 
 /// <summary>Finds updates, fetches them, and hands over to Velopack to apply.</summary>
@@ -55,6 +58,25 @@ public sealed class Updater
 
     public Updater(string feedUrl) => this.feedUrl = feedUrl;
 
+    /// <summary>The manager this build asks, pointed at its own channel.</summary>
+    /// <remarks>
+    /// <b>A GitHub source, not a plain web one.</b> Handing the repository URL to
+    /// <see cref="UpdateManager"/> as a string makes a <c>SimpleWebSource</c>, which would
+    /// fetch <c>https://github.com/owner/repo/releases.win-arm64.json</c> — a page that
+    /// does not exist. Release assets live under a tag, so finding them means asking the
+    /// Releases API, which is what <see cref="GithubSource"/> does. The distinction costs
+    /// nothing to get right here and is invisible until the day a release is published
+    /// and nobody is offered it.
+    ///
+    /// <para>No access token: unauthenticated requests are enough for a public repository,
+    /// and a token in a shipped binary is a token that has been given away. Pre-releases
+    /// are excluded, so a draft or a beta tag never reaches someone who asked for
+    /// stable.</para>
+    /// </remarks>
+    private UpdateManager Manager() => new(
+        new GithubSource(feedUrl, accessToken: null, prerelease: false),
+        new UpdateOptions { ExplicitChannel = Channel });
+
     /// <summary>Whether this copy can update itself at all.</summary>
     /// <remarks>
     /// False for a copy that was unzipped rather than installed, and for every run from
@@ -81,7 +103,7 @@ public sealed class Updater
     {
         try
         {
-            var manager = new UpdateManager(feedUrl, new UpdateOptions { ExplicitChannel = Channel });
+            UpdateManager manager = Manager();
             if (!manager.IsInstalled)
             {
                 return new UpdateCheck(null, "Updates apply to installed copies only.");
@@ -94,7 +116,11 @@ public sealed class Updater
             }
 
             string version = pending.TargetFullRelease.Version.ToString();
-            return new UpdateCheck(version, $"Hangly {version} is available.");
+
+            // Whatever the release was packaged with, if anything. A release with no
+            // notes is ordinary rather than an error, and shows the version alone.
+            string? notes = pending.TargetFullRelease.NotesMarkdown;
+            return new UpdateCheck(version, $"Hangly {version} is available.", notes);
         }
         catch (Exception exception)
         {
@@ -102,6 +128,14 @@ public sealed class Updater
             return new UpdateCheck(null, "Couldn't check for updates just now.");
         }
     }
+
+    /// <summary>Release notes as plain text, ready for a text box.</summary>
+    /// <remarks>
+    /// The work is <see cref="Hangly.Core.Text.ReleaseNotes"/>'s, where it can be tested;
+    /// this is here so the About page has one place to call and does not have to know
+    /// that notes arrive as Markdown.
+    /// </remarks>
+    public static string PlainNotes(string markdown) => Hangly.Core.Text.ReleaseNotes.Plain(markdown);
 
     /// <summary>
     /// Downloads what the last check found and applies it, which ends this process.
@@ -120,7 +154,7 @@ public sealed class Updater
 
         try
         {
-            var manager = new UpdateManager(feedUrl, new UpdateOptions { ExplicitChannel = Channel });
+            UpdateManager manager = Manager();
             await manager.DownloadUpdatesAsync(pending).ConfigureAwait(false);
 
             Diagnostics.Log($"applying update {pending.TargetFullRelease.Version}");

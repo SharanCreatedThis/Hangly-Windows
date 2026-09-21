@@ -747,6 +747,27 @@
                                 Opacity="0.8"
                                 Style="{StaticResource CaptionTextBlockStyle}"
                                 TextWrapping="Wrap" />
+                            <!-- What changed, straight from the release. It appears only
+                                 when there is an update and the release said something,
+                                 because an empty "What's new" box reads as a broken one. -->
+                            <Border
+                                x:Name="UpdateNotesPanel"
+                                Padding="12"
+                                Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                MaxWidth="560"
+                                HorizontalAlignment="Left"
+                                Visibility="Collapsed">
+                                <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
+                                    <TextBlock
+                                        x:Name="UpdateNotes"
+                                        AutomationProperties.AutomationId="UpdateNotes"
+                                        Style="{StaticResource CaptionTextBlockStyle}"
+                                        TextWrapping="Wrap" />
+                                </ScrollViewer>
+                            </Border>
                         </StackPanel>
 
                         <!-- Milestones. The macOS model AppMilestones carries exactly

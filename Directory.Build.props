@@ -7,6 +7,8 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <Authors>SharanCreatedThis</Authors>
     <Product>Hangly</Product>
-    <Version>2.0.0</Version>
+    <!-- The floor for everything in the solution. The app overrides it, and the release
+         build overrides that with the tag. -->
+    <Version>0.9.0</Version>
   </PropertyGroup>
 </Project>

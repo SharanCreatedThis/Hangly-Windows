@@ -107,6 +107,67 @@ public sealed class AppEnvironment : IDisposable
     /// After the overlay, not before it: the card describes a charm hanging from the top
     /// of the screen, and it should be describing one that is already there.
     /// </remarks>
+    /// <summary>The version found by the quiet check, if it found one.</summary>
+    private UpdateCheck? availableUpdate;
+
+    /// <summary>
+    /// The one updater, shared by the quiet check and the About page.
+    /// </summary>
+    /// <remarks>
+    /// Shared rather than made where it is needed, because an <see cref="Updater"/>
+    /// remembers what its own check found and can only install that. Two instances would
+    /// mean the tray offering an update the About page's Install button knew nothing
+    /// about.
+    /// </remarks>
+    public Updater Updates { get; } = new(AppInfo.UpdateFeedUrl);
+
+    /// <summary>
+    /// Looks for an update in the background, once, a little after launch.
+    /// </summary>
+    /// <remarks>
+    /// <b>Quiet by design.</b> Nothing pops up, nothing steals focus and nothing blocks:
+    /// the result is one line at the top of the tray menu, where someone will find it
+    /// when they are already looking at the menu, and the About page says the same thing
+    /// in more detail. An ornament that interrupts you to talk about itself has missed
+    /// the point of being an ornament.
+    ///
+    /// <para>Delayed rather than immediate, because launch is the one moment the app is
+    /// already doing everything at once, and a check that finds nothing is worth nothing
+    /// to hurry. Every failure is silent — <see cref="Updater"/> never throws — so a
+    /// machine with no network simply never hears back.</para>
+    /// </remarks>
+    private void CheckForUpdateQuietly()
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(UpdateCheckDelaySeconds)).ConfigureAwait(false);
+
+                UpdateCheck result = await Updates.CheckAsync().ConfigureAwait(false);
+                if (!result.HasUpdate)
+                {
+                    Diagnostics.Log($"update check: {result.Message}");
+                    return;
+                }
+
+                availableUpdate = result;
+                Diagnostics.Log($"update available: {result.Version}");
+
+                // Nothing has to be told. The tray rebuilds its menu from scratch every
+                // time it is opened, so the new line is simply there the next time
+                // someone looks.
+            }
+            catch (Exception exception)
+            {
+                Diagnostics.Log($"quiet update check failed: {exception.GetType().Name}");
+            }
+        });
+    }
+
+    /// <summary>How long after launch the quiet check runs.</summary>
+    private const int UpdateCheckDelaySeconds = 20;
+
     public void ShowWelcomeIfNeeded()
     {
         if (!Onboarding.WelcomeWindow.IsNeeded(store.Settings))
@@ -192,6 +253,9 @@ public sealed class AppEnvironment : IDisposable
         {
             Diagnostics.Log("overlay disabled in settings; tray only");
         }
+
+        // Last, and on its own thread, so nothing above waits on a network call.
+        CheckForUpdateQuietly();
     }
 
     /// <summary>Reports charms coming and going, and the count changing.</summary>
@@ -494,6 +558,16 @@ public sealed class AppEnvironment : IDisposable
         }
     }
 
+    /// <summary>Opens Customize on the About page, showing the update that was found.</summary>
+    private void OpenUpdates()
+    {
+        OpenCustomize();
+        if (availableUpdate is { } found)
+        {
+            customize?.ShowUpdates(found);
+        }
+    }
+
     private void HideOverlay()
     {
         // Torn down completely rather than hidden, so a disabled overlay costs nothing
@@ -575,8 +649,19 @@ public sealed class AppEnvironment : IDisposable
                 IsChecked: settings.Overlay.Anchor == anchor))
             .ToList();
 
+        // An update that has been found gets one line at the top, and only then. A menu
+        // item that is always there saying "no updates" is a menu item nobody reads.
+        List<MenuEntry> update = availableUpdate is { HasUpdate: true } newer
+            ?
+            [
+                new MenuEntry($"Update to {newer.Version}…", OpenUpdates),
+                MenuEntry.Separator,
+            ]
+            : [];
+
         return
         [
+            .. update,
             new MenuEntry(
                 settings.Overlay.IsEnabled ? "Hide Charm" : "Show Charm",
                 () => store.UpdateOverlay(overlay => overlay with { IsEnabled = !overlay.IsEnabled })),
