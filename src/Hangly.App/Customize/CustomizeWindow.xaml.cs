@@ -405,6 +405,15 @@ public sealed partial class CustomizeWindow : Window
     /// <summary>Which nothing this is, because they are not the same nothing.</summary>
     private void ShowEmptyState(bool isEmpty)
     {
+        // Ropes are showing, so neither of these is. Without this guard every settings
+        // change drew the charm results underneath the rope list; see ApplyBrowseMode.
+        if (IsShowingRopes)
+        {
+            EmptyState.Visibility = Visibility.Collapsed;
+            ResultsScroller.Visibility = Visibility.Collapsed;
+            return;
+        }
+
         EmptyState.Visibility = isEmpty ? Visibility.Visible : Visibility.Collapsed;
         ResultsScroller.Visibility = isEmpty ? Visibility.Collapsed : Visibility.Visible;
         if (!isEmpty)
@@ -495,7 +504,6 @@ public sealed partial class CustomizeWindow : Window
     {
         foreach (RopeStyle style in RopeStyleTable.All)
         {
-            RopeChoice.Items.Add(RopeStyleTable.DisplayNameOf(style));
             RopeList.Items.Add(new RopeChoiceItem(
                 RopeStyleTable.DisplayNameOf(style),
                 RopeStyleTable.SummaryOf(style)));
@@ -513,24 +521,43 @@ public sealed partial class CustomizeWindow : Window
     /// that only applies to charms — the search box, the collection chips, importing —
     /// goes with them.
     /// </remarks>
-    private void OnBrowseModeChanged(object sender, SelectionChangedEventArgs args)
-    {
-        bool ropes = BrowseMode.SelectedIndex == 1;
+    private void OnBrowseModeChanged(object sender, SelectionChangedEventArgs args) => ApplyBrowseMode();
 
-        ResultsScroller.Visibility = ropes ? Visibility.Collapsed : Visibility.Visible;
+    /// <summary>Whether the browse area is showing ropes rather than charms.</summary>
+    private bool IsShowingRopes => BrowseMode.SelectedIndex == 1;
+
+    /// <summary>
+    /// The one place that decides what the browse area is showing.
+    /// </summary>
+    /// <remarks>
+    /// <b>There were two, and they disagreed.</b> Switching to Ropes collapsed the charm
+    /// results here, and <see cref="ShowEmptyState"/> set them visible again — and that
+    /// runs on every settings change, because the store raises and this window reloads. So
+    /// switching to Ropes and then changing the number of charms on the cord put both
+    /// views in the same grid cell at once, with rope names drawn through collection
+    /// cards. Reported as "the tabs overlap", and it was.
+    ///
+    /// <para>Visibility is a function of the mode now, and the mode is asked rather than
+    /// remembered. <see cref="ShowEmptyState"/> only chooses between the results and the
+    /// empty state, and only while charms are the thing being shown.</para>
+    /// </remarks>
+    private void ApplyBrowseMode()
+    {
+        bool ropes = IsShowingRopes;
+
         CharmTools.Visibility = ropes ? Visibility.Collapsed : Visibility.Visible;
         FilterChips.Visibility = ropes ? Visibility.Collapsed : Visibility.Visible;
         RopesScroller.Visibility = ropes ? Visibility.Visible : Visibility.Collapsed;
 
         if (ropes)
         {
+            ResultsScroller.Visibility = Visibility.Collapsed;
             EmptyState.Visibility = Visibility.Collapsed;
             RopeList.SelectedIndex = RopeStyleTable.All.ToList().IndexOf(Overlay.RopeStyle);
+            return;
         }
-        else
-        {
-            ShowResults();
-        }
+
+        ShowResults();
     }
 
     /// <summary>Choosing a rope from the Library, which is the same act as choosing it
@@ -571,18 +598,15 @@ public sealed partial class CustomizeWindow : Window
             OverlaySettings overlay = Overlay;
 
             CountChoice.SelectedIndex = overlay.CharmIds.Count - 1;
-            RopeChoice.SelectedIndex = RopeStyleTable.All.ToList().IndexOf(overlay.RopeStyle);
-            if (BrowseMode.SelectedIndex == 1)
+            if (IsShowingRopes)
             {
-                RopeList.SelectedIndex = RopeChoice.SelectedIndex;
+                RopeList.SelectedIndex = RopeStyleTable.All.ToList().IndexOf(overlay.RopeStyle);
             }
-            RopeDescription.Text = RopeStyleTable.SummaryOf(overlay.RopeStyle);
             AnchorChoice.SelectedIndex = Array.IndexOf(Enum.GetValues<OverlayAnchor>(), overlay.Anchor);
 
             SizeSlider.Value = overlay.CharmSize;
             LengthSlider.Value = overlay.RopeLength;
             OpacitySlider.Value = overlay.Opacity;
-            DisplayNameBox.Text = store.Settings.DisplayName;
             UpdateSliderLabels();
 
             ShowToggle.IsOn = overlay.IsEnabled;
@@ -1227,42 +1251,6 @@ public sealed partial class CustomizeWindow : Window
         // this used to get wrong by duplicating the bottom charm on the way up.
         int wanted = CountChoice.SelectedIndex + 1;
         store.UpdateOverlay(overlay => overlay.WithStack(overlay.Stack.WithCount(wanted)));
-    }
-
-    /// <summary>
-    /// Keeps the name the person gave, letting them correct it.
-    /// </summary>
-    /// <remarks>
-    /// An empty box is not written. Onboarding refuses to finish without a name and this
-    /// is the same name, so clearing it here would leave the app in a state only the
-    /// welcome card is supposed to be able to produce.
-    /// </remarks>
-    private void OnDisplayNameChanged(object sender, TextChangedEventArgs args)
-    {
-        if (isLoading)
-        {
-            return;
-        }
-
-        string chosen = DisplayNameBox.Text.Trim();
-        if (chosen.Length == 0)
-        {
-            return;
-        }
-
-        store.Update(settings => settings with { DisplayName = chosen });
-    }
-
-    private void OnRopeChanged(object sender, SelectionChangedEventArgs args)
-    {
-        if (isLoading || RopeChoice.SelectedIndex < 0)
-        {
-            return;
-        }
-
-        RopeStyle style = RopeStyleTable.All[RopeChoice.SelectedIndex];
-        RopeDescription.Text = RopeStyleTable.SummaryOf(style);
-        store.UpdateOverlay(overlay => overlay with { RopeStyle = style });
     }
 
     private void OnAnchorChanged(object sender, SelectionChangedEventArgs args)

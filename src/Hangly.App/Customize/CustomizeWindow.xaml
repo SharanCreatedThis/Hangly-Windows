@@ -131,12 +131,13 @@
             </DataTemplate>
         </Grid.Resources>
 
+        <!-- The pane is 300 rather than 200: it carries the charm's story now. -->
         <muxc:NavigationView
             x:Name="Nav"
             IsBackButtonVisible="Collapsed"
             IsPaneToggleButtonVisible="False"
             IsSettingsVisible="False"
-            OpenPaneLength="200"
+            OpenPaneLength="300"
             PaneDisplayMode="Left"
             SelectionChanged="OnSectionChanged">
 
@@ -163,169 +164,40 @@
                 </muxc:NavigationViewItem>
             </muxc:NavigationView.MenuItems>
 
-            <Grid>
-                <!-- Library -->
-                <!--
-                    Browsing is the point of this page, so browsing gets the room.
+            <!--
+                The charm you are reading about, under the four page names.
 
-                    It did not, and testers said so: the detail panel held a fixed column
-                    whether or not anything was selected, and above the charms sat the
-                    title, the cord summary, the one-two-three picker, the places on the
-                    rope and a size slider — about three hundred and eighty points of
-                    controls between the window's top edge and the first charm, on an
-                    eight-hundred-point window. Three rows of charms were visible where
-                    there was room for six.
-
-                    Everything about *the rope you have* now lives in the sidebar, which
-                    was mostly empty, and everything about *charms you might want* has the
-                    rest. The names are unchanged, so the code behind this did not move.
-                -->
-                <Grid x:Name="CharmsPage" Margin="0,0,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="278" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <!--
-                        The detail panel. It follows the selection and never drives it:
-                        macOS documents the rule as "the detail pane, which always shows
-                        the selection", so picking a charm changes the rope and this
-                        reports what changed rather than offering a second way to do it.
-                    -->
-                    <!--
-                        The sidebar: the rope you have. What is on it, how many places,
-                        which one is chosen and how big it is — then the charm that place
-                        is holding. It scrolls as one thing, because it is one subject.
-                    -->
-                    <Border
-                        x:Name="DetailPanel"
-                        Padding="20,16,20,20"
-                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                        BorderThickness="0,0,1,0">
-                      <ScrollViewer VerticalScrollBarVisibility="Auto">
-                       <StackPanel>
-                        <!-- What is on the rope now, and how many places there are. -->
-                        <StackPanel Margin="0,0,0,16" Spacing="10">
+                It used to hold a column of the Library to itself, whether or not anything
+                was selected, and it scrolled inside a page that already scrolled. Here it
+                has the tall empty block beneath the navigation that nothing was using, it
+                updates as you pick charms, and it is the same panel on every page rather
+                than something the Library owns.
+            -->
+            <muxc:NavigationView.PaneFooter>
+                <Border
+                    x:Name="DetailPanel"
+                    Padding="16,12,16,16"
+                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                    BorderThickness="0,1,0,0">
+                    <Grid>
+                        <StackPanel
+                            x:Name="DetailPlaceholder"
+                            Margin="0,16,0,16"
+                            Spacing="6"
+                            Visibility="{x:Bind Detail.PlaceholderVisibility, Mode=OneWay}">
                             <TextBlock
-                                x:Name="CordSummary"
+                                HorizontalAlignment="Center"
+                                Opacity="0.5"
                                 Style="{StaticResource BodyTextBlockStyle}"
-                                Text="On the cord" />
-                            <muxc:RadioButtons
-                                x:Name="CountChoice"
-                                Header="Charms on the cord"
-                                MaxColumns="3"
-                                SelectionChanged="OnCountChanged">
-                                <x:String>1</x:String>
-                                <x:String>2</x:String>
-                                <x:String>3</x:String>
-                            </muxc:RadioButtons>
-                            <!--
-                                The places on the rope. A ListView rather than a row of
-                                buttons because reordering is a drag on macOS, and a ListView
-                                is the one WinUI control that does drag-reorder without the
-                                drop logic being written here.
-                            -->
-                            <muxc:ListView
-                                x:Name="SlotList"
-                                AllowDrop="True"
-                                AutomationProperties.Name="Charms on the cord, drag to reorder"
-                                CanDragItems="True"
-                                CanReorderItems="True"
-                                IsItemClickEnabled="True"
-                                ItemClick="OnSlotItemClicked"
-                                ReorderMode="Enabled"
-                                SelectionMode="Single">
-                                <muxc:ListView.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <muxc:ItemsStackPanel Orientation="Horizontal" />
-                                    </ItemsPanelTemplate>
-                                </muxc:ListView.ItemsPanel>
-                                <muxc:ListView.ItemTemplate>
-                                    <DataTemplate x:DataType="local:SlotTile">
-                                        <StackPanel Width="96" Padding="4" Spacing="2">
-                                            <Image
-                                                Width="52"
-                                                Height="52"
-                                                HorizontalAlignment="Center"
-                                                Source="{x:Bind Image, Mode=OneWay}"
-                                                Stretch="Uniform" />
-                                            <TextBlock
-                                                HorizontalAlignment="Center"
-                                                MaxLines="1"
-                                                Style="{StaticResource CaptionTextBlockStyle}"
-                                                Text="{x:Bind Name, Mode=OneWay}"
-                                                TextTrimming="CharacterEllipsis" />
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </muxc:ListView.ItemTemplate>
-                            </muxc:ListView>
-
-                            <!--
-                                Explicit move controls beside the drag.
-
-                                macOS reorders by dragging and so does this, but a drag is the
-                                only way it offers, and a drag cannot be done from the keyboard
-                                or verified by a test. These buttons do the same thing through
-                                the same path, which is what makes reordering something this
-                                build can promise rather than hope for.
-                            -->
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button
-                                    x:Name="MoveUpButton"
-                                    AutomationProperties.AutomationId="MoveUpButton"
-                                    AutomationProperties.Name="Move this charm up the cord"
-                                    Click="OnMoveSlotUp"
-                                    Content="Move up" />
-                                <Button
-                                    x:Name="MoveDownButton"
-                                    AutomationProperties.AutomationId="MoveDownButton"
-                                    AutomationProperties.Name="Move this charm down the cord"
-                                    Click="OnMoveSlotDown"
-                                    Content="Move down" />
-                            </StackPanel>
-
-                            <!-- The chosen place's own size: a trim against the master
-                                 slider, not a second copy of it. -->
-                            <StackPanel x:Name="SlotSizePanel" Spacing="2">
-                                <TextBlock
-                                    x:Name="SlotSizeLabel"
-                                    AutomationProperties.AutomationId="SlotSizeLabel"
-                                    Style="{StaticResource CaptionTextBlockStyle}" />
-                                <Slider
-                                    x:Name="SlotSizeSlider"
-                                    Width="300"
-                                    HorizontalAlignment="Left"
-                                    AutomationProperties.AutomationId="SlotSizeSlider"
-                                    AutomationProperties.Name="Size of the chosen charm"
-                                    LargeChange="0.1"
-                                    Maximum="1.6"
-                                    Minimum="0.6"
-                                    SmallChange="0.05"
-                                    StepFrequency="0.05"
-                                    ValueChanged="OnSlotSizeChanged" />
-                            </StackPanel>
+                                Text="Pick a charm"
+                                TextAlignment="Center" />
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                Opacity="0.4"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="Its story shows up here."
+                                TextAlignment="Center" />
                         </StackPanel>
-
-                        <Grid>
-                            <StackPanel
-                                x:Name="DetailPlaceholder"
-                                VerticalAlignment="Center"
-                                Spacing="6"
-                                Visibility="{x:Bind Detail.PlaceholderVisibility, Mode=OneWay}">
-                                <TextBlock
-                                    HorizontalAlignment="Center"
-                                    Opacity="0.5"
-                                    Style="{StaticResource BodyTextBlockStyle}"
-                                    Text="Pick a charm"
-                                    TextAlignment="Center" />
-                                <TextBlock
-                                    HorizontalAlignment="Center"
-                                    Opacity="0.4"
-                                    Style="{StaticResource CaptionTextBlockStyle}"
-                                    Text="Its story shows up here."
-                                    TextAlignment="Center" />
-                            </StackPanel>
-
                             <ScrollViewer Visibility="{x:Bind Detail.PanelVisibility, Mode=OneWay}">
                                 <StackPanel Spacing="12">
                                     <!--
@@ -418,8 +290,174 @@
                                     </Button>
                                 </StackPanel>
                             </ScrollViewer>
-                        </Grid>
-                       </StackPanel>
+                    </Grid>
+                </Border>
+            </muxc:NavigationView.PaneFooter>
+
+            <Grid>
+                <!-- Library -->
+                <!--
+                    Browsing is the point of this page, so browsing gets the room.
+
+                    It did not, and testers said so: the detail panel held a fixed column
+                    whether or not anything was selected, and above the charms sat the
+                    title, the cord summary, the one-two-three picker, the places on the
+                    rope and a size slider — about three hundred and eighty points of
+                    controls between the window's top edge and the first charm, on an
+                    eight-hundred-point window. Three rows of charms were visible where
+                    there was room for six.
+
+                    Everything about *the rope you have* now lives in the sidebar, which
+                    was mostly empty, and everything about *charms you might want* has the
+                    rest. The names are unchanged, so the code behind this did not move.
+                -->
+                <Grid x:Name="CharmsPage" Margin="0,0,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="278" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!--
+                        The detail panel. It follows the selection and never drives it:
+                        macOS documents the rule as "the detail pane, which always shows
+                        the selection", so picking a charm changes the rope and this
+                        reports what changed rather than offering a second way to do it.
+                    -->
+                    <!--
+                        What is on the cord: how many places, which one is chosen, and how
+                        big it is. The charm's own story is not here any more — it is in
+                        the navigation pane, where there was a tall empty block under the
+                        four page names and nothing using it.
+                    -->
+                    <Border
+                        Padding="20,16,20,20"
+                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                        BorderThickness="0,0,1,0">
+                      <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <!-- What is on the rope now, and how many places there are. -->
+                        <StackPanel Margin="0,0,0,16" Spacing="10">
+                            <TextBlock
+                                x:Name="CordSummary"
+                                Style="{StaticResource BodyTextBlockStyle}"
+                                Text="On the cord" />
+                            <muxc:RadioButtons
+                                x:Name="CountChoice"
+                                Header="Charms on the cord"
+                                MaxColumns="3"
+                                SelectionChanged="OnCountChanged">
+                                <x:String>1</x:String>
+                                <x:String>2</x:String>
+                                <x:String>3</x:String>
+                            </muxc:RadioButtons>
+                            <!--
+                                The places on the rope. A ListView rather than a row of
+                                buttons because reordering is a drag on macOS, and a ListView
+                                is the one WinUI control that does drag-reorder without the
+                                drop logic being written here.
+                            -->
+                            <muxc:ListView
+                                x:Name="SlotList"
+                                Padding="0"
+                                ScrollViewer.HorizontalScrollMode="Disabled"
+                                ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                ScrollViewer.VerticalScrollMode="Disabled"
+                                ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                                AllowDrop="True"
+                                AutomationProperties.Name="Charms on the cord, drag to reorder"
+                                CanDragItems="True"
+                                CanReorderItems="True"
+                                IsItemClickEnabled="True"
+                                ItemClick="OnSlotItemClicked"
+                                ReorderMode="Enabled"
+                                SelectionMode="Single">
+                                <!--
+                                    Down the column, not across it.
+
+                                    Three places laid out horizontally at 96 points each
+                                    need 288 plus padding, and the column they sit in is
+                                    about 275 — so the third was cut off the right-hand
+                                    edge with no way to reach it. Reported as "the third
+                                    charm is hidden", and it was.
+
+                                    A vertical list cannot run out of width. Three places
+                                    fit at any window size and any scaling, the order
+                                    reads the way the cord does — top of the list is top
+                                    of the rope — and a name has room to be read rather
+                                    than trimmed to "Nazar bonc…".
+                                -->
+                                <muxc:ListView.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <muxc:ItemsStackPanel Orientation="Vertical" />
+                                    </ItemsPanelTemplate>
+                                </muxc:ListView.ItemsPanel>
+                                <muxc:ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="local:SlotTile">
+                                        <StackPanel
+                                            Orientation="Horizontal"
+                                            Padding="2"
+                                            Spacing="10">
+                                            <Image
+                                                Width="40"
+                                                Height="40"
+                                                VerticalAlignment="Center"
+                                                Source="{x:Bind Image, Mode=OneWay}"
+                                                Stretch="Uniform" />
+                                            <TextBlock
+                                                VerticalAlignment="Center"
+                                                MaxLines="1"
+                                                Style="{StaticResource BodyTextBlockStyle}"
+                                                Text="{x:Bind Name, Mode=OneWay}"
+                                                TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </muxc:ListView.ItemTemplate>
+                            </muxc:ListView>
+
+                            <!--
+                                Explicit move controls beside the drag.
+
+                                macOS reorders by dragging and so does this, but a drag is the
+                                only way it offers, and a drag cannot be done from the keyboard
+                                or verified by a test. These buttons do the same thing through
+                                the same path, which is what makes reordering something this
+                                build can promise rather than hope for.
+                            -->
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button
+                                    x:Name="MoveUpButton"
+                                    AutomationProperties.AutomationId="MoveUpButton"
+                                    AutomationProperties.Name="Move this charm up the cord"
+                                    Click="OnMoveSlotUp"
+                                    Content="Move up" />
+                                <Button
+                                    x:Name="MoveDownButton"
+                                    AutomationProperties.AutomationId="MoveDownButton"
+                                    AutomationProperties.Name="Move this charm down the cord"
+                                    Click="OnMoveSlotDown"
+                                    Content="Move down" />
+                            </StackPanel>
+
+                            <!-- The chosen place's own size: a trim against the master
+                                 slider, not a second copy of it. -->
+                            <StackPanel x:Name="SlotSizePanel" Spacing="2">
+                                <TextBlock
+                                    x:Name="SlotSizeLabel"
+                                    AutomationProperties.AutomationId="SlotSizeLabel"
+                                    Style="{StaticResource CaptionTextBlockStyle}" />
+                                <Slider
+                                    x:Name="SlotSizeSlider"
+                                    Width="300"
+                                    HorizontalAlignment="Left"
+                                    AutomationProperties.AutomationId="SlotSizeSlider"
+                                    AutomationProperties.Name="Size of the chosen charm"
+                                    LargeChange="0.1"
+                                    Maximum="1.6"
+                                    Minimum="0.6"
+                                    SmallChange="0.05"
+                                    StepFrequency="0.05"
+                                    ValueChanged="OnSlotSizeChanged" />
+                            </StackPanel>
+                        </StackPanel>
                       </ScrollViewer>
                     </Border>
 
@@ -689,37 +727,6 @@
                         <!-- The name given at onboarding, changeable here. A name
                              someone is asked for once and can never correct is a name
                              they will resent. -->
-                        <StackPanel Spacing="6">
-                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Your name" />
-                            <TextBox
-                                x:Name="DisplayNameBox"
-                                MaxWidth="320"
-                                HorizontalAlignment="Left"
-                                AutomationProperties.AutomationId="DisplayNameBox"
-                                AutomationProperties.Name="Your name"
-                                MaxLength="40"
-                                TextChanged="OnDisplayNameChanged" />
-                            <TextBlock
-                                MaxWidth="480"
-                                Opacity="0.7"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="Sent with usage data while that is switched on. Hangly never reads your Windows or Microsoft account name."
-                                TextWrapping="Wrap" />
-                        </StackPanel>
-
-                        <StackPanel Spacing="6">
-                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Cord" />
-                            <ComboBox
-                                x:Name="RopeChoice"
-                                MinWidth="260"
-                                SelectionChanged="OnRopeChanged" />
-                            <TextBlock
-                                x:Name="RopeDescription"
-                                Opacity="0.7"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                TextWrapping="Wrap" />
-                        </StackPanel>
-
                         <StackPanel Spacing="6">
                             <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Size and reach" />
                             <TextBlock x:Name="SizeLabel" Text="Charm size" />
