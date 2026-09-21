@@ -8,8 +8,8 @@ the settle of a real one. That is the whole app.
 
 <img src="Docs/media/charm-on-desktop.png" alt="Three charms hanging on a gold chain over a Windows desktop" width="380">
 
-A port of [Hangly for macOS](https://github.com/sharancreatedthis/Hangly), written in C#
-on WinUI 3, .NET 9 and Win2D. Windows 10 and 11, x64 and ARM64.
+A port of [Hangly for macOS](https://www.sharancreatedthis.in/products/hangly), written
+in C# on WinUI 3, .NET 9 and Win2D. Windows 10 and 11, x64 and ARM64.
 
 > **Hangly for Windows is in public beta.** It works, it is tested, and it is not signed
 > yet — so Windows will warn you the first time you run it. [What to
@@ -94,6 +94,16 @@ multi-monitor desk, every x64 machine, Windows 10. **A report from one of those 
 most useful thing anybody can send.** [CONTRIBUTING.md](CONTRIBUTING.md) has the rest;
 security issues go by email, per [SECURITY.md](SECURITY.md).
 
+## Code signing
+
+Code signing for Hangly for Windows is provided by **[SignPath Foundation](https://signpath.org/)**,
+who sign releases for open-source projects at no cost.
+
+**Builds before v1.0 are not yet signed** — the application to the Foundation is in
+progress — so Windows currently shows *"Windows protected your PC"* on first run. Once
+signing is in place the warning will name the publisher instead, and this section will say
+so without the caveat.
+
 ## Privacy
 
 Hangly asks for no permissions and has no server and no accounts.
@@ -143,11 +153,11 @@ Dependencies point inward. `Hangly.Core` knows nothing about WinUI, Win2D or Win
 is what lets "the rope never stretches beyond 1.02× its rest length" be a number in a test
 rather than an opinion about a screenshot.
 
-The original's
-[physics documentation](https://github.com/sharancreatedthis/Hangly/blob/main/Docs/Physics.md)
-describes the solver, and this port follows it to the number — the test suite here is the
-Swift suite's assertions with the same tolerances, so any drift shows up as a failing test
-rather than as a rope that feels slightly wrong.
+The macOS original's physics documentation describes the solver, and this port follows it
+to the number — the test suite here is the Swift suite's assertions with the same
+tolerances, so any drift shows up as a failing test rather than as a rope that feels
+slightly wrong. The parts of that original needed to check the port against are in
+`reference/swift/`, read-only; `NOTICE.md` explains what they are.
 
 ## Licence
 

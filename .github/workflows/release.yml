@@ -123,8 +123,11 @@ jobs:
           Add-Content notes.md ''
           Add-Content notes.md '---'
           Add-Content notes.md ''
-          Add-Content notes.md '**This build is not code-signed.** SmartScreen will warn the first time you run it.'
-          Add-Content notes.md 'Docs/DISTRIBUTION.md explains why, and what changes once SignPath Foundation has signed a release.'
+          Add-Content notes.md '**Code signing for this project is provided by [SignPath Foundation](https://signpath.org/).**'
+          Add-Content notes.md ''
+          Add-Content notes.md 'This build is **not signed yet** -- the application is in progress -- so Windows will show'
+          Add-Content notes.md '"Windows protected your PC" the first time you run it. Click **More info**, then **Run anyway**.'
+          Add-Content notes.md 'Docs/DISTRIBUTION.md explains why, and what changes once the Foundation has signed a release.'
 
       - uses: actions/download-artifact@v7
         with:
