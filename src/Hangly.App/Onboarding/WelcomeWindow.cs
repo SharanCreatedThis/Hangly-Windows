@@ -204,7 +204,14 @@ public sealed class WelcomeWindow : Window
             Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
         });
 
-        var explore = new Button { Content = "Explore Library" };
+        // Explore Library is the accented one, and it is on the right where the primary
+        // action goes. The first build had it the other way round, which encouraged
+        // somebody who had just installed a charm catalogue to skip looking at it.
+        var explore = new Button
+        {
+            Content = "Explore Library",
+            Style = (Style)Application.Current.Resources["AccentButtonStyle"],
+        };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(explore, "WelcomeExplore");
         explore.Click += (_, _) =>
         {
@@ -213,11 +220,7 @@ public sealed class WelcomeWindow : Window
             ProcessLifetime.Dismiss(this);
         };
 
-        var begin = new Button
-        {
-            Content = "Start Using Hangly",
-            Style = (Style)Application.Current.Resources["AccentButtonStyle"],
-        };
+        var begin = new Button { Content = "Start Using Hangly" };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(begin, "WelcomeBegin");
         begin.Click += (_, _) =>
         {
@@ -232,8 +235,8 @@ public sealed class WelcomeWindow : Window
             Spacing = 8,
             Margin = new Thickness(0, 16, 0, 0),
         };
-        buttons.Children.Add(explore);
         buttons.Children.Add(begin);
+        buttons.Children.Add(explore);
         panel.Children.Add(buttons);
 
         return panel;

@@ -252,3 +252,56 @@ public class SettingsStoreTests : IDisposable
         Assert.Equal(["hamsa", "daruma"], new SettingsStore(Path_).Settings.Overlay.CharmIds);
     }
 }
+
+/// <summary>
+/// Where the charm hangs, and what happens to a document written before it was a number.
+/// </summary>
+public class OverlayPositionTests
+{
+    [Theory(DisplayName = "An old anchor becomes the position it meant")]
+    [InlineData("TopLeading", 0.0)]
+    [InlineData("TopCenter", 0.5)]
+    [InlineData("TopTrailing", 1.0)]
+    public void AnchorsMigrate(string anchor, double expected)
+    {
+        AppSettings settings = AppSettings.FromJson(
+            $"{{\"overlay\":{{\"anchor\":\"{anchor}\"}}}}",
+            out bool recovered);
+
+        Assert.False(recovered);
+        Assert.Equal(expected, settings.Overlay.Position);
+
+        // The anchor is still there, so a file taken back to an older build still works.
+        Assert.Equal(anchor, settings.Overlay.Anchor.ToString());
+    }
+
+    [Fact(DisplayName = "A stored position wins over the anchor it replaced")]
+    public void StoredPositionWins()
+    {
+        AppSettings settings = AppSettings.FromJson(
+            """{"overlay":{"anchor":"TopLeading","horizontalPosition":0.82}}""",
+            out _);
+
+        Assert.Equal(0.82, settings.Overlay.Position);
+    }
+
+    [Fact(DisplayName = "A position out of range is brought back, not discarded")]
+    public void PositionIsClamped()
+    {
+        OverlaySettings low = new OverlaySettings { HorizontalPosition = -3 }.Clamped();
+        OverlaySettings high = new OverlaySettings { HorizontalPosition = 9 }.Clamped();
+
+        Assert.Equal(0, low.Position);
+        Assert.Equal(1, high.Position);
+    }
+
+    [Fact(DisplayName = "A document with neither still hangs where the default says")]
+    public void DefaultIsTheDefaultAnchor()
+    {
+        AppSettings settings = AppSettings.FromJson("{}", out _);
+
+        // Top right, which is what a new install gets.
+        Assert.Equal(1.0, settings.Overlay.Position);
+        Assert.Null(settings.Overlay.HorizontalPosition);
+    }
+}

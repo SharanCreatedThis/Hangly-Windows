@@ -36,6 +36,31 @@ public sealed record OverlaySettings
     /// </summary>
     public OverlayAnchor Anchor { get; init; } = OverlayAnchor.TopTrailing;
 
+    /// <summary>
+    /// Where along the top edge the rope hangs: 0 is hard left, 1 is hard right.
+    /// </summary>
+    /// <remarks>
+    /// <b>This replaces the three corners, and does not delete them.</b> A person choosing
+    /// between Top Left, Top Center and Top Right was choosing between three of the
+    /// thousands of places a charm can hang, and the two they did not pick were rarely the
+    /// one they wanted.
+    ///
+    /// <para><b>Null means "not chosen yet", which is how an older settings file is
+    /// recognised.</b> <see cref="Position"/> falls back to whatever
+    /// <see cref="Anchor"/> said, so a document written before this existed opens with the
+    /// charm exactly where it was and gains a number on the next write. The anchor is
+    /// still written, so a file moved back to an older build still works.</para>
+    /// </remarks>
+    public double? HorizontalPosition { get; init; }
+
+    /// <summary>Where the rope hangs, as a fraction, whichever way it was recorded.</summary>
+    public double Position => HorizontalPosition ?? Anchor switch
+    {
+        OverlayAnchor.TopLeading => 0,
+        OverlayAnchor.TopTrailing => 1,
+        _ => 0.5,
+    };
+
     /// <summary>User nudge from the anchor, in points.</summary>
     public double OffsetX { get; init; }
 
@@ -109,6 +134,7 @@ public sealed record OverlaySettings
         && CharmSize.Equals(other.CharmSize)
         && RopeLength.Equals(other.RopeLength)
         && Anchor == other.Anchor
+        && HorizontalPosition.Equals(other.HorizontalPosition)
         && OffsetX.Equals(other.OffsetX)
         && OffsetY.Equals(other.OffsetY)
         && RopeStyle == other.RopeStyle
@@ -125,6 +151,7 @@ public sealed record OverlaySettings
         hash.Add(CharmSize);
         hash.Add(RopeLength);
         hash.Add(Anchor);
+        hash.Add(HorizontalPosition);
         hash.Add(OffsetX);
         hash.Add(OffsetY);
         hash.Add(RopeStyle);
@@ -156,6 +183,7 @@ public sealed record OverlaySettings
         OffsetX = Math.Clamp(OffsetX, -4000, 4000),
         OffsetY = Math.Clamp(OffsetY, -2000, 2000),
         DisplayIndex = Math.Max(0, DisplayIndex),
+        HorizontalPosition = HorizontalPosition is double at ? Math.Clamp(at, 0, 1) : null,
         CharmIds = ClampedCharmIds(),
         Slots = [.. Slots.Take(CharmStack.MaximumCount).Select(place => place.Clamped())],
         CharmCount = Slots.Count > 0 ? Math.Clamp(CharmCount, 1, CharmStack.MaximumCount) : 0,

@@ -18,26 +18,56 @@ namespace Hangly.Core.Models;
 public static class ScreenPlacement
 {
     /// <param name="size">Desired overlay size in points.</param>
-    /// <param name="anchor">Which corner or edge to hang from.</param>
+    /// <param name="position">
+    /// Where along the top edge the rope hangs: 0 hard left, 0.5 centred, 1 hard right.
+    /// </param>
     /// <param name="bounds">
     /// The display region to place within, in virtual-desktop coordinates. This should be
     /// the monitor's <em>work area</em>, so the overlay hangs below a top-docked taskbar
     /// rather than behind it.
     /// </param>
     /// <param name="offset">User nudge. <c>x</c> positive moves right, <c>y</c> positive moves down.</param>
-    /// <param name="edgeInset">
-    /// Margin kept between the overlay and the left/right display edges, for a leading- or
-    /// trailing-anchored overlay.
-    /// </param>
+    /// <param name="edgeInset">Margin kept at the display edges.</param>
     /// <param name="topInset">
-    /// Margin kept above the overlay, at the top of <paramref name="bounds"/>. Separate
-    /// from <paramref name="edgeInset"/> because the rope hangs from the top on every
-    /// anchor, so this is what decides how close it comes to the display's own edge;
-    /// <paramref name="edgeInset"/> only ever matters for the sides. Null means "use
-    /// <paramref name="edgeInset"/>", so a caller that does not care still gets one
-    /// uniform margin.
+    /// Margin kept above the overlay. Null means "use <paramref name="edgeInset"/>".
     /// </param>
     /// <returns>A frame in virtual-desktop coordinates.</returns>
+    /// <remarks>
+    /// <b>A fraction rather than a corner.</b> Top Left, Top Center and Top Right were
+    /// three of the thousands of places a charm can hang, and the two somebody did not
+    /// pick were rarely the one they wanted.
+    ///
+    /// <para>The fraction places the <em>rope</em>, not the window. The window is mostly
+    /// empty — a wide transparent canvas with a cord down the middle — so placing its left
+    /// edge would put the charm half a window away from where the number says. At 0 the
+    /// cord sits against the left edge of the display and half the canvas hangs off it,
+    /// which is what "hard left" has to mean for a thing drawn in the middle of its own
+    /// window.</para>
+    /// </remarks>
+    public static Rect Frame(
+        Size size,
+        double position,
+        Rect bounds,
+        Vec2 offset = default,
+        double edgeInset = 0,
+        double? topInset = null)
+    {
+        double along = bounds.Left + (bounds.Width * Math.Clamp(position, 0, 1));
+        double originX = along - (size.Width / 2);
+
+        var placed = new Rect(
+            originX + offset.X,
+            bounds.Top + (topInset ?? edgeInset) + offset.Y,
+            size.Width,
+            size.Height);
+
+        return ClampAnchorPoint(placed, bounds);
+    }
+
+    /// <summary>
+    /// The old three-corner placement, kept so a settings file written before positions
+    /// existed still opens with the charm where it was.
+    /// </summary>
     public static Rect Frame(
         Size size,
         OverlayAnchor anchor,

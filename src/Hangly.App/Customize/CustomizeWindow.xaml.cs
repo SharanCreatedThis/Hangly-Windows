@@ -139,6 +139,29 @@ public sealed partial class CustomizeWindow : Window
 
         AppWindow.Resize(size);
         CentreOnDisplay(size);
+        FixTheSize();
+    }
+
+    /// <summary>Takes away resizing and maximising, and leaves everything else.</summary>
+    /// <remarks>
+    /// <b>The layout is designed for one size.</b> Everything on every page is arranged to
+    /// fit the default window without scrolling, and a window that can be dragged to any
+    /// shape is a window where that is true at one shape and false at the rest. Letting
+    /// somebody make it four hundred points wide and then meeting a clipped control is
+    /// worse than not letting them.
+    ///
+    /// <para>Moving, minimising and closing all still work — only the two that change the
+    /// shape are gone.</para>
+    /// </remarks>
+    private void FixTheSize()
+    {
+        if (AppWindow.Presenter is not Microsoft.UI.Windowing.OverlappedPresenter presenter)
+        {
+            return;
+        }
+
+        presenter.IsResizable = false;
+        presenter.IsMaximizable = false;
     }
 
     /// <summary>Puts the window in the middle of the display it opened on.</summary>
@@ -583,10 +606,7 @@ public sealed partial class CustomizeWindow : Window
 
     private void BuildAnchorChoices()
     {
-        foreach (OverlayAnchor anchor in Enum.GetValues<OverlayAnchor>())
-        {
-            AnchorChoice.Items.Add(OverlayAnchorTable.DisplayNameOf(anchor));
-        }
+        // Nothing to build: where the charm hangs is a slider now.
     }
 
     /// <summary>Puts every control where the stored settings say it should be.</summary>
@@ -602,7 +622,8 @@ public sealed partial class CustomizeWindow : Window
             {
                 RopeList.SelectedIndex = RopeStyleTable.All.ToList().IndexOf(overlay.RopeStyle);
             }
-            AnchorChoice.SelectedIndex = Array.IndexOf(Enum.GetValues<OverlayAnchor>(), overlay.Anchor);
+            PositionSlider.Value = Math.Round(overlay.Position * 100);
+            ShowPositionLabel();
 
             SizeSlider.Value = overlay.CharmSize;
             LengthSlider.Value = overlay.RopeLength;
@@ -1253,16 +1274,33 @@ public sealed partial class CustomizeWindow : Window
         store.UpdateOverlay(overlay => overlay.WithStack(overlay.Stack.WithCount(wanted)));
     }
 
-    private void OnAnchorChanged(object sender, SelectionChangedEventArgs args)
+    /// <summary>Moves the charm along the top of the display, live.</summary>
+    /// <remarks>
+    /// Written straight through on every step, like every other control here, because the
+    /// charm is on screen behind this window and watching it move is the point of dragging
+    /// the slider.
+    /// </remarks>
+    private void OnPositionChanged(object sender, RangeBaseValueChangedEventArgs args)
     {
-        if (isLoading || AnchorChoice.SelectedIndex < 0)
+        ShowPositionLabel();
+
+        if (isLoading)
         {
             return;
         }
 
-        OverlayAnchor anchor = Enum.GetValues<OverlayAnchor>()[AnchorChoice.SelectedIndex];
-        store.UpdateOverlay(overlay => overlay with { Anchor = anchor });
+        double at = Math.Clamp(args.NewValue / 100, 0, 1);
+        if (Math.Abs(Overlay.Position - at) < 0.0005)
+        {
+            return;
+        }
+
+        store.UpdateOverlay(overlay => overlay with { HorizontalPosition = at });
+        analytics.Track(Events.AppearanceChanged("position"));
     }
+
+    private void ShowPositionLabel() =>
+        PositionLabel.Text = $"Horizontal position \u2014 {(int)Math.Round(PositionSlider.Value)}%";
 
     private void OnSizeChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs args)
     {

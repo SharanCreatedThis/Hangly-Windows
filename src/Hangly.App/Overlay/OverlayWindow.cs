@@ -383,7 +383,7 @@ public sealed class OverlayWindow : IDisposable
 
         frame = ScreenPlacement.Frame(
             pixels,
-            settings.Anchor,
+            settings.Position,
             display.WorkArea,
             new Vec2(settings.OffsetX * scale, settings.OffsetY * scale),
             edgeInset: OverlayMetrics.EdgeInset * scale,
