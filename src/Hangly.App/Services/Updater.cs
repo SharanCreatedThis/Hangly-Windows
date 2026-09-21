@@ -1,0 +1,136 @@
+//
+//  Updater.cs
+//  Hangly
+//
+//  Checking whether there is a newer Hangly, and becoming it.
+//
+
+using Velopack;
+using Velopack.Sources;
+
+namespace Hangly.App.Services;
+
+/// <summary>What a check found.</summary>
+/// <param name="Version">The version available, or null when there is none.</param>
+/// <param name="Message">What to tell the person.</param>
+public readonly record struct UpdateCheck(string? Version, string Message)
+{
+    public bool HasUpdate => Version is not null;
+}
+
+/// <summary>Finds updates, fetches them, and hands over to Velopack to apply.</summary>
+/// <remarks>
+/// <b>What this is not.</b> It does not move files, replace the executable or restart
+/// anything itself. Velopack's own hook — run before everything else in
+/// <see cref="Program"/> — does all of that in a separate process launch. This only asks
+/// what exists, downloads it, and says "now".
+///
+/// <para><b>One channel per architecture.</b> An ARM64 machine must never be offered an
+/// x64 package, and a channel is a single line of releases, so the channel name carries
+/// the runtime identifier. The feed for this build is therefore
+/// <c>releases.win-arm64.json</c> or <c>releases.win-x64.json</c>, chosen here rather
+/// than by whatever the server happens to serve.</para>
+///
+/// <para><b>Nothing is sent.</b> A check is a GET for a static file. There is no server
+/// component and no identifier — the same promise the macOS build's appcast makes, and
+/// the reason PRIVACY.md can say an update check carries nothing.</para>
+///
+/// <para><b>Every failure is quiet.</b> A machine with no network, a feed that has not
+/// been published yet, and a release that will not parse are all the same answer: there
+/// is no update today. None of them is worth interrupting someone over, and none of them
+/// may take the app down — an update is the one feature whose failure must never cost
+/// you the thing you already have.</para>
+/// </remarks>
+public sealed class Updater
+{
+    /// <summary>The channel this build belongs to: one per architecture.</summary>
+    public static string Channel =>
+        System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture
+            == System.Runtime.InteropServices.Architecture.Arm64
+            ? "win-arm64"
+            : "win-x64";
+
+    private readonly string feedUrl;
+    private UpdateInfo? pending;
+
+    public Updater(string feedUrl) => this.feedUrl = feedUrl;
+
+    /// <summary>Whether this copy can update itself at all.</summary>
+    /// <remarks>
+    /// False for a copy that was unzipped rather than installed, and for every run from
+    /// a build directory. Velopack has nothing to replace in those cases, and offering
+    /// an update that cannot be applied is worse than offering none.
+    /// </remarks>
+    public static bool IsInstalled
+    {
+        get
+        {
+            try
+            {
+                return new UpdateManager(new GithubSource("https://github.com", null, false)).IsInstalled;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+    }
+
+    /// <summary>Asks the feed what exists. Never throws.</summary>
+    public async Task<UpdateCheck> CheckAsync()
+    {
+        try
+        {
+            var manager = new UpdateManager(feedUrl, new UpdateOptions { ExplicitChannel = Channel });
+            if (!manager.IsInstalled)
+            {
+                return new UpdateCheck(null, "Updates apply to installed copies only.");
+            }
+
+            pending = await manager.CheckForUpdatesAsync().ConfigureAwait(false);
+            if (pending is null)
+            {
+                return new UpdateCheck(null, "Hangly is up to date.");
+            }
+
+            string version = pending.TargetFullRelease.Version.ToString();
+            return new UpdateCheck(version, $"Hangly {version} is available.");
+        }
+        catch (Exception exception)
+        {
+            Diagnostics.Log($"update check failed: {exception.GetType().Name}");
+            return new UpdateCheck(null, "Couldn't check for updates just now.");
+        }
+    }
+
+    /// <summary>
+    /// Downloads what the last check found and applies it, which ends this process.
+    /// </summary>
+    /// <remarks>
+    /// The restart is Velopack's: it relaunches the app after the files are in place.
+    /// Anything that fails before that point leaves the installed copy exactly as it was,
+    /// because nothing is replaced until the whole package has arrived.
+    /// </remarks>
+    public async Task<string> DownloadAndApplyAsync()
+    {
+        if (pending is null)
+        {
+            return "There's nothing to install.";
+        }
+
+        try
+        {
+            var manager = new UpdateManager(feedUrl, new UpdateOptions { ExplicitChannel = Channel });
+            await manager.DownloadUpdatesAsync(pending).ConfigureAwait(false);
+
+            Diagnostics.Log($"applying update {pending.TargetFullRelease.Version}");
+            manager.ApplyUpdatesAndRestart(pending);
+            return "Restarting…";
+        }
+        catch (Exception exception)
+        {
+            Diagnostics.Failure("applying an update", exception);
+            return "That update couldn't be installed. Your copy is unchanged.";
+        }
+    }
+}

@@ -699,6 +699,33 @@ public sealed partial class CustomizeWindow : Window
         }
     }
 
+    // --- Updates ------------------------------------------------------------------
+
+    private readonly Services.Updater updater = new(Services.AppInfo.UpdateFeedUrl);
+
+    private async void OnCheckForUpdates(object sender, RoutedEventArgs args)
+    {
+        CheckUpdateButton.IsEnabled = false;
+        UpdateMessage.Text = "Checking…";
+
+        Services.UpdateCheck result = await updater.CheckAsync();
+
+        UpdateMessage.Text = result.Message;
+        InstallUpdateButton.Visibility = result.HasUpdate ? Visibility.Visible : Visibility.Collapsed;
+        CheckUpdateButton.IsEnabled = true;
+    }
+
+    private async void OnInstallUpdate(object sender, RoutedEventArgs args)
+    {
+        InstallUpdateButton.IsEnabled = false;
+        UpdateMessage.Text = "Downloading…";
+
+        // If this succeeds the process is replaced and nothing after it runs. If it
+        // fails, the installed copy is untouched and the message says so.
+        UpdateMessage.Text = await updater.DownloadAndApplyAsync();
+        InstallUpdateButton.IsEnabled = true;
+    }
+
     // --- Create -------------------------------------------------------------------
 
     /// <summary>The picture chosen on the Create page, before it becomes a charm.</summary>

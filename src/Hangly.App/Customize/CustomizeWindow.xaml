@@ -722,6 +722,33 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Updates. A check is a GET for a static file, so this says
+                             what it found and nothing about who asked. -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Updates" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button
+                                    x:Name="CheckUpdateButton"
+                                    AutomationProperties.AutomationId="CheckUpdateButton"
+                                    Click="OnCheckForUpdates"
+                                    Content="Check for updates" />
+                                <Button
+                                    x:Name="InstallUpdateButton"
+                                    AutomationProperties.AutomationId="InstallUpdateButton"
+                                    Click="OnInstallUpdate"
+                                    Content="Install and restart"
+                                    Style="{StaticResource AccentButtonStyle}"
+                                    Visibility="Collapsed" />
+                            </StackPanel>
+                            <TextBlock
+                                x:Name="UpdateMessage"
+                                AutomationProperties.AutomationId="UpdateMessage"
+                                MaxWidth="560"
+                                Opacity="0.8"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+
                         <!-- Milestones. The macOS model AppMilestones carries exactly
                              charms, launches and secretsFound; swings is the one counter
                              named only by the statistics label. -->

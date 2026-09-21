@@ -52,6 +52,15 @@ public static class AppInfo
 
     public static string GitHubUrl => "https://github.com/SharanCreatedThis/Hangly-Windows";
 
+    /// <summary>Where the update feed lives.</summary>
+    /// <remarks>
+    /// GitHub Releases, which is where the artefacts already go, and which serves them as
+    /// plain static files over HTTPS — so an update check stays a GET with nothing
+    /// attached to it, exactly as DISTRIBUTION.md promises. The per-architecture channel
+    /// is chosen by the updater, not named here.
+    /// </remarks>
+    public static string UpdateFeedUrl => GitHubUrl;
+
     public static string ReleaseNotesUrl =>
         "https://github.com/SharanCreatedThis/Hangly-Windows/releases";
 

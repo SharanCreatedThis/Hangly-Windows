@@ -1,0 +1,116 @@
+# Builds, packages and publishes a release.
+#
+# Runs only on a tag, because a release is a deliberate act: pushing to main should never
+# produce one. The tag is the version — v0.9.0 packages 0.9.0 — so there is one place a
+# version is decided and it is the same place the release is named.
+#
+# Nothing here signs anything. SignPath will not sign a project that has not released yet,
+# so the first release is unsigned by construction; Docs/DISTRIBUTION.md §3 has the
+# reasoning and what changes afterwards.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Package (${{ matrix.rid }})
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-arm64
+            platform: ARM64
+          - rid: win-x64
+            platform: x64
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Read the version from the tag
+        id: version
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}' -replace '^v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            Write-Host "::error::'${{ github.ref_name }}' is not vMAJOR.MINOR.PATCH"
+            exit 1
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Publish
+        shell: pwsh
+        run: |
+          dotnet publish src/Hangly.App/Hangly.App.csproj `
+            -c Release -r ${{ matrix.rid }} -p:Platform=${{ matrix.platform }} `
+            -p:Version=${{ steps.version.outputs.version }} `
+            -p:HanglyAnalyticsKey=${{ secrets.HANGLY_ANALYTICS_KEY }} `
+            -o publish
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Install vpk
+        run: dotnet tool install --global vpk --version 1.2.0
+
+      # The channel is passed explicitly and is the runtime identifier. vpk defaults to
+      # "win", which would put ARM64 and x64 on one line of releases and offer an ARM64
+      # machine an x64 package. One channel per architecture; see DISTRIBUTION.md.
+      - name: Package
+        shell: pwsh
+        run: |
+          vpk pack --packId Hangly `
+            --packVersion ${{ steps.version.outputs.version }} `
+            --packDir publish --mainExe Hangly.exe `
+            --packTitle Hangly --packAuthors sharancreatedthis `
+            --outputDir releases --runtime ${{ matrix.rid }} --channel ${{ matrix.rid }}
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Check the feed names its own channel
+        shell: pwsh
+        run: |
+          $feed = "releases/releases.${{ matrix.rid }}.json"
+          if (-not (Test-Path $feed)) {
+            Write-Host "::error::$feed was not produced; the channel was not applied"
+            exit 1
+          }
+          Get-Content $feed -Raw | Write-Host
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hangly-${{ matrix.rid }}
+          path: releases/
+
+  publish:
+    name: Publish to GitHub Releases
+    needs: package
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: staged
+
+      # Both architectures land in one release, side by side. Their feeds are named for
+      # their channels, so an installed copy asks for its own and never sees the other.
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          files: staged/**/*
+          draft: true
+          generate_release_notes: true
+          body: |
+            Hangly for Windows ${{ github.ref_name }}.
+
+            **This build is not code-signed.** SmartScreen will warn the first time you
+            run it. Docs/DISTRIBUTION.md explains why, and what changes once SignPath
+            Foundation has signed a release.
