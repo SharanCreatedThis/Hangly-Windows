@@ -246,7 +246,11 @@ public sealed class CharmArtworkCache : IDisposable
     private const double ShadowOffsetRatio = 0.041;
 
     /// <summary>Peak darkening under the charm.</summary>
-    private const double ShadowOpacity = 0.326;
+    /// <remarks>
+    /// Raised from 0.326 after reading the two builds side by side: macOS is darker where
+    /// the shadow meets the artwork and carries further before it reaches the ground.
+    /// </remarks>
+    private const double ShadowOpacity = 0.38;
 
     /// <summary>
     /// Measures how a charm's artwork divides into beads and body, once per charm.

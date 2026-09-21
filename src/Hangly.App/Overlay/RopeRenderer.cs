@@ -9,6 +9,7 @@ using Hangly.Core.Geometry;
 using Hangly.Core.Models;
 using Hangly.Core.Physics;
 using Microsoft.Graphics.Canvas;
+using Microsoft.Graphics.Canvas.Brushes;
 using Microsoft.Graphics.Canvas.Geometry;
 using Windows.UI;
 
@@ -59,7 +60,12 @@ public sealed class RopeRenderer
         double charmRadius = snapshot.Charms.Count > 0 ? snapshot.Charms[^1].Radius : 10;
         double width = RopeStyleAppearanceTable.WidthFor(style, charmRadius);
 
-        DrawCord(session, snapshot, appearance, width, charmRadius);
+        // One piece of cord per gap the charms leave, so a charm's own loop is where the
+        // cord ends rather than something the cord is drawn through.
+        foreach (List<Vec2> run in VisibleRuns(snapshot.Points, snapshot.Charms))
+        {
+            DrawCord(session, run, appearance, width, charmRadius);
+        }
         DrawBeads(session, snapshot, appearance);
         DrawCharms(session, snapshot);
     }
@@ -71,12 +77,12 @@ public sealed class RopeRenderer
     /// </summary>
     private static void DrawCord(
         CanvasDrawingSession session,
-        RopeSnapshot snapshot,
+        IReadOnlyList<Vec2> run,
         RopeAppearance appearance,
         double width,
         double charmRadius)
     {
-        using CanvasPathBuilder builder = BuildSpline(session, snapshot.Points);
+        using CanvasPathBuilder builder = BuildSpline(session, run);
         using var path = CanvasGeometry.CreatePath(builder);
 
         // The glow first and underneath: three progressively wider, fainter strokes. No
@@ -364,6 +370,144 @@ public sealed class RopeRenderer
         return builder;
     }
 
+    /// <summary>
+    /// The cord broken into the pieces that are actually visible.
+    /// </summary>
+    /// <remarks>
+    /// <b>A charm's knot is where the cord ends, not something it passes through.</b>
+    /// Each charm hides the cord within its knot circle — <c>radius × knotInset</c>, which
+    /// `CharmStackLayout` names as "the circle the cord disappears behind" and measures
+    /// from the artwork's own loop. Drawing one continuous line and painting the charms
+    /// over it looks the same only while the artwork is solid: a loop is a ring, and the
+    /// cord was visible through the hole in it, running down past the clamp to the
+    /// charm's centre. macOS ends the cord at the top of the loop, and so does this.
+    ///
+    /// <para>Cut in point space rather than by the arc lengths the snapshot already
+    /// carries, because what has to be hidden is a circle on the canvas, and the arc
+    /// where the cord crosses that circle is exactly what this solves for. Each segment
+    /// is clipped against every charm's circle and what is left over is kept.</para>
+    ///
+    /// <para>Twenty segments against three circles, once a frame. The lists are the only
+    /// allocation and they are small; the alternative — one path and a clipping layer per
+    /// charm — is an off-screen pass per charm per frame.</para>
+    /// </remarks>
+    private static List<List<Vec2>> VisibleRuns(
+        IReadOnlyList<Vec2> points,
+        IReadOnlyList<CharmPlacement> charms)
+    {
+        var runs = new List<List<Vec2>>();
+        var current = new List<Vec2>();
+        var hidden = new List<(double Start, double End)>();
+
+        for (int index = 0; index < points.Count - 1; index++)
+        {
+            Vec2 from = points[index];
+            Vec2 to = points[index + 1];
+
+            hidden.Clear();
+            foreach (CharmPlacement charm in charms)
+            {
+                if (Crossing(from, to, charm.Center, charm.Radius * charm.KnotInset) is { } span)
+                {
+                    hidden.Add(span);
+                }
+            }
+
+            hidden.Sort((left, right) => left.Start.CompareTo(right.Start));
+
+            // Walk the segment, emitting what is not covered and breaking the run
+            // wherever something is.
+            double at = 0;
+            foreach ((double start, double end) in hidden)
+            {
+                if (end <= at)
+                {
+                    continue;
+                }
+
+                if (start > at)
+                {
+                    current.Add(Lerp(from, to, at));
+                    current.Add(Lerp(from, to, start));
+                    Finish(runs, ref current);
+                }
+                else if (current.Count > 0)
+                {
+                    Finish(runs, ref current);
+                }
+
+                at = end;
+            }
+
+            if (at < 1)
+            {
+                current.Add(Lerp(from, to, at));
+            }
+            else
+            {
+                Finish(runs, ref current);
+            }
+        }
+
+        if (points.Count > 0 && current.Count > 0)
+        {
+            current.Add(points[^1]);
+        }
+
+        Finish(runs, ref current);
+        return runs;
+    }
+
+    /// <summary>Closes off the run being built, keeping it only if it is worth stroking.</summary>
+    private static void Finish(List<List<Vec2>> runs, ref List<Vec2> current)
+    {
+        if (current.Count >= 2)
+        {
+            runs.Add(current);
+            current = [];
+            return;
+        }
+
+        current.Clear();
+    }
+
+    /// <summary>
+    /// Where a segment is inside a circle, as a pair of fractions along it, or null.
+    /// </summary>
+    private static (double Start, double End)? Crossing(Vec2 from, Vec2 to, Vec2 center, double radius)
+    {
+        if (radius <= 0)
+        {
+            return null;
+        }
+
+        Vec2 along = to - from;
+        Vec2 offset = from - center;
+
+        double a = (along.X * along.X) + (along.Y * along.Y);
+        if (a <= Precision.UlpOfOne)
+        {
+            return null;
+        }
+
+        double b = 2 * ((offset.X * along.X) + (offset.Y * along.Y));
+        double c = (offset.X * offset.X) + (offset.Y * offset.Y) - (radius * radius);
+
+        double discriminant = (b * b) - (4 * a * c);
+        if (discriminant <= 0)
+        {
+            return null;
+        }
+
+        double root = Math.Sqrt(discriminant);
+        double first = Math.Max(0, (-b - root) / (2 * a));
+        double second = Math.Min(1, (-b + root) / (2 * a));
+
+        return second <= first ? null : (first, second);
+    }
+
+    private static Vec2 Lerp(Vec2 from, Vec2 to, double at) => from + ((to - from) * at);
+
     /// <summary>The beads on the cord, drawn from the artwork they were measured in.</summary>
     /// <remarks>
     /// Each bead is a region of its charm's own SVG. The splitter already measured those
@@ -437,6 +581,18 @@ public sealed class RopeRenderer
 
     private void DrawCharms(CanvasDrawingSession session, RopeSnapshot snapshot)
     {
+        // Every glow first, then every charm. Interleaved, the second charm's glow would
+        // be painted over the first charm's artwork — a glow reaches 1.7 radii and three
+        // charms on one cord are closer together than that — and a charm seen through its
+        // neighbour's colour is not what any of this is for.
+        for (int index = 0; index < snapshot.Charms.Count; index++)
+        {
+            DrawAmbientGlow(
+                session,
+                index < Charms.Count ? Charms[index] : null,
+                snapshot.Charms[index]);
+        }
+
         for (int index = 0; index < snapshot.Charms.Count; index++)
         {
             CharmPlacement placement = snapshot.Charms[index];
@@ -455,6 +611,120 @@ public sealed class RopeRenderer
             artwork.Draw(session, descriptor, placement);
         }
     }
+
+    /// <summary>The charm's own colour, spilling onto what is behind it.</summary>
+    /// <remarks>
+    /// <b>A radial gradient, which is the whole difference.</b> There was a filled disc
+    /// here once, at 1.7 radii and six per cent, and it was removed because a hard-edged
+    /// circle behind every charm is visible in every screenshot and is in none of macOS.
+    /// Removing it was half right: macOS has no disc, but it does have this — "the
+    /// ambient glow is a radial gradient" — and with the disc gone the Windows charm sat
+    /// on the desktop with nothing around it but its drop shadow.
+    ///
+    /// <para><b>Measured, against the two builds side by side on the same white window at
+    /// the same size.</b> Reading outward from the edge of the shield, macOS runs 209,
+    /// 227, 242, 251, 255 over about sixty-five points and is warm the whole way — its
+    /// green and blue are five to nine darker than its red, which is the charm's own red
+    /// laid over white. Windows ran 217, 236, 248, 254, 255 over thirty-three and was
+    /// neutral grey at every step: a drop shadow and nothing else.</para>
+    ///
+    /// <para>The colour is the charm's <c>Primary</c> rather than its <c>Light</c>,
+    /// because on white a glow can only show as a tint and <c>Light</c> is very nearly
+    /// white for most of the catalogue. Drawn under the charm and under its shadow, so
+    /// neither is tinted by it.</para>
+    /// </remarks>
+    private void DrawAmbientGlow(
+        CanvasDrawingSession session,
+        CharmDescriptor? descriptor,
+        CharmPlacement placement)
+    {
+        if (descriptor is null || placement.Radius <= 0)
+        {
+            return;
+        }
+
+        CanvasRadialGradientBrush brush = GlowFor(session, descriptor);
+        var reach = (float)(placement.Radius * RopeConfiguration.Layout.CharmHaloExtent);
+
+        brush.Center = ToVector(placement.Center);
+        brush.RadiusX = reach;
+        brush.RadiusY = reach;
+
+        session.FillCircle(ToVector(placement.Center), reach, brush);
+    }
+
+    /// <summary>The glow brush for one charm, made once and kept.</summary>
+    /// <remarks>
+    /// Cached because a gradient brush is a device resource and building three of them
+    /// sixty times a second is exactly the per-frame cost this renderer is written to
+    /// avoid. Keyed by the charm rather than by its colour, because the rope carries at
+    /// most three and a charm is what changes.
+    ///
+    /// <para>The device is held alongside them so a lost device is noticed: the brushes
+    /// belong to it, and one that outlived its device would fail on the next frame rather
+    /// than be rebuilt.</para>
+    /// </remarks>
+    private CanvasRadialGradientBrush GlowFor(CanvasDrawingSession session, CharmDescriptor descriptor)
+    {
+        if (!ReferenceEquals(glowDevice, session.Device))
+        {
+            foreach (CanvasRadialGradientBrush stale in glows.Values)
+            {
+                stale.Dispose();
+            }
+
+            glows.Clear();
+            glowDevice = session.Device;
+        }
+
+        if (glows.TryGetValue(descriptor.Id, out CanvasRadialGradientBrush? brush))
+        {
+            return brush;
+        }
+
+        // Shaped rather than linear. A straight ramp from the centre to the full reach
+        // matched macOS where it meets the charm and then would not let go: measured
+        // against the same shield, ours was still nine counts dark sixty-five points out
+        // where macOS was back to the colour of the window. The stops keep the ramp as it
+        // was up to the charm's own edge and then bring it down, so the glow dies about a
+        // third of a radius past the artwork, which is where macOS's dies.
+        CharmColor tint = descriptor.Palette.Primary;
+        CanvasGradientStop[] stops =
+        [
+            new() { Position = 0, Color = ToColor(tint, GlowOpacity) },
+            new() { Position = CharmEdge, Color = ToColor(tint, GlowOpacity * 0.41) },
+            new() { Position = 0.70f, Color = ToColor(tint, GlowOpacity * 0.17) },
+            new() { Position = 0.79f, Color = ToColor(tint, 0) },
+            new() { Position = 1, Color = ToColor(tint, 0) },
+        ];
+
+        brush = new CanvasRadialGradientBrush(session, stops);
+
+        glows[descriptor.Id] = brush;
+        return brush;
+    }
+
+    /// <summary>
+    /// How much of the charm's colour reaches the desktop at the centre of the glow.
+    /// </summary>
+    /// <remarks>
+    /// Chosen to land on the macOS profile in the remarks on
+    /// <see cref="DrawAmbientGlow"/> once the drop shadow is added to it, not picked for
+    /// looking about right. The gradient is linear in alpha, so what shows just outside
+    /// the charm is this multiplied by the fraction of the reach still to go.
+    /// </remarks>
+    private const double GlowOpacity = 0.19;
+
+    /// <summary>Where the charm's own edge falls inside the glow, as a fraction of it.</summary>
+    /// <remarks>
+    /// The glow reaches <c>CharmHaloExtent</c> radii, so the artwork ends exactly one over
+    /// that. Written as the reciprocal rather than as 0.588 so it follows the layout's
+    /// number if that ever moves.
+    /// </remarks>
+    private const float CharmEdge = (float)(1 / RopeConfiguration.Layout.CharmHaloExtent);
+
+    private readonly Dictionary<string, CanvasRadialGradientBrush> glows = [];
+    private CanvasDevice? glowDevice;
 
     private static System.Numerics.Vector2 ToVector(Vec2 point) => new((float)point.X, (float)point.Y);
 
