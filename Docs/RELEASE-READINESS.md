@@ -41,23 +41,35 @@ weeks. Three numbers, because they answer different questions:
 | Packaging and update | Both channels package and publish, both feeds carry notes, a draft release exists; the live update path has never run | 10 | 85% |
 | Signing | Not started, and blocked on a release existing | 6 | 0% |
 | Manual QA matrix | Scaling, multi-monitor, Win10, sleep/wake — all unrun | 8 | 0% |
-| Release hardening | Audited 21 Sep. Two blockers open: the tray icon does not survive an Explorer restart, and the Library costs 153 MB it never returns | 6 | 20% |
+| Release hardening | Audited 21 Sep. **Both blockers fixed and verified** — see below. Ten smaller findings remain open | 6 | 70% |
 
-**v1.0: 80% complete.** It was 83% before the hardening audit; the audit added a weighted
-area that is almost entirely open, and lowered analytics for the orphan event it found.
+**v1.0: 83% complete.** The hardening audit took it from 83% to 80% by adding a weighted
+area that was almost entirely open; closing both of that area's blockers has put it back.
+Analytics stays at 95% for the orphan event.
+
+The two blockers, both **[MEASURED]** as broken and **[MEASURED]** as fixed at `ae7b927`:
+
+- **A second copy no longer runs.** A named mutex, and the second process exits without
+  touching the first — same pid, same settings file, log not truncated.
+- **The tray icon comes back after an Explorer restart.** `TaskbarCreated` is handled, and
+  the tray window is top-level rather than message-only, because broadcasts do not reach
+  message-only windows.
+
+`tools/hardening-checks.ps1` is the repeatable proof: eleven checks, two screenshots, and
+a non-zero exit if any of them stops being true.
 
 ## 3. Windows feature completion
 
 Adding the v1.1 list at its own weight — Creator Studio (12) and photo-AI import (10) —
 against 128:
 
-**Windows feature completion: 66%.**
+**Windows feature completion: 68%.**
 
 ## 4. macOS parity
 
 Adding sound (4), the one deferred feature, against 132:
 
-**macOS parity: 64%**, with a ceiling of **100%** once sound ships in v1.1.
+**macOS parity: 66%**, with a ceiling of **100%** once sound ships in v1.1.
 
 The ceiling used to be quoted as 88%, because weather and seasonal charms were counted as
 gaps. They are not gaps: they are not being built. Neither appears in this number again.
@@ -79,11 +91,6 @@ gaps. They are not gaps: they are not being built. Neither appears in this numbe
    DPI, sleep/wake, hot-unplug, Windows 10 1809. The 1809 floor is the sharpest — the
    manifest claims it and nothing has ever tested it. Either test it or raise it.
 
-4. **The tray icon does not survive an Explorer restart.** Nothing handles the
-   `TaskbarCreated` message, so the icon goes and does not come back — **[MEASURED]**,
-   and the tray menu is the only way to reach Customize. Found by the hardening audit;
-   the full account is in `RELEASE-HARDENING-AUDIT.md`.
-
 ### Should fix, not blocking
 
 5. **A Library visit costs 153 MB of working set and gives none of it back** —
@@ -102,11 +109,10 @@ gaps. They are not gaps: they are not being built. Neither appears in this numbe
 | 2 | Tag and publish **v0.9.0**, both architectures | half a day | 3 |
 | 3 | Verify a live update against the published feed | half a day | v1.0 |
 | 4 | Run the manual QA matrix; settle the OS floor | 1 day | the manifest's claim |
-| 5 | Re-add the tray icon on `TaskbarCreated` | an hour | the app being reachable |
-| 6 | Release the Library's artwork when the window hides | half a day | — |
+| 5 | Release the Library's artwork when the window hides | half a day | — |
 
-`FileVersion` from the build and the silent background update check were on this list and
-are done.
+`FileVersion` from the build, the silent background update check, the single-instance
+guard and the tray icon's `TaskbarCreated` recovery were all on this list and are done.
 
 Five working days of engineering. Items 1 and 2 are calendar time, and item 1 has been
 outstanding for weeks.

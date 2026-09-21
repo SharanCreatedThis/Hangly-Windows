@@ -3,6 +3,17 @@
 21 September 2026, at commit `6f129d3`. No code was changed by this audit — it reports,
 it does not fix.
 
+> **What happened next.** B1, B2 and B4 were fixed at `ae7b927` and B3 is the release
+> regeneration. The findings below are left exactly as they were measured, because an
+> audit rewritten after the fact stops being evidence; `tools/hardening-checks.ps1` is the
+> standing check that B1 and B2 do not come back, and `Docs/RELEASE-READINESS.md` carries
+> the current state.
+>
+> One thing found during the fix and worth recording here: handling `TaskbarCreated` was
+> not enough on its own. The tray's window was `HWND_MESSAGE`, and **broadcast messages
+> are delivered to top-level windows only** — so the message that had to arrive was the
+> one that could not. The window is now top-level and never shown.
+
 Every finding carries one label, and the label is about **how it is known**, not how bad
 it is:
 

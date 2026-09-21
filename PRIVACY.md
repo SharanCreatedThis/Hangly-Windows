@@ -46,18 +46,20 @@ fails is written to the local log and forgotten.
 | Installation identifier | A random UUID made on this machine the first time anything is sent. It is not derived from your hardware, account, network or anything else, and it is used for nothing but counting installs. |
 | Build and system | App version, build number, Windows version. |
 | Lifecycle | `app_first_launch`, `app_launch`, `app_quit`. |
-| Charms | `charm_selected`, `charm_added`, `charm_removed`. Built-in charms are named by their catalogue id; a charm you made is reported as `custom`. |
+| Charms | `charm_selected`, `charm_added`, `charm_removed`, `charm_reordered`. Built-in charms are named by their catalogue id; a charm you made is reported as `custom`. Reordering carries the two positions and no id. |
 | Rope | `rope_count_changed`, `rope_style_changed`. |
 | Settings | `appearance_changed` — the **name** of the setting that moved, never its value. |
-| Imports | `charm_imported` and `charm_saved` — that a charm was imported, and nothing about the file. Not its name, not its size, not its contents. |
-| Links | `follow_instagram_clicked`, `coffee_sheet_opened`. |
-| With every event | `charm_count`, `active_charm_ids`, `rope_style`, `analytics_enabled`. |
+| Library | `collection_opened` — which collection, by name. |
+| Making a charm | `charm_imported` and `charm_saved` — that a charm was made, and **nothing about the file**: not its name, not its path, not its contents. |
+| Dropping a file on the charm | `airdrop_drag_entered`, `airdrop_picker_opened`, and `airdrop_file_dropped`. **The dropped-file event is the one exception to the line above**: it carries the file's **extension** — `svg`, `png`, `jpg` — and a **coarse size bucket**, and nothing else. No name, no path, no contents. It is there to answer "is anybody using this, and with what", which is not answerable without knowing the kind of file. |
+| The follow card | `follow_popup_shown`, `follow_popup_follow_clicked`, `follow_popup_maybe_later`, `follow_popup_dismissed`. |
+| Links | `follow_instagram_clicked`, `coffee_sheet_opened`, `coffee_copy_upi`, `coffee_qr_viewed`. The coffee events carry which button was pressed, not what you did next — Hangly has no idea whether you sent anything. |
+| With every event | `charm_count`, `active_charm_ids`, `rope_style`, `analytics_enabled`, and the name you typed. |
 
-The vocabulary also contains names for features this build does not have yet — the
-collections browser, the follow card, dropping a file on a charm.
-They are defined so that the two platforms report the same act under the same name when
-those features land. **Nothing this build cannot do is ever sent**, because the code that
-would send it does not exist yet.
+That is the whole list. One further name exists in the code — `collection_charm_selected`
+— and **nothing sends it**; it is defined so that both platforms would report that act
+under the same name if it were ever wired up. Nothing this build cannot do is sent,
+because the code that would send it does not exist.
 
 Both builds report into the same PostHog project and use the same event names, so a
 question asked of one can be asked of both.
@@ -152,16 +154,21 @@ A charm you import never leaves your machine. The drawing is copied into
 
 ## Updates
 
-Hangly checks whether a newer version exists and installs it quietly when there is one.
-The check is a request for one static file, and the download that may follow comes from
-the same place.
+Hangly checks whether a newer version exists, about twenty seconds after it starts, and
+tells you in the tray menu when there is one. Nothing is downloaded until you ask for it.
 
-- **Nothing about you or your copy goes with the check.** It carries no identifier and no
-  system profile; the server sees a request for a file, with an IP address, as with any
-  web request. The updater ([Velopack](https://velopack.io)) states that its runtime and
-  the binaries it ships with the app collect no telemetry, analytics or tracking data.
-- The update feed is a plain file on a web server. There is no server-side component and
-  nothing to report to.
+- **The check asks GitHub what releases exist.** Hangly's releases are published on
+  GitHub, and the check is an ordinary request to GitHub's public releases API for this
+  repository, followed by a request for one file — the release's `releases.win-arm64.json`
+  or `releases.win-x64.json`, depending on which build you have. If you choose to
+  install, the package is downloaded from the same release.
+- **Nothing about you or your copy goes with it.** No identifier, no display name, no
+  system profile, no account: GitHub sees a request for a public file with an IP address,
+  as it does for anyone reading the repository in a browser. The updater
+  ([Velopack](https://velopack.io)) states that its runtime and the binaries it ships with
+  the app collect no telemetry, analytics or tracking data.
+- **There is no Hangly server**, for updates or for anything else. There is nothing to
+  report to and nothing that knows you checked.
 
 See `Docs/DISTRIBUTION.md` for how releases are built and signed.
 

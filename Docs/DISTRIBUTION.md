@@ -165,9 +165,19 @@ that, and it was checked rather than assumed — from their FAQ:
 > "The Velopack runtime library and the binaries shipped with your application
 > (Setup.exe, Update.exe) collect no telemetry, analytics, or tracking data."
 
-With a static feed there is nothing for an identifier to be sent *to*: the check is a GET
-for `releases.win-arm64.json`, and the server sees a request for a file with an IP
-address, as any web request does.
+There is nothing for an identifier to be sent *to*, because there is no Hangly server.
+The check asks **GitHub's public releases API** which releases exist for this repository,
+then requests the feed asset for this build's channel — `releases.win-arm64.json` or
+`releases.win-x64.json`. GitHub sees a request for a public file with an IP address, as it
+does for anyone reading the repository in a browser.
+
+**It is the API and not a plain static URL, and that is not an accident.** Release assets
+live under a tag, so there is no fixed path a feed can be fetched from; handing the
+repository URL to `UpdateManager` as a string builds a `SimpleWebSource` that would
+request `github.com/SharanCreatedThis/Hangly-Windows/releases.win-arm64.json`, which has
+never existed. `Updater.Manager()` builds a `GithubSource` for exactly this reason. Both
+this document and `PRIVACY.md` described the static-file version for a while after the
+code stopped doing it; the hardening audit caught the mismatch.
 
 One scoped exception, which does not touch the promise: the `vpk` command-line tool
 performs its own update check when it runs. That is a developer tool on a developer's
@@ -182,12 +192,15 @@ machine and is never shipped to a user.
   for types through reflection and COM activation, and a trimmed build that launches
   correctly can still fail on a path nobody exercised until a user did. Anything trimmed
   must be exercised through the whole app in the VM, not merely launched.
-- **x64.** Everything measured here is ARM64. The x64 package has never been built or
-  installed.
+- **x64.** Everything measured here is ARM64. The x64 package **is built and published**
+  — both architectures come out of the release workflow and both feeds are in the draft —
+  but it has never been installed or run.
 - **Launch at login across an update.** Reconciled from the registry at startup, and the
   registry entry names a path. Velopack's stub at `%LOCALAPPDATA%\Hangly\Hangly.exe` is
   stable across versions where `current\` is not, so the entry should point at the stub —
   unverified.
 - **Uninstall.** Removes the install directory. It does not remove `%APPDATA%\Hangly`,
   so settings survive an uninstall/reinstall. Whether that is wanted is a decision.
-- **Where the feed is hosted.** Static files; the host is not chosen.
+- ~~**Where the feed is hosted.**~~ **Decided: GitHub Releases.** The workflow publishes
+  both architectures' assets there and the updater reads them with `GithubSource`. Nothing
+  else has to be hosted, which is the whole appeal.

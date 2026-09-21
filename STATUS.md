@@ -7,7 +7,10 @@ a project convinces itself it is nearly finished.
 - **Build:** green. All three CI jobs pass on `windows-latest`.
 - **Runs:** yes — Windows 11 ARM64 at 200%. The rope hangs on the desktop, is transparent,
   and can be thrown.
-- **Features:** **v1.0 is 80% complete** — see `Docs/RELEASE-READINESS.md` for the
+- **Public beta:** the two blockers the hardening audit found — a second copy running
+  alongside the first, and a tray icon that did not survive an Explorer restart — are
+  **fixed and verified** (`ae7b927`, `tools/hardening-checks.ps1`).
+- **Features:** **v1.0 is 83% complete** — see `Docs/RELEASE-READINESS.md` for the
   weighting. Charms, the Library, Create, importing your own, customization, About,
   onboarding, analytics and auto-update are in. Signing, the manual QA matrix and the
   hardening findings are what is left.
@@ -133,10 +136,6 @@ were. Full write-up in PORTING.md §3.
   over a thirty-second drag, allocation fell from 154 MB/s to 0.7 MB/s and gen-2
   collections from 1,040 to 7. What remains is memory bandwidth, and it is only spent
   while the rope is awake.
-- **The tray icon does not survive an Explorer restart.** Nothing handles
-  `TaskbarCreated`, so when Explorer restarts the icon goes and does not come back — and
-  the tray menu is the only route to Customize. **[MEASURED]** in
-  `RELEASE-HARDENING-AUDIT.md`, and a release blocker.
 - **A Library visit costs 153 MB of working set and returns none of it.** The window
   hides rather than closes, deliberately, but the cost of that decision is three times
   what was previously recorded. **[MEASURED]**
@@ -161,7 +160,7 @@ at the end.
 
 ## 5. Completion
 
-**v1.0 is 80% complete** by the weighting in `Docs/RELEASE-READINESS.md`, which is the one
+**v1.0 is 83% complete** by the weighting in `Docs/RELEASE-READINESS.md`, which is the one
 place these numbers are worked out. By weighted line count of the macOS source the port is
 **roughly 84%**.
 
@@ -326,9 +325,7 @@ describes ships, not after.
 
 What remains for v1.0, in the order that unblocks the most:
 
-1. **The hardening blockers** — `RELEASE-HARDENING-AUDIT.md`, starting with the tray icon
-   that does not come back after an Explorer restart.
-2. **Publish v0.9.0 and verify a live update against the published feed.** Nothing else
+1. **Publish v0.9.0 and verify a live update against the published feed.** Nothing else
    can prove the update path, because there has never been a release to update from.
 3. **Send the SignPath enquiry**, which has been drafted and unsent for weeks and is the
    longest lead time in the project.

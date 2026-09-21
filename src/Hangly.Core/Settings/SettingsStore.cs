@@ -19,10 +19,11 @@ namespace Hangly.Core.Settings;
 /// run the real store against a throwaway directory instead of the user's profile.</para>
 ///
 /// <para>The macOS original keeps this document in <c>UserDefaults</c>. Windows has no
-/// equivalent worth using — the registry is the wrong shape for a nested document and
-/// roaming app data is the wrong lifetime — so it is one JSON file under
-/// <c>%LOCALAPPDATA%</c>, written atomically through a temporary file so that a crash
-/// mid-write cannot leave a half-document behind.</para>
+/// equivalent worth using — the registry is the wrong shape for a nested document — so it
+/// is one JSON file, written atomically through a temporary file so that a crash mid-write
+/// cannot leave a half-document behind. It lives in <b>roaming</b> app data, for the
+/// reason on <see cref="DefaultPath"/>: the local folder is where Velopack installs the
+/// application, and installing over an existing copy clears it.</para>
 /// </remarks>
 public sealed class SettingsStore
 {

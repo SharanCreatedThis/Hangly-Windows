@@ -36,6 +36,8 @@ is left.
       launch, release notes carried from `CHANGELOG.md` into the package and onto the
       About page, `FileVersion` derived from the package version. **[LIVE]** for everything
       except the live fetch, which is §2.1.
+- [x] **Public-beta hardening** — one instance at a time, and a tray icon that survives an
+      Explorer restart. **[MEASURED]**, `tools/hardening-checks.ps1`.
 
 ## 2. Blocking the first public release
 
@@ -44,14 +46,14 @@ is left.
 `RELEASE-HARDENING-AUDIT.md`, 21 September 2026. Its verdict is **no-go until these four
 are done**, and its reasoning is not repeated here.
 
-- [ ] **B1** — nothing stops a second copy running, and the two overwrite each other's
-      settings. **[MEASURED]**
-- [ ] **B2** — the tray icon does not survive an Explorer restart, which leaves the app
-      running with no way to reach its own menu. **[MEASURED]**
-- [ ] **B3** — the existing `v0.9.0` draft predates five rendering fixes; delete it and
-      re-cut. **[MEASURED]**
-- [ ] **B4** — `PRIVACY.md` and `Docs/DISTRIBUTION.md` describe an update check that
-      fetches a static file; the code asks the GitHub Releases API. **[VERIFIED]**
+- [x] **B1** — nothing stops a second copy running, and the two overwrite each other's
+      settings. **Fixed** at `ae7b927`; `tools/hardening-checks.ps1` proves it.
+- [x] **B2** — the tray icon does not survive an Explorer restart, which leaves the app
+      running with no way to reach its own menu. **Fixed** at `ae7b927`; same harness.
+- [ ] **B3** — the existing `v0.9.0` draft predates the rendering fixes and both blocker
+      fixes; delete it and re-cut. **[MEASURED]**
+- [x] **B4** — `PRIVACY.md` and `Docs/DISTRIBUTION.md` described an update check that
+      fetches a static file; the code asks the GitHub Releases API. **Corrected.**
 
 
 ### 2.1 The update path has never run against a published feed
