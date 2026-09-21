@@ -106,19 +106,7 @@ public sealed class WelcomeWindow : Window
 
         Content = body;
 
-        // AppWindow.Resize takes physical pixels, so the size has to be scaled by the
-        // display's DPI or the card comes out half-size on a 200% screen and clips its
-        // own copy. The same arithmetic the Customize window does, for the same reason.
-        IntPtr handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        double scale = Interop.NativeMethods.GetDpiForWindow(handle) / 96.0;
-        if (scale <= 0)
-        {
-            scale = 1;
-        }
-
-        AppWindow.Resize(new Windows.Graphics.SizeInt32(
-            (int)Math.Round(560 * scale),
-            (int)Math.Round(480 * scale)));
+        Interop.WindowPlacement.SizeAndCentre(this, 560, 480);
 
         // Dismissing without a name writes nothing, so the card returns next launch rather
         // than leaving the app nameless.

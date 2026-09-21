@@ -75,26 +75,34 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <Grid Width="54" Height="54" Margin="0,0,10,0">
+                    <!--
+                        The box has to be wide enough for the fan inside it. It was not:
+                        three images at 40, 44 and 52 points with the outer two pushed 24
+                        points left and right need 68 points of width, and the box was 54,
+                        so every collection card clipped its artwork at the edges. The box
+                        was shrunk from 64 when the cards were narrowed and the artwork
+                        inside it was not shrunk with it.
+                    -->
+                    <Grid Width="58" Height="58" Margin="0,0,10,0">
                         <Image
-                            Width="40"
-                            Height="40"
+                            Width="34"
+                            Height="34"
                             Margin="0,0,24,0"
                             Opacity="0.75"
                             Source="{x:Bind Third, Mode=OneTime}"
                             Stretch="Uniform"
                             Visibility="{x:Bind ThirdVisibility, Mode=OneTime}" />
                         <Image
-                            Width="44"
-                            Height="44"
+                            Width="38"
+                            Height="38"
                             Margin="24,0,0,0"
                             Opacity="0.9"
                             Source="{x:Bind Second, Mode=OneTime}"
                             Stretch="Uniform"
                             Visibility="{x:Bind SecondVisibility, Mode=OneTime}" />
                         <Image
-                            Width="52"
-                            Height="52"
+                            Width="46"
+                            Height="46"
                             Source="{x:Bind First, Mode=OneTime}"
                             Stretch="Uniform" />
                     </Grid>
@@ -792,14 +800,28 @@
                 </ScrollViewer>
 
                 <!-- About -->
-                <ScrollViewer x:Name="AboutPage" Visibility="Collapsed">
-                    <StackPanel Margin="24,16,24,24" MaxWidth="640" HorizontalAlignment="Left" Spacing="18">
+                <!--
+                    Two columns, and no scrolling.
 
+                    Everything here was one tall stack inside a ScrollViewer, so About
+                    always had a scrollbar and the milestones lived below the fold. It is
+                    the page somebody opens to read four numbers and press one button;
+                    asking them to scroll for that made a short page feel unfinished.
+
+                    Who Hangly is on the left, what you can do with it on the right.
+                -->
+                <Grid x:Name="AboutPage" Margin="24,16,24,16" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Margin="0,0,16,0" Spacing="14">
                         <StackPanel Orientation="Horizontal" Spacing="16">
                             <Image
                                 x:Name="AppIcon"
-                                Width="72"
-                                Height="72"
+                                Width="56"
+                                Height="56"
                                 VerticalAlignment="Top" />
                             <StackPanel Spacing="2">
                                 <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Hangly" />
@@ -848,6 +870,11 @@
                                     Style="{StaticResource BodyTextBlockStyle}"
                                     Text="Thank you for using Hangly."
                                     TextWrapping="Wrap" />
+                                <!--
+                                    Wraps rather than running off the edge: the card is
+                                    half the page wide now and three buttons in a row did
+                                    not fit, so "Suggest a charm" lost its last word.
+                                -->
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <Button
                                         x:Name="CoffeeButton"
@@ -855,6 +882,8 @@
                                         Click="OnCoffeeClicked"
                                         Content="Buy Creator a Coffee"
                                         Style="{StaticResource AccentButtonStyle}" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
                                     <HyperlinkButton
                                         x:Name="InstagramLink"
                                         Click="OnInstagramClicked"
@@ -873,6 +902,9 @@
                             editing a settings file; it is the only place that explains
                             where the app lives and how to reach it.
                         -->
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Spacing="14">
                         <StackPanel Spacing="8">
                             <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Help" />
                             <Button
@@ -1089,7 +1121,7 @@
                             </StackPanel>
                         </muxc:Expander>
                     </StackPanel>
-                </ScrollViewer>
+                </Grid>
             </Grid>
         </muxc:NavigationView>
     </Grid>

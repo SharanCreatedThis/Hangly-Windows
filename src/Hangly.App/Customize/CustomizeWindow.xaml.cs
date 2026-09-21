@@ -126,19 +126,7 @@ public sealed partial class CustomizeWindow : Window
 
     private void ResizeToDefault()
     {
-        IntPtr handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        double scale = Interop.NativeMethods.GetDpiForWindow(handle) / 96.0;
-        if (scale <= 0)
-        {
-            scale = 1;
-        }
-
-        var size = new Windows.Graphics.SizeInt32(
-            (int)Math.Round(1120 * scale),
-            (int)Math.Round(800 * scale));
-
-        AppWindow.Resize(size);
-        CentreOnDisplay(size);
+        Interop.WindowPlacement.SizeAndCentre(this, 1120, 800);
         FixTheSize();
     }
 
@@ -836,6 +824,13 @@ public sealed partial class CustomizeWindow : Window
         CreatePage.Visibility = page == "create" ? Visibility.Visible : Visibility.Collapsed;
         AppearancePage.Visibility = page == "appearance" ? Visibility.Visible : Visibility.Collapsed;
         AboutPage.Visibility = page == "about" ? Visibility.Visible : Visibility.Collapsed;
+
+        // The cord and the charm's story belong to the Library and nowhere else. They sit
+        // in the navigation pane, which every page shares, so they followed somebody onto
+        // Create, Appearance and About and sat there describing a charm that page had
+        // nothing to do with. Hidden with the page they belong to, which also gives the
+        // other three the full width.
+        DetailPanel.Visibility = page == "charms" ? Visibility.Visible : Visibility.Collapsed;
 
         if (page == "about")
         {

@@ -289,6 +289,18 @@ public sealed class AppEnvironment : IDisposable
         CheckForUpdateQuietly();
     }
 
+    /// <summary>Hangs one charm, alone, from the tray's favourites list.</summary>
+    /// <remarks>
+    /// Replaces the rope rather than adding to it. The menu has no way to say which place
+    /// on the cord somebody meant, and a favourite picked from a menu is somebody saying
+    /// "that one" rather than "that one as well".
+    /// </remarks>
+    private void HangOnly(string id)
+    {
+        store.UpdateOverlay(overlay => overlay.WithStack(CharmStackState.Of([id])));
+        Diagnostics.Log($"tray: hung '{id}' from favourites");
+    }
+
     /// <summary>Reports charms coming and going, and the count changing.</summary>
     private void ReportCharmChange(IReadOnlyList<string> before, IReadOnlyList<string> after)
     {
@@ -673,12 +685,26 @@ public sealed class AppEnvironment : IDisposable
                 IsChecked: settings.Overlay.RopeStyle == style))
             .ToList();
 
-        var anchors = Enum.GetValues<OverlayAnchor>()
-            .Select(anchor => new MenuEntry(
-                OverlayAnchorTable.DisplayNameOf(anchor),
-                () => store.UpdateOverlay(overlay => overlay with { Anchor = anchor }),
-                IsChecked: settings.Overlay.Anchor == anchor))
+        // Favourites, as the quick way back to a charm somebody uses often. Empty is a
+        // sentence rather than an empty submenu, because a submenu that opens onto nothing
+        // reads as broken.
+        List<MenuEntry> charms = settings.Library.FavouriteCharmIds
+            .Select(id => (Id: id, Entry: index.Find(id)))
+
+            // Find falls back to the plain bead for an id it does not know, so a
+            // favourite of a charm that has since been deleted would appear in this menu
+            // wearing the bead's name. Comparing the ids back is what catches that.
+            .Where(found => string.Equals(found.Entry.Id, found.Id, StringComparison.Ordinal))
+            .Select(found => new MenuEntry(
+                found.Entry.DisplayName,
+                () => HangOnly(found.Id),
+                IsChecked: settings.Overlay.Stack.Ids.Contains(found.Id, StringComparer.Ordinal)))
             .ToList();
+
+        if (charms.Count == 0)
+        {
+            charms.Add(new MenuEntry("Add charms to favourites to access them quickly.", null));
+        }
 
         // An update that has been found gets one line at the top, and only then. A menu
         // item that is always there saying "no updates" is a menu item nobody reads.
@@ -697,20 +723,10 @@ public sealed class AppEnvironment : IDisposable
                 settings.Overlay.IsEnabled ? "Hide Charm" : "Show Charm",
                 () => store.UpdateOverlay(overlay => overlay with { IsEnabled = !overlay.IsEnabled })),
             MenuEntry.Separator,
-            new MenuEntry("Customize…", OpenCustomize),
+            new MenuEntry("Library", OpenCustomize),
             MenuEntry.Separator,
+            new MenuEntry("Charms", Children: charms),
             new MenuEntry("Rope", Children: ropes),
-            new MenuEntry("Position", Children: anchors),
-            MenuEntry.Separator,
-            new MenuEntry(
-                "Launch at Login",
-                () =>
-                {
-                    bool enabled = !store.Settings.LaunchAtLogin;
-                    launchAtLogin.SetEnabled(enabled);
-                    store.Update(current => current with { LaunchAtLogin = enabled });
-                },
-                IsChecked: settings.LaunchAtLogin),
             MenuEntry.Separator,
             new MenuEntry("Quit Hangly", Quit),
         ];

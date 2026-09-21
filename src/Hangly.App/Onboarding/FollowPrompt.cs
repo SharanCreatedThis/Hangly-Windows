@@ -116,16 +116,7 @@ public sealed class FollowPrompt : Window
 
         Content = body;
 
-        IntPtr handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        double scale = Interop.NativeMethods.GetDpiForWindow(handle) / 96.0;
-        if (scale <= 0)
-        {
-            scale = 1;
-        }
-
-        AppWindow.Resize(new Windows.Graphics.SizeInt32(
-            (int)Math.Round(460 * scale),
-            (int)Math.Round(300 * scale)));
+        Interop.WindowPlacement.SizeAndCentre(this, 460, 300);
 
         // Closing by the title bar is an answer too, and the one macOS calls dismissed.
         Closed += (_, _) => Record();
