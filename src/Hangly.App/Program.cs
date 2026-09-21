@@ -32,6 +32,8 @@ internal static class Program
     {
         // Installed before Velopack rather than after, because a hook that fails is
         // invisible: an update run has no window to report from and exits on its own.
+        // Handlers only — the log is not started until this process knows it is the
+        // Hangly that will run. See Diagnostics.Install.
         Diagnostics.Install();
 
         VelopackApp.Build().Run();
@@ -42,6 +44,7 @@ internal static class Program
         // own development-only launch path.
         if (args.Contains("--check-artwork", StringComparer.Ordinal))
         {
+            Diagnostics.StartLog();
             Diagnostics.CheckArtwork();
             return;
         }
@@ -53,6 +56,7 @@ internal static class Program
         int check = Array.IndexOf(args, "--check-import");
         if (check >= 0 && check + 1 < args.Length)
         {
+            Diagnostics.StartLog();
             Diagnostics.CheckImport(args[check + 1]);
             return;
         }
@@ -64,16 +68,36 @@ internal static class Program
         int create = Array.IndexOf(args, "--check-create");
         if (create >= 0 && create + 1 < args.Length)
         {
+            Diagnostics.StartLog();
             Diagnostics.CheckCreate(args[create + 1]);
             return;
         }
 
         if (args.Contains("--check-analytics", StringComparer.Ordinal))
         {
+            Diagnostics.StartLog();
             Diagnostics.CheckAnalytics();
             return;
         }
 
+        // Last, and only on the path that builds a window. Velopack's hooks above run in
+        // their own processes and must not be turned away, and the development switches
+        // have already done their work and returned.
+        if (!SingleInstance.Claim())
+        {
+            // Nothing is shown and nothing is signalled. The copy that is running already
+            // has a charm on screen and a tray icon in the notification area, and poking
+            // it — raising a window, flashing the taskbar — would be answering a question
+            // nobody asked. The log is where this is explained if anybody wonders.
+            // Appended to the running copy's log rather than replacing it. One line is
+            // worth leaving — "I clicked it and nothing happened" is a question somebody
+            // will ask — and a write that fails because the other process is mid-write is
+            // swallowed, as every other log write is.
+            Diagnostics.Log("another copy of Hangly is already running; this one is exiting");
+            return;
+        }
+
+        Diagnostics.StartLog();
         XamlGeneratedProgram.XamlGeneratedMain();
     }
 }

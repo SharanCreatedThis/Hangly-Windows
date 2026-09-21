@@ -41,7 +41,14 @@ public static class Diagnostics
         "Hangly",
         "hangly.log");
 
-    /// <summary>Starts a fresh log and catches anything that would end the process quietly.</summary>
+    /// <summary>Catches anything that would otherwise end the process quietly.</summary>
+    /// <remarks>
+    /// Handlers only. Starting a fresh log is <see cref="StartLog"/>'s job and happens
+    /// later, for a reason worth writing down: this runs before the single-instance check,
+    /// and a second copy of Hangly that truncated the log would erase the running copy's
+    /// record of its own startup on its way to discovering it should exit. A second copy
+    /// must leave the first one exactly as it found it, and that includes its log.
+    /// </remarks>
     public static void Install()
     {
         if (installed)
@@ -50,29 +57,6 @@ public static class Diagnostics
         }
 
         installed = true;
-
-        try
-        {
-            string? directory = Path.GetDirectoryName(LogPath);
-            if (!string.IsNullOrEmpty(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            // Truncated per launch rather than appended. The question this file answers is
-            // "what happened the last time I ran it", and a file that grows forever buries
-            // that under every previous run.
-            File.WriteAllText(
-                LogPath,
-                $"Hangly {typeof(Diagnostics).Assembly.GetName().Version}" +
-                $" · {Environment.OSVersion}" +
-                $" · {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}" +
-                $" · {DateTimeOffset.Now:O}{Environment.NewLine}");
-        }
-        catch (Exception)
-        {
-            // No log is survivable. Failing to start because logging failed is not.
-        }
 
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
             Failure("unhandled", args.ExceptionObject as Exception);
@@ -84,6 +68,39 @@ public static class Diagnostics
             Failure("unobserved task", args.Exception);
             args.SetObserved();
         };
+    }
+
+    /// <summary>Begins this run's log, replacing the previous run's.</summary>
+    /// <remarks>
+    /// Truncated per launch rather than appended. The question this file answers is "what
+    /// happened the last time I ran it", and a file that grows forever buries that under
+    /// every previous run.
+    ///
+    /// <para>Called only by a process that is going to be the running Hangly — after the
+    /// single-instance check on the ordinary path, and by each development switch, which
+    /// has the machine to itself for the moment it takes.</para>
+    /// </remarks>
+    public static void StartLog()
+    {
+        try
+        {
+            string? directory = Path.GetDirectoryName(LogPath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            File.WriteAllText(
+                LogPath,
+                $"Hangly {typeof(Diagnostics).Assembly.GetName().Version}" +
+                $" · {Environment.OSVersion}" +
+                $" · {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}" +
+                $" · {DateTimeOffset.Now:O}{Environment.NewLine}");
+        }
+        catch (Exception)
+        {
+            // No log is survivable. Failing to start because logging failed is not.
+        }
     }
 
     /// <summary>Records that a startup step was reached.</summary>

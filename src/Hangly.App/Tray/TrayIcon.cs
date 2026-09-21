@@ -60,6 +60,9 @@ public sealed class TrayIcon : IDisposable
     private const uint MfChecked = 0x00000008;
     private const uint MfPopup = 0x00000010;
 
+    /// <summary>Keeps a window out of Alt-Tab and off the taskbar.</summary>
+    private const uint WsExToolwindow = 0x00000080;
+
     private const uint TpmRightbutton = 0x0002;
     private const uint TpmReturncmd = 0x0100;
 
@@ -69,6 +72,19 @@ public sealed class TrayIcon : IDisposable
     private IntPtr icon;
     private bool disposed;
 
+    /// <summary>
+    /// The message Explorer broadcasts when it has rebuilt the notification area.
+    /// </summary>
+    /// <remarks>
+    /// Registered rather than a constant: the number is assigned by the system at
+    /// runtime and is the same for every process that asks for the same string, which is
+    /// how a broadcast reaches applications that were started before Explorer was.
+    /// </remarks>
+    private readonly uint taskbarCreated = RegisterWindowMessage("TaskbarCreated");
+
+    /// <summary>The tooltip this icon was last registered with. Needed to re-add it.</summary>
+    private string tooltip;
+
     /// <summary>Builds the menu. Called fresh on every click, never cached.</summary>
     public Func<IReadOnlyList<MenuEntry>>? MenuBuilder { get; set; }
 
@@ -77,6 +93,7 @@ public sealed class TrayIcon : IDisposable
 
     public TrayIcon(string tooltip)
     {
+        this.tooltip = tooltip;
         procedure = HandleMessage;
         window = CreateMessageWindow();
         icon = LoadApplicationIcon();
@@ -106,18 +123,34 @@ public sealed class TrayIcon : IDisposable
             }
         }
 
-        // HWND_MESSAGE: a window that exists only to receive the icon's callbacks. It is
-        // never shown, never sized and never composited.
+        // A top-level window that is never shown, rather than a message-only one.
+        //
+        // HWND_MESSAGE is the obvious choice for a window whose whole job is receiving
+        // the icon's callbacks, and it was the choice here until it cost the tray icon.
+        // Broadcast messages — which is what Explorer sends as `TaskbarCreated` when it
+        // has rebuilt the notification area — are delivered to **top-level windows only**,
+        // and a message-only window is not one. The icon's own callbacks arrived fine,
+        // because those are sent to a specific window; the one message that had to arrive
+        // for the icon to come back after an Explorer restart was the one that could not.
+        //
+        // So: no parent, WS_EX_TOOLWINDOW to keep it out of Alt-Tab and the taskbar, and
+        // no WS_VISIBLE, which leaves a window that is never shown, never sized and never
+        // composited but is nonetheless top-level enough to be broadcast to.
         IntPtr created = CreateWindowEx(
-            0,
+            WsExToolwindow,
             "HanglyTrayWindow",
-            "Hangly",
+
+            // Named for what it is, and deliberately not "Hangly". Now that it is a
+            // top-level window it can be found by anything that enumerates them, and a
+            // second top-level window called "Hangly" is one an accessibility tool — or
+            // this project's own UI tests — will pick up instead of the real one.
+            "Hangly tray",
             0,
             0,
             0,
             0,
             0,
-            new IntPtr(-3),
+            IntPtr.Zero,
             IntPtr.Zero,
             IntPtr.Zero,
             IntPtr.Zero);
@@ -133,6 +166,8 @@ public sealed class TrayIcon : IDisposable
 
     private void Register(string tooltip)
     {
+        this.tooltip = tooltip;
+
         NotifyIconData data = NotifyIconData.Create(window, 1);
         data.Flags = NifMessage | NifIcon | NifTip;
         data.CallbackMessage = CallbackMessage;
@@ -152,6 +187,8 @@ public sealed class TrayIcon : IDisposable
     /// <summary>Changes the tooltip, which is where the rope's state is reported.</summary>
     public void SetTooltip(string tooltip)
     {
+        this.tooltip = tooltip;
+
         NotifyIconData data = NotifyIconData.Create(window, 1);
         data.Flags = NifTip;
         data.Tip = tooltip;
@@ -159,8 +196,58 @@ public sealed class TrayIcon : IDisposable
         ShellNotifyIcon(NimModify, ref data);
     }
 
+    /// <summary>Puts the icon back after Explorer has rebuilt the notification area.</summary>
+    /// <remarks>
+    /// <b>Why an application has to do this at all.</b> A notification icon belongs to
+    /// the Explorer process that is drawing the notification area, not to the application
+    /// that asked for it. When Explorer restarts — after a crash, or because somebody
+    /// restarted it from Task Manager — every icon in the tray is gone, and the new
+    /// Explorer broadcasts <c>TaskbarCreated</c> so that each application can ask again.
+    /// An application that does not listen simply loses its icon for the rest of its
+    /// life.
+    ///
+    /// <para>Which, before this existed, is what happened. Measured: Explorer restarted,
+    /// Hangly still running and still drawing a charm, and no icon and no overflow
+    /// chevron in the notification area. The tray menu is the only way to reach Customize,
+    /// the Library, Create, About and Quit, so the app was left running with no way to
+    /// use it and Task Manager as the only way out.</para>
+    ///
+    /// <para>Re-added rather than modified: the icon Explorer knew about is gone with the
+    /// Explorer that knew about it, so <c>NIM_MODIFY</c> would be a request to change
+    /// something that no longer exists. A failure here is logged rather than thrown — the
+    /// new Explorer may not be ready the instant it broadcasts, and an overlay with no
+    /// tray icon is still an overlay, which is the same judgement the first registration
+    /// makes at startup.</para>
+    /// </remarks>
+    private void Readd()
+    {
+        NotifyIconData data = NotifyIconData.Create(window, 1);
+        data.Flags = NifMessage | NifIcon | NifTip;
+        data.CallbackMessage = CallbackMessage;
+        data.Icon = icon;
+        data.Tip = tooltip;
+
+        if (ShellNotifyIcon(NimAdd, ref data))
+        {
+            Services.Diagnostics.Log("notification area rebuilt; tray icon re-added");
+            return;
+        }
+
+        Services.Diagnostics.Log(
+            $"notification area rebuilt but the tray icon could not be re-added " +
+            $"(Win32 {Marshal.GetLastWin32Error()})");
+    }
+
     private IntPtr HandleMessage(IntPtr hWnd, uint message, IntPtr wParam, IntPtr lParam)
     {
+        // Not a constant, so it cannot be a case label. Checked first because a
+        // rebuilt notification area is the one message that must never be missed.
+        if (message == taskbarCreated && !disposed)
+        {
+            Readd();
+            return IntPtr.Zero;
+        }
+
         switch (message)
         {
             case CallbackMessage:
@@ -461,4 +548,15 @@ public sealed class TrayIcon : IDisposable
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DestroyIcon(IntPtr icon);
+
+    /// <summary>
+    /// Asks the system for the number a message string is known by.
+    /// </summary>
+    /// <remarks>
+    /// Every process that registers the same string is given the same number for as long
+    /// as Windows is running, which is what lets Explorer broadcast one message that
+    /// every application recognises.
+    /// </remarks>
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern uint RegisterWindowMessage(string message);
 }

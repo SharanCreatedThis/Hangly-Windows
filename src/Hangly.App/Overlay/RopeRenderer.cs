@@ -363,7 +363,7 @@ public sealed class RopeRenderer
         // it looked like.
         if (head && points[0].Y > 0)
         {
-            builder.BeginFigure(new System.Numerics.Vector2((float)points[0].X, 0));
+            builder.BeginFigure(ToVector(HeadAbove(points[0], points[1])));
             builder.AddLine(ToVector(points[0]));
         }
         else
@@ -520,6 +520,47 @@ public sealed class RopeRenderer
     }
 
     private static Vec2 Lerp(Vec2 from, Vec2 to, double at) => from + ((to - from) * at);
+
+    /// <summary>
+    /// Where the cord meets the top of the canvas, carrying on the line it is already on.
+    /// </summary>
+    /// <remarks>
+    /// <b>Along the rope, not straight up.</b> This piece was drawn vertically at first,
+    /// which is right only while the rope hangs still. The moment it swings, the first
+    /// segment leaves the anchor at an angle and a vertical line above it meets that
+    /// angle at a corner — a visible fold a few pixels below the edge of the screen, in
+    /// the one place a rope should look like it carries on past it.
+    ///
+    /// <para>Extending along the first segment's own direction instead makes the join
+    /// collinear, so there is nothing to see: the cord runs off the top of the screen the
+    /// way a rope runs off the top of a photograph.</para>
+    ///
+    /// <para>The sideways reach is capped. At the far end of a drag the first segment can
+    /// be close to horizontal, and following it would send this piece a long way across
+    /// the canvas to cover a gap a few points tall. Past the cap it falls back to
+    /// vertical, which is wrong by a corner nobody will see at that angle and right about
+    /// staying where the rope is.</para>
+    /// </remarks>
+    private static Vec2 HeadAbove(Vec2 anchor, Vec2 next)
+    {
+        Vec2 along = anchor - next;
+
+        // Not rising: there is no direction to follow, so go straight up.
+        if (along.Y >= -Precision.UlpOfOne)
+        {
+            return new Vec2(anchor.X, 0);
+        }
+
+        double reach = anchor.Y / -along.Y;
+        double sideways = along.X * reach;
+
+        return Math.Abs(sideways) > anchor.Y * HeadSidewaysLimit
+            ? new Vec2(anchor.X, 0)
+            : new Vec2(anchor.X + sideways, 0);
+    }
+
+    /// <summary>How far the cord's head may lean, as a multiple of how tall it is.</summary>
+    private const double HeadSidewaysLimit = 3;
 
     /// <summary>The beads on the cord, drawn from the artwork they were measured in.</summary>
     /// <remarks>
