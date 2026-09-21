@@ -1,63 +1,125 @@
 # Hangly for Windows
 
-A port of [Hangly](https://github.com/sharancreatedthis/Hangly) — a charm that hangs
-from a simulated rope on your desktop — to Windows 10 and 11, on x64 and ARM64.
-
-C#, WinUI 3, .NET 9, Win2D.
-
----
-
-## Status
+**A charm hangs from a rope on your desktop.** Push it and it swings, with the weight and
+the settle of a real one. That is the whole app.
 
 [![Build](https://github.com/SharanCreatedThis/Hangly-Windows/actions/workflows/build.yml/badge.svg)](https://github.com/SharanCreatedThis/Hangly-Windows/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**This builds, and it has never been run.** Those are both true and neither implies the
-other. [STATUS.md](STATUS.md) is the detailed report; [PORTING.md](PORTING.md) explains
-what was rewritten rather than transcribed, and why.
+<img src="Docs/media/charm-on-desktop.png" alt="Three charms hanging on a gold chain over a Windows desktop" width="380">
 
-| | |
-|---|---|
-| Solver, models, settings, placement | Ported — **759 / 759 tests passing on Windows CI** |
-| Overlay window, tray, renderer, artwork | Runs on Windows 11 ARM64 and x64; packaged with Velopack |
-| Charms on the rope | **70**, up to three at a time, each at its own size |
-| Create your own | SVG, PNG and JPG, through the **Create** tab |
-| Creator Studio and photo subject extraction | **v1.1** |
-| Sound | **v1.1** |
-| Weather and seasonal charms | **Removed from the roadmap permanently** |
+A port of [Hangly for macOS](https://github.com/sharancreatedthis/Hangly), written in C#
+on WinUI 3, .NET 9 and Win2D. Windows 10 and 11, x64 and ARM64.
 
-**v1.0 is 80% complete**; `Docs/RELEASE-READINESS.md` shows the weighting and
-`RELEASE-HARDENING-AUDIT.md` lists what is holding it up.
-
-The next thing that matters is not more code. It is release hardening: the blockers in
-[RELEASE-HARDENING-AUDIT.md](RELEASE-HARDENING-AUDIT.md), publishing v0.9.0 so the update
-path can be proved against a real feed, and the manual QA matrix. See
-[STATUS.md §8](STATUS.md#8-next-milestone).
+> **Hangly for Windows is in public beta.** It works, it is tested, and it is not signed
+> yet — so Windows will warn you the first time you run it. [What to
+> expect](TESTER-INSTRUCTIONS.md).
 
 ---
 
-## Requirements
+## What it does
 
-- Windows 10 version 1809 (build 17763) or later, or Windows 11
-- x64 or ARM64
-- [.NET 9 SDK](https://dotnet.microsoft.com/download)
-- Visual Studio 2022 17.10+ with the **Windows App SDK C# templates** workload, or the
-  `Microsoft.WindowsAppSDK` NuGet package restored on the command line
+- **Seventy charms**, in collections — protection, luck, ritual, and a few from stories
+  you will recognise. Search them, favourite them, see what you hung recently.
+- **Up to three on one cord**, each at its own size, in any order you drag them into.
+- **Five rope styles.** Each one is a different set of solver values rather than a
+  different picture, so a gold chain hangs differently from a thread.
+- **Real physics.** Twenty segments solved with Verlet integration at a fixed 240 Hz,
+  whatever the display is doing. Beads ride the cord as particles in their own right.
+- **Make your own.** Drop a PNG, a JPG or an SVG on the charm, or use the **Create** tab,
+  and it becomes a charm that hangs like the rest.
+- **It stays out of the way.** Click-through everywhere except the charm itself, quiet at
+  idle — about 1% of one core — and it asks for no permissions at all.
 
-## Building
+<img src="Docs/media/library.png" alt="The Hangly Library, showing a charm's detail panel, the charms on the cord, and the collections" width="820">
 
-The solver and everything under `Hangly.Core` build and test on **any** platform —
-macOS, Linux, Windows — because nothing in them touches Windows:
+## Installing
 
-```
+Download from the [latest release](https://github.com/SharanCreatedThis/Hangly-Windows/releases/latest).
+
+| Your PC | Download |
+|---|---|
+| Most PCs — Intel or AMD | `Hangly-win-x64-Setup.exe` |
+| Snapdragon, Surface Pro X and other ARM PCs | `Hangly-win-arm64-Setup.exe` |
+
+Not sure? **Settings → System → About → System type.** If it says "ARM-based processor",
+take the ARM64 one; otherwise take x64.
+
+**Windows will warn you.** *"Windows protected your PC"* — click **More info**, then **Run
+anyway**. This is not a virus warning; it is what Windows says about any program that has
+not been code-signed, and Hangly is not signed yet. Signing is in progress through
+[SignPath Foundation](https://signpath.org/), who sign open-source releases at no cost.
+
+It installs for you only, needs no administrator, and lives in
+`%LOCALAPPDATA%\Hangly`. It updates itself from this repository's releases.
+
+To remove it: **Settings → Apps → Installed apps → Hangly → Uninstall.**
+
+## Building from source
+
+You need the [.NET 9 SDK](https://dotnet.microsoft.com/download) and Windows 10 1809 or
+later. You do **not** need Visual Studio — the Windows App SDK and the XAML compiler come
+through NuGet.
+
+```powershell
+git clone https://github.com/SharanCreatedThis/Hangly-Windows.git
+cd Hangly-Windows
+
+# The solver and models. These run anywhere, including on a Mac.
 dotnet test tests/Hangly.Core.Tests/Hangly.Core.Tests.csproj
+
+# The app. Windows only.
+dotnet run --project src/Hangly.App/Hangly.App.csproj -c Release -r win-x64 -p:Platform=x64
 ```
 
-The app itself needs Windows:
+On an ARM machine use `-r win-arm64 -p:Platform=ARM64`.
 
-```
-dotnet build Hangly.sln -c Release -p:Platform=x64
-dotnet publish src/Hangly.App/Hangly.App.csproj -c Release -r win-arm64 --self-contained
-```
+To build an installer, [`vpk`](https://velopack.io) does it in one step — the exact
+command the release workflow runs is in
+[`.github/workflows/release.yml`](.github/workflows/release.yml).
+
+One warning for anyone tidying the project file: **`EnableMsixTooling` has to stay.** It
+owns PRI generation, the compiled XAML lives inside the PRI, and removing it produces an
+app with no XAML at all.
+
+## Reporting a problem
+
+[Open an issue.](https://github.com/SharanCreatedThis/Hangly-Windows/issues/new/choose)
+
+`%APPDATA%\Hangly\hangly.log` holds the last run and is usually the whole answer. It
+contains no personal information — [PRIVACY.md](PRIVACY.md) says exactly what is in it.
+
+Hangly runs on hardware its author does not have: every scaling factor except 200%, every
+multi-monitor desk, every x64 machine, Windows 10. **A report from one of those is the
+most useful thing anybody can send.** [CONTRIBUTING.md](CONTRIBUTING.md) has the rest;
+security issues go by email, per [SECURITY.md](SECURITY.md).
+
+## Privacy
+
+Hangly asks for no permissions and has no server and no accounts.
+
+With analytics on it sends a small, fully listed set of events — which charm was hung,
+which rope style, that a charm was imported — plus the display name you type when you
+first run it. It never sends your Windows account name, your files, your file names, your
+location, or anything describing your screen. You can switch it off in **Customize →
+About**, and `Hangly.exe --check-analytics` prints exactly what one real event contains.
+
+[PRIVACY.md](PRIVACY.md) is the full account, and it describes this build rather than the
+macOS one.
+
+## Roadmap
+
+**v1.0** — what is in the beta, signed, plus the manual QA pass across scaling factors,
+multiple monitors and Windows 10.
+
+**v1.1** — Creator Studio, photo import with subject extraction, and sound.
+
+**Not planned.** Weather charms and seasonal charms exist on macOS and are not coming to
+Windows. They are removed from the roadmap permanently rather than deferred.
+
+[STATUS.md](STATUS.md) is the detailed picture, [Docs/RELEASE-READINESS.md](Docs/RELEASE-READINESS.md)
+carries the numbers, and [PORTING.md](PORTING.md) explains what was rewritten rather than
+transcribed, and why.
 
 ## How it is put together
 
@@ -72,27 +134,25 @@ Hangly.App           the Windows head
   Overlay/           the transparent click-through window, the clock, the Win2D renderer
   Tray/              the notification-area icon, which is this port's menu bar
   Interop/           the Win32 surface the overlay needs, and nothing else
-  Services/          displays, launch-at-login
-  Assets/Charms/     82 SVGs, copied unchanged from the macOS build
+  Import/            turning a picture or an SVG into a charm
+  Customize/         the Library, Create, Appearance and About window
+  Services/          displays, launch-at-login, updates, diagnostics
 ```
 
 Dependencies point inward. `Hangly.Core` knows nothing about WinUI, Win2D or Win32, which
-is what lets "the rope never stretches beyond 1.02× its rest length" be a number in a
-test rather than an opinion about a screenshot.
+is what lets "the rope never stretches beyond 1.02× its rest length" be a number in a test
+rather than an opinion about a screenshot.
 
-## The rope
-
-Twenty segments, twenty-one nodes, solved with Verlet integration and position-based
-constraints at a fixed 240 Hz regardless of what the display is doing. Nine cords, each a
-different set of solver values rather than a different texture. One, two or three charms
-on one cord. Beads that ride the cord as particles in their own right.
-
-All of that is described in the original's
-[physics documentation](https://github.com/sharancreatedthis/Hangly/blob/main/Docs/Physics.md),
-which this port follows to the number — and the test suite here is the Swift suite's
-assertions with the same tolerances, so any drift shows up as a failure rather than as a
-rope that feels slightly wrong.
+The original's
+[physics documentation](https://github.com/sharancreatedthis/Hangly/blob/main/Docs/Physics.md)
+describes the solver, and this port follows it to the number — the test suite here is the
+Swift suite's assertions with the same tolerances, so any drift shows up as a failing test
+rather than as a rope that feels slightly wrong.
 
 ## Licence
 
-MIT, as the original.
+[MIT](LICENSE) for the code.
+
+The charm artwork, the branding and the Hangly name are not MIT — see
+[NOTICE.md](NOTICE.md). Build it, fork it, change it; please do not ship the artwork as
+your own.

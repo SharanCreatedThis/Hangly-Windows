@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/SharanCreatedThis/Hangly-Windows/blob/main/SECURITY.md
+    about: Please report these by email rather than in public.
+  - name: What Hangly collects
+    url: https://github.com/SharanCreatedThis/Hangly-Windows/blob/main/PRIVACY.md
+    about: The full list, and how to switch it off.
