@@ -279,8 +279,11 @@ nothing in this pass was meant to.
 |---|---|---|
 | `ae7b927` | Single instance, `TaskbarCreated`, the fold | **green** |
 | `416b85d` | Documentation | **green** |
-| `fc17d7f` | Release validation tooling | green at time of writing |
+| `fc17d7f` | Release validation tooling | **green** |
 | tag `v0.9.0` → `416b85d` | Release workflow, both architectures, publish | **green** |
+
+Every commit in this pass is green. This report is itself a commit, and a documentation
+commit's Build run is not listed here for the obvious reason.
 
 ---
 
