@@ -194,6 +194,16 @@ public static class Diagnostics
                 return;
             }
 
+            // Refused rather than sent. CheckAsync goes straight to the provider and so
+            // walks around the name gate the manager enforces; without this it posted an
+            // event with an empty distinct_id and reported the 400 that came back as
+            // though the destination were at fault.
+            if (store.Settings.DisplayName.Trim().Length == 0)
+            {
+                Log("analytics check: nothing sent, because nobody has given a name yet");
+                return;
+            }
+
             using var provider = new Analytics.PostHogProvider(AppInfo.AnalyticsHost, AppInfo.AnalyticsKey);
             var manager = new Core.Analytics.AnalyticsManager(
                 store,

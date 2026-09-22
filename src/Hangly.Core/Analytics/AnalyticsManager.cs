@@ -46,6 +46,8 @@ public sealed class AnalyticsManager
     private readonly string systemVersion;
 
     private bool hasStarted;
+    private bool hasAnnounced;
+    private bool wasFirstLaunch;
 
     public AnalyticsManager(
         SettingsStore store,
@@ -77,6 +79,17 @@ public sealed class AnalyticsManager
     public AnalyticsConnection Connection { get; private set; } = AnalyticsConnection.NotStarted;
 
     public bool IsEnabled => store.Settings.Privacy.AnalyticsEnabled;
+
+    /// <summary>Whether the person has told Hangly what to call them yet.</summary>
+    /// <remarks>
+    /// <b>Nothing is sent before this is true.</b> The name is the one thing every event
+    /// carries that identifies a person to a human reader, and an event without it is a
+    /// row in the project that can never be attributed to anybody. The project had those:
+    /// the launch sequence counts the launch and says hello before onboarding has run, so
+    /// every first launch sent three events with an empty name, every time, by
+    /// construction.
+    /// </remarks>
+    public bool HasName => store.Settings.DisplayName.Trim().Length > 0;
 
     /// <summary>Where events would be sent, whether or not any are.</summary>
     public string Endpoint => hasDestination ? host : "none";
@@ -130,14 +143,29 @@ public sealed class AnalyticsManager
             return settings with { Milestones = milestones };
         });
 
-        if (!IsEnabled)
+        wasFirstLaunch = isFirstLaunch;
+        Announce();
+    }
+
+    /// <summary>Says hello, once the name is known and sharing is on.</summary>
+    /// <remarks>
+    /// <b>Held rather than dropped.</b> A first launch is the one launch worth counting
+    /// accurately and it happens before anybody has typed a name, so the hello waits for
+    /// the name instead of going out without one. Call this again whenever the name might
+    /// have arrived; it is guarded and does nothing on a session that has already said
+    /// hello.
+    /// </remarks>
+    public void Announce()
+    {
+        if (hasAnnounced || !hasStarted || !IsEnabled || !HasName)
         {
             return;
         }
 
+        hasAnnounced = true;
         StartProvider();
 
-        if (isFirstLaunch)
+        if (wasFirstLaunch)
         {
             Track(Events.AppFirstLaunch);
         }
@@ -148,7 +176,7 @@ public sealed class AnalyticsManager
     /// <summary>Called as the app goes away, so the queue is not lost with it.</summary>
     public void Stop()
     {
-        if (!hasStarted || !IsEnabled)
+        if (!hasAnnounced || !IsEnabled)
         {
             return;
         }
@@ -159,7 +187,10 @@ public sealed class AnalyticsManager
 
     public void Track(AnalyticsEvent analyticsEvent)
     {
-        if (!IsEnabled)
+        // The name gate, stated once and here rather than at every call site. Everything
+        // in the app reaches the project through this method, so this is the only place
+        // an unnamed event could get out.
+        if (!IsEnabled || !HasName)
         {
             return;
         }
@@ -216,6 +247,13 @@ public sealed class AnalyticsManager
         // Back on means a new identity, because the old one was discarded on the way out
         // and stitching the two would defeat the point of discarding it.
         provider.SetEnabled(true);
+
+        if (!HasName)
+        {
+            return;
+        }
+
+        hasAnnounced = true;
         StartProvider();
         Track(Events.AppLaunch);
     }
@@ -230,6 +268,8 @@ public sealed class AnalyticsManager
         // already exists; `$identify` is the event that creates one. Without it a copy
         // that launched and quit without touching anything left a person with no name on
         // it, which is most of a beta.
+        // Guarded by Announce and by SetEnabled, both of which refuse without a name, so
+        // the person this creates always has one.
         provider.Capture(new AnalyticsEvent(Events.Identify, Identity()));
 
         Connection = hasDestination ? AnalyticsConnection.Connected(host) : AnalyticsConnection.NoDestination;

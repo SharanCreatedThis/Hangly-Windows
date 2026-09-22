@@ -176,7 +176,10 @@ public sealed class AppEnvironment : IDisposable
             return;
         }
 
-        var welcome = new Onboarding.WelcomeWindow(store, analytics, OpenLibrary);
+        // Quit is passed only on this route. The About page's "Show welcome again" opens
+        // the same card for somebody who already has a name, and closing that one must
+        // not take the app with it.
+        var welcome = new Onboarding.WelcomeWindow(store, analytics, OpenLibrary, Quit);
 
         // Hidden rather than closed when it is dismissed, so the app is still running
         // afterwards. See ProcessLifetime.

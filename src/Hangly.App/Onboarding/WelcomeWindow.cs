@@ -41,15 +41,18 @@ public sealed class WelcomeWindow : Window
     private readonly StackPanel askPanel;
     private readonly StackPanel welcomePanel;
     private readonly Grid body;
+    private readonly Action? abandoned;
 
     public WelcomeWindow(
         SettingsStore store,
         Hangly.Core.Analytics.AnalyticsManager analytics,
-        Action openLibrary)
+        Action openLibrary,
+        Action? abandoned = null)
     {
         this.store = store;
         this.analytics = analytics;
         this.openLibrary = openLibrary;
+        this.abandoned = abandoned;
 
         Title = "Welcome to Hangly";
 
@@ -120,12 +123,25 @@ public sealed class WelcomeWindow : Window
         Interop.WindowIcon.Apply(this);
         Interop.WindowPlacement.FixSize(this);
 
-        // Dismissing without a name writes nothing, so the card returns next launch rather
-        // than leaving the app nameless.
-        AppWindow.Closing += (_, _) => Diagnostics.Log(
-            store.Settings.DisplayName.Length > 0
-                ? "welcome card completed"
-                : "welcome card dismissed without a name; it will be shown again");
+        // Closing this without a name closes Hangly.
+        //
+        // The name is not optional and the card said so by disabling its own button, but
+        // the title bar's X went around that: the app carried on running, nameless, and
+        // reported itself that way for the rest of the session. There is no useful state
+        // between "has been asked" and "has answered", so dismissing the question is
+        // declining to run rather than a way past it. The card comes back next launch,
+        // which is where somebody who changed their mind will find it.
+        AppWindow.Closing += (_, _) =>
+        {
+            if (store.Settings.DisplayName.Length > 0)
+            {
+                Diagnostics.Log("welcome card completed");
+                return;
+            }
+
+            Diagnostics.Log("welcome card dismissed without a name; quitting");
+            abandoned?.Invoke();
+        };
     }
 
     /// <summary>Whether onboarding still has to happen.</summary>
@@ -275,6 +291,10 @@ public sealed class WelcomeWindow : Window
             HasSeenWelcome = true,
             DisplayName = chosen,
         });
+
+        // The launch events waited for this. Said now rather than next launch, so the
+        // first launch is counted on the day it happened and with the name on it.
+        analytics.Announce();
 
         // The name is saved before the second step is shown, so dismissing the window from
         // here on is finishing rather than abandoning.

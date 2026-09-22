@@ -23,7 +23,22 @@ public class AnalyticsTests : IDisposable
 
     private readonly RecordingAnalyticsProvider provider = new();
 
+    /// <summary>A store for somebody who has been through onboarding.</summary>
+    /// <remarks>
+    /// Named, because nothing is sent to a project on behalf of somebody who is not, and
+    /// a fixture that starts nameless is a fixture testing the one state where the answer
+    /// to everything is "nothing happened". The tests about that state say so by name and
+    /// use <see cref="NewNamelessStore"/>.
+    /// </remarks>
     private SettingsStore NewStore()
+    {
+        SettingsStore store = NewNamelessStore();
+        store.Update(settings => settings with { DisplayName = "Sharan" });
+        return store;
+    }
+
+    /// <summary>A store for somebody who has not answered yet.</summary>
+    private SettingsStore NewNamelessStore()
     {
         Directory.CreateDirectory(directory);
         return new SettingsStore(Path.Combine(directory, "settings.json"));
@@ -365,6 +380,85 @@ public class AnalyticsTests : IDisposable
 
         Assert.NotNull(provider.PersonProperties);
         Assert.Equal("Sharan", ((AnalyticsValue.Text)provider.PersonProperties!["user_name"]).Value);
+    }
+
+    /// <summary>
+    /// Every blank user_name in the project came from here. The launch sequence counts
+    /// the launch and says hello before onboarding has run, so a first launch sent
+    /// $identify, app_first_launch and app_launch with an empty name, every time.
+    /// </summary>
+    [Fact(DisplayName = "Nothing at all is sent until the person has a name")]
+    public void NothingIsSentWhileNameless()
+    {
+        SettingsStore store = NewNamelessStore();
+        AnalyticsManager manager = NewManager(store);
+
+        manager.Start();
+        manager.Track(Events.AppQuit);
+        manager.Stop();
+
+        Assert.Empty(provider.Captured);
+        Assert.Equal(0, provider.StartCount);
+
+        // The launch still counts. The follow card is scheduled off that number and it
+        // has nothing to do with whether anything was sent.
+        Assert.Equal(1, store.Settings.Milestones.LaunchCount);
+    }
+
+    /// <summary>The hello is held for the name, not dropped.</summary>
+    [Fact(DisplayName = "Naming yourself releases the launch that was waiting")]
+    public void NamingReleasesTheHeldLaunch()
+    {
+        SettingsStore store = NewNamelessStore();
+        AnalyticsManager manager = NewManager(store);
+        manager.Start();
+        Assert.Empty(provider.Captured);
+
+        store.Update(settings => settings with { DisplayName = "Sharan" });
+        manager.Announce();
+
+        Assert.Equal(
+            ["$identify", "app_first_launch", "app_launch"],
+            provider.Captured.Select(e => e.Name));
+
+        foreach (AnalyticsEvent sent in provider.Captured)
+        {
+            if (sent.Properties.TryGetValue("user_name", out AnalyticsValue? name))
+            {
+                Assert.Equal("Sharan", ((AnalyticsValue.Text)name).Value);
+            }
+        }
+    }
+
+    /// <summary>Announcing twice is still one hello.</summary>
+    [Fact(DisplayName = "The held launch is released exactly once")]
+    public void AnnounceIsIdempotent()
+    {
+        SettingsStore store = NewNamelessStore();
+        AnalyticsManager manager = NewManager(store);
+        manager.Start();
+        store.Update(settings => settings with { DisplayName = "Sharan" });
+
+        manager.Announce();
+        manager.Announce();
+        manager.Announce();
+
+        Assert.Equal(3, provider.Captured.Count);
+        Assert.Equal(1, provider.StartCount);
+    }
+
+    /// <summary>A name of nothing but spaces is not a name.</summary>
+    [Fact(DisplayName = "Whitespace is not a name")]
+    public void WhitespaceIsNotAName()
+    {
+        SettingsStore store = NewNamelessStore();
+        store.Update(settings => settings with { DisplayName = "   " });
+        AnalyticsManager manager = NewManager(store);
+
+        manager.Start();
+
+        Assert.False(manager.HasName);
+        Assert.Empty(provider.Captured);
     }
 
     /// <summary>
