@@ -293,10 +293,16 @@ public class SettingsStoreTests : IDisposable
 /// </summary>
 public class OverlayPositionTests
 {
-    [Theory(DisplayName = "An old anchor becomes the position it meant")]
-    [InlineData("TopLeading", 0.0)]
+    /// <summary>
+    /// Inset from the edge, not on it. The fraction places the rope rather than the
+    /// window, so 1 hangs the charm half off the display — which is not what anybody
+    /// meant by "Top Right", and is what a laptop showed on its first launch after
+    /// updating.
+    /// </summary>
+    [Theory(DisplayName = "An old anchor becomes the position it meant, inset from the edge")]
+    [InlineData("TopLeading", 0.15)]
     [InlineData("TopCenter", 0.5)]
-    [InlineData("TopTrailing", 1.0)]
+    [InlineData("TopTrailing", 0.85)]
     public void AnchorsMigrate(string anchor, double expected)
     {
         AppSettings settings = AppSettings.FromJson(
@@ -335,8 +341,10 @@ public class OverlayPositionTests
     {
         AppSettings settings = AppSettings.FromJson("{}", out _);
 
-        // Top right, which is what a new install gets.
-        Assert.Equal(1.0, settings.Overlay.Position);
+        // Top right inset from the edge. A brand-new install gets 0.85 from
+        // AppSettings.Defaults; an empty document is a file somebody wrote, so it takes
+        // the same number by way of the anchor rather than by way of the defaults.
+        Assert.Equal(0.85, settings.Overlay.Position);
         Assert.Null(settings.Overlay.HorizontalPosition);
     }
 }

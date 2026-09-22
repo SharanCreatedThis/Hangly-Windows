@@ -54,12 +54,40 @@ public sealed record OverlaySettings
     public double? HorizontalPosition { get; init; }
 
     /// <summary>Where the rope hangs, as a fraction, whichever way it was recorded.</summary>
+    /// <remarks>
+    /// <b>The corners are inset, and they have to be.</b> The fraction places the rope,
+    /// not the window, so 1 puts the cord against the very edge of the display with half
+    /// the charm hanging off it. That is what "hard right" has to mean for a thing drawn
+    /// in the middle of its own window — but it is not what anybody meant by choosing
+    /// "Top Right" in a build that only offered three corners, and it is what they got on
+    /// the first launch after updating. Reported from a laptop that came back from the
+    /// update with its charm halfway off the screen.
+    ///
+    /// <para>Both ends are inset by the same amount. Only the right was reported, because
+    /// that is the corner the default used; the left had the identical defect waiting for
+    /// anybody who had chosen it.</para>
+    ///
+    /// <para>This is a migration, so it only decides where a charm goes when nobody has
+    /// ever moved the slider. A stored position still wins, and dragging to either end
+    /// still reaches 0 and 1.</para>
+    /// </remarks>
     public double Position => HorizontalPosition ?? Anchor switch
     {
-        OverlayAnchor.TopLeading => 0,
-        OverlayAnchor.TopTrailing => 1,
+        OverlayAnchor.TopLeading => LeadingInset,
+        OverlayAnchor.TopTrailing => TrailingInset,
         _ => 0.5,
     };
+
+    /// <summary>Where an old Top Left now hangs.</summary>
+    /// <remarks>
+    /// Stated rather than derived from <see cref="TrailingInset"/>. <c>1 - 0.85</c> is
+    /// 0.15000000000000002 in binary floating point, and a position that fails to equal
+    /// the number it is documented as is a position somebody will chase later.
+    /// </remarks>
+    private const double LeadingInset = 0.15;
+
+    /// <summary>Where an old Top Right now hangs.</summary>
+    private const double TrailingInset = 0.85;
 
     /// <summary>User nudge from the anchor, in points.</summary>
     public double OffsetX { get; init; }

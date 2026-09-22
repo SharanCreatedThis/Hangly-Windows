@@ -6,6 +6,15 @@ pulls the section out and the release workflow hands it to both.
 
 Headings are `## <version> — <date>`. Nothing else is a version heading.
 
+## 0.9.3 — 2026-09-22
+
+**Fixed**
+
+- Updating from 0.9.1 or earlier no longer throws the charm half off the side of the
+  screen. A charm that hung in a corner before the position slider existed now lands just
+  inside that edge instead of exactly on it. If you have already moved the slider
+  yourself, nothing changes — your position is kept.
+
 ## 0.9.2 — 2026-09-22
 
 Hangly now says who made it, quietly, in the places you would look.
