@@ -6,6 +6,23 @@ pulls the section out and the release workflow hands it to both.
 
 Headings are `## <version> — <date>`. Nothing else is a version heading.
 
+## 0.9.4 — 2026-09-22
+
+**Changed**
+
+- Hangly asks for your name before it starts, and now means it. The welcome card's
+  Continue button was already disabled until you typed one, but closing the card with the
+  X went around that and left Hangly running without a name. Closing it without answering
+  now closes Hangly, and the card comes back next time you open it.
+
+**Fixed**
+
+- Nothing is sent to the usage-data project until you have given a name. The first launch
+  used to report itself before the welcome card had appeared, so those reports carried no
+  name at all. They wait for it now — the launch is still counted, just with you on it.
+- Anonymous analytics remains entirely optional and can be switched off on the About page,
+  exactly as before.
+
 ## 0.9.3 — 2026-09-22
 
 **Fixed**

@@ -67,7 +67,7 @@
       development build that claims a version that was never released is a build whose
       About page cannot be trusted in a bug report.
     -->
-    <Version>0.9.3</Version>
+    <Version>0.9.4</Version>
     <Copyright>Copyright © 2026 sharancreatedthis</Copyright>
 
     <!--
@@ -88,7 +88,7 @@
     -->
     <HanglyAnalyticsHost Condition="'$(HanglyAnalyticsHost)' == ''">us.i.posthog.com</HanglyAnalyticsHost>
     <HanglyAnalyticsKey Condition="'$(HanglyAnalyticsKey)' == ''">phc_sCpDUENKdFpt5Db9Fvjh46yJw6ffkEhF6v2W2TbJBwiK</HanglyAnalyticsKey>
-    <HanglyBuildNumber Condition="'$(HanglyBuildNumber)' == ''">4</HanglyBuildNumber>
+    <HanglyBuildNumber Condition="'$(HanglyBuildNumber)' == ''">5</HanglyBuildNumber>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
     <!--
