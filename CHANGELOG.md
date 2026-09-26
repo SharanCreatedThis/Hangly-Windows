@@ -43,6 +43,8 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 - Artwork the rope no longer draws is let go: the in-between sizes a charm grows through
   as it appears, and everything belonging to a charm taken off the rope.
 - A rare race between the tray menu changing charms and the overlay drawing them.
+- The card asking you to follow the creator waits until the fifth launch, as it does on a
+  Mac, rather than the third.
 - **Less CPU while the charm swings.** Frames now go straight from the GPU to the screen
   instead of being copied back through system memory first, and once the charm is still
   Hangly checks the mouse thirty times a second instead of at the display's full rate.
