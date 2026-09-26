@@ -26,6 +26,18 @@ internal static class FullscreenWatcher
 {
     public static ForegroundFacts Read(IntPtr overlay)
     {
+        long started = System.Diagnostics.Stopwatch.GetTimestamp();
+        ForegroundFacts facts = ReadFacts(overlay);
+        if (AuditsFullscreen)
+        {
+            Diagnostics.Log($"full-screen check took {System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMicroseconds:0} µs");
+        }
+
+        return facts;
+    }
+
+    private static ForegroundFacts ReadFacts(IntPtr overlay)
+    {
         IntPtr window = GetForegroundWindow();
         if (window == IntPtr.Zero)
         {
@@ -39,7 +51,19 @@ internal static class FullscreenWatcher
         // focus: VLC keeps its controls in front and plays in a separate, full-screen video
         // window. So a covering, caption-less window of the same process stands in for the
         // front one — the Windows counterpart of the macOS rule looking at every window.
-        if (!isHangly && !CoversWithoutCaption(window) && FullScreenSibling(window, process) is IntPtr sibling)
+        // The search walks every top-level window, so it runs when the foreground changes
+        // and otherwise on one check in three: VLC going full screen is noticed within
+        // three seconds, where macOS's poll takes two. Measured at 0.3–0.7 ms a search in
+        // the VM, against 0.1 ms for the rest of the check.
+        bool searchSiblings = window != lastFront || ++checksSinceSearch >= SiblingSearchEvery;
+        if (searchSiblings)
+        {
+            checksSinceSearch = 0;
+            lastFront = window;
+            lastSibling = !isHangly && !CoversWithoutCaption(window) ? FullScreenSibling(window, process) : null;
+        }
+
+        if (lastSibling is IntPtr sibling && IsWindowVisible(sibling))
         {
             window = sibling;
         }
@@ -60,7 +84,17 @@ internal static class FullscreenWatcher
             IsHangly: isHangly,
             SameDisplayAsCharm: overlay != IntPtr.Zero && monitor == MonitorFromWindow(overlay, MonitorDefaultToNearest),
             ForegroundPlaying: false,
-            ExclusiveFullScreen: SHQueryUserNotificationState(out int state) == 0 && state == RunningD3DFullScreen);
+            ExclusiveFullScreen: false);
+
+        // The shell's notification state costs 0.7–0.9 ms (measured), and an exclusive
+        // full-screen game always covers its monitor, so it is asked only when a window does.
+        if (FullscreenRule.CoversMonitor(facts))
+        {
+            facts = facts with
+            {
+                ExclusiveFullScreen = SHQueryUserNotificationState(out int state) == 0 && state == RunningD3DFullScreen,
+            };
+        }
 
         // Only worth asking the audio system when everything else already says full screen.
         if (!facts.HasCaption && !facts.IsShellOrDesktop && !facts.IsHangly && FullscreenRule.CoversMonitor(facts))
@@ -68,7 +102,7 @@ internal static class FullscreenWatcher
             facts = facts with { ForegroundPlaying = IsPlaying(window, AppProcess(window, process)) };
         }
 
-        if (AuditsFullscreen)
+        if (AuditsFullscreenVerbose)
         {
             HashSet<uint> playing = Interop.AudioSessions.PlayingProcesses();
             Diagnostics.Log(
@@ -78,6 +112,11 @@ internal static class FullscreenWatcher
 
         return facts;
     }
+
+    private const int SiblingSearchEvery = 3;
+    private static IntPtr lastFront;
+    private static IntPtr? lastSibling;
+    private static int checksSinceSearch;
 
     private static bool CoversWithoutCaption(IntPtr window)
     {
@@ -119,6 +158,9 @@ internal static class FullscreenWatcher
 
     /// <summary>For audits only: <c>HANGLY_AUDIT_FULLSCREEN</c> logs what each check saw.</summary>
     private static readonly bool AuditsFullscreen = Environment.GetEnvironmentVariable("HANGLY_AUDIT_FULLSCREEN") is { Length: > 0 };
+
+    /// <summary><c>HANGLY_AUDIT_FULLSCREEN=verbose</c> also lists who is playing, which costs a Core Audio read per check.</summary>
+    private static readonly bool AuditsFullscreenVerbose = Environment.GetEnvironmentVariable("HANGLY_AUDIT_FULLSCREEN") == "verbose";
 
     /// <summary>Whether the application behind a process id has an active audio stream.</summary>
     /// <remarks>
