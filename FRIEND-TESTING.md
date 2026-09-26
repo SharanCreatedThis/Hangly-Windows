@@ -54,8 +54,8 @@ already on the list.
 
 The same as always, and no more because you are testing: the name you type, that this is
 Windows, the processor, and the Windows and Hangly versions — sent when you first start
-it, if you change your name, and on a new major version. Nothing about what you do in the
-app. Not your files, not your file names, not your Windows account. Switch it off in **Customize → About** and nothing is sent at all.
+it, if you change your name, and on a new major version, plus once a day that it is still
+running and once if you uninstall. Nothing about what you do in the app. Not your files, not your file names, not your Windows account. Switch it off in **Customize → About** and nothing is sent at all.
 [PRIVACY.md](PRIVACY.md) is the full account.
 
 ## What happens to your feedback

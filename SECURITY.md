@@ -29,7 +29,8 @@ user. The places where something could still go wrong:
   verifies each package against the SHA256 in the feed before applying it. Anything that
   would let a different package be applied is a vulnerability.
 - **Analytics.** With sharing on, Hangly sends one documented `$identify` on a first
-  launch, a rename or a new major version, and nothing else. Anything leaving the machine
+  launch, a rename or a new major version, at most one `daily_active` a day, and one
+  `app_uninstalled` from the uninstaller — and nothing else. Anything leaving the machine
   that [PRIVACY.md](PRIVACY.md) does not list is a bug, and if it is personal information
   it is a vulnerability. `Hangly.exe --check-analytics` prints exactly what would be sent.
 
