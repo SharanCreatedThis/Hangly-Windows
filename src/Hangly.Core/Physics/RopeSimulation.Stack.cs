@@ -43,6 +43,7 @@ public sealed partial class RopeSimulation
 
         bool countChanged = stack.Count != CharmStackMetrics.Count;
         CharmStackMetrics = stack;
+        ForgetContacts();
         RefreshLayout();
 
         // Each charm's radius decides where its cord ends and how large its beads are, so

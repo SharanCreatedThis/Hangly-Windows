@@ -619,6 +619,10 @@ public sealed partial class CustomizeWindow : Window
 
             ShowToggle.IsOn = overlay.IsEnabled;
             MotionChoice.SelectedIndex = (int)overlay.Motion;
+            SoundToggle.IsOn = store.Settings.SoundEffectsEnabled;
+            VolumeSlider.Value = Math.Round(store.Settings.SoundVolume * 100);
+            VolumeSlider.IsEnabled = SoundToggle.IsOn;
+            VolumeLabel.Text = $"Volume — {VolumeSlider.Value:0}%";
             LoginToggle.IsOn = store.Settings.LaunchAtLogin;
             NameBox.MaxLength = AppSettings.DisplayNameLimit;
             NameBox.Text = store.Settings.DisplayName;
@@ -1386,6 +1390,24 @@ public sealed partial class CustomizeWindow : Window
         if (!isLoading)
         {
             store.UpdateOverlay(overlay => overlay with { Opacity = OpacitySlider.Value });
+        }
+    }
+
+    private void OnSoundToggled(object sender, RoutedEventArgs args)
+    {
+        VolumeSlider.IsEnabled = SoundToggle.IsOn;
+        if (!isLoading)
+        {
+            store.Update(settings => settings with { SoundEffectsEnabled = SoundToggle.IsOn });
+        }
+    }
+
+    private void OnVolumeChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs args)
+    {
+        VolumeLabel.Text = $"Volume — {VolumeSlider.Value:0}%";
+        if (!isLoading)
+        {
+            store.Update(settings => settings with { SoundVolume = VolumeSlider.Value / 100 });
         }
     }
 

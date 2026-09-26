@@ -439,6 +439,8 @@ public sealed partial class RopeSimulation
             relaxations += 1;
         }
 
+        CloseContacts(timeStep);
+
         EnforceMaximumStretch();
         RefreshCord();
         AdvanceBeads(timeStep);
