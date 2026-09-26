@@ -158,8 +158,20 @@ public sealed class AnalyticsManager
             return Task.CompletedTask;
         }
 
-        inFlight = Send(reason);
+        inFlight = SendThenRecheck(reason);
         return inFlight;
+    }
+
+    /// Sends, then looks again once: something may have changed while that was on the
+    /// wire — a rename typed during a first launch — and it should not wait for the next
+    /// launch.
+    private async Task SendThenRecheck(IdentifyReason reason)
+    {
+        if (await Send(reason).ConfigureAwait(false))
+        {
+            inFlight = null;
+            await Sync().ConfigureAwait(false);
+        }
     }
 
     /// <summary>Which of the three triggers applies right now, or null if none does.</summary>
@@ -275,7 +287,7 @@ public sealed class AnalyticsManager
 
     private string CurrentName => store.Settings.DisplayName.Trim();
 
-    private async Task Send(IdentifyReason reason)
+    private async Task<bool> Send(IdentifyReason reason)
     {
         string distinctId = CurrentIdentifier();
         string name = CurrentName;
@@ -285,7 +297,7 @@ public sealed class AnalyticsManager
 
         if (!accepted)
         {
-            return;
+            return false;
         }
 
         // Written only now, and only if sharing is still on and the identifier is still
@@ -307,6 +319,7 @@ public sealed class AnalyticsManager
         LastReason = reason;
         LastSentAt = DateTimeOffset.Now;
         Changed?.Invoke();
+        return true;
     }
 
     /// <summary>The installation identifier, minted on first use and stored from then on.</summary>
