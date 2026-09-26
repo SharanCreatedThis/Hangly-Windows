@@ -397,7 +397,6 @@
                             x:Name="CreatorHandleLink"
                             AutomationProperties.AutomationId="CreatorHandle"
                             AutomationProperties.Name="Creator on Instagram"
-                            Click="OnInstagramClicked"
                             Content="@sharan.created.this"
                             FontSize="13"
                             HorizontalAlignment="Left"
@@ -715,7 +714,28 @@
 
                         <!-- The name given at onboarding, changeable here. A name
                              someone is asked for once and can never correct is a name
-                             they will resent. -->
+                             they will resent. Saved when the box loses focus or Enter is
+                             pressed, not on every keystroke, so a half-typed name is never
+                             what the project is told. -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="You" />
+                            <TextBox
+                                x:Name="NameBox"
+                                Width="320"
+                                HorizontalAlignment="Left"
+                                AutomationProperties.AutomationId="NameBox"
+                                Header="Your name"
+                                KeyDown="OnNameKeyDown"
+                                LostFocus="OnNameCommitted" />
+                            <TextBlock
+                                MaxWidth="560"
+                                HorizontalAlignment="Left"
+                                Opacity="0.7"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="Hangly greets you by this name. While analytics is on, it is also how you appear in Hangly's list of the people who use it."
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+
                         <StackPanel Spacing="6">
                             <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Size and reach" />
                             <TextBlock x:Name="SizeLabel" Text="Charm size" />
@@ -902,7 +922,6 @@
                                     <HyperlinkButton
                                         x:Name="InstagramLink"
                                         AutomationProperties.AutomationId="InstagramLink"
-                                        Click="OnInstagramClicked"
                                         Content="Instagram" />
                                     <HyperlinkButton
                                         x:Name="SuggestLink"
@@ -1061,17 +1080,17 @@
                         <muxc:Expander
                             x:Name="AnalyticsSection"
                             HorizontalAlignment="Stretch"
-                            Header="Anonymous analytics">
+                            Header="Analytics">
                             <StackPanel Margin="0,8,0,0" Spacing="12">
                                 <ToggleSwitch
                                     x:Name="AnalyticsToggle"
-                                    Header="Share anonymous analytics"
+                                    Header="Tell Hangly who is using it"
                                     Toggled="OnAnalyticsToggled" />
                                 <TextBlock
                                     Opacity="0.75"
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     TextWrapping="Wrap"
-                                    Text="Counts which features are used, so Hangly can be made better. Never your name, your files, or where your charm sits. Switching it off stops collection immediately and throws away the installation identifier." />
+                                    Text="Sends your name, that this is Windows, the processor, and the versions of Windows and Hangly. Sent once when you start Hangly for the first time, again if you change your name, and again when a new major version arrives. Nothing about what you do in the app is ever sent. Switching it off stops it immediately and throws away the installation identifier." />
 
                                 <Grid ColumnSpacing="16" RowSpacing="6">
                                     <Grid.ColumnDefinitions>
@@ -1100,16 +1119,13 @@
                                         FontFamily="Consolas"
                                         IsTextSelectionEnabled="True" />
 
-                                    <TextBlock Grid.Row="3" Opacity="0.7" Text="Last event" />
-                                    <TextBlock x:Name="AnalyticsLastEvent" Grid.Row="3" Grid.Column="1" />
+                                    <TextBlock Grid.Row="3" Opacity="0.7" Text="Last sent" />
+                                    <TextBlock x:Name="AnalyticsLastSent" Grid.Row="3" Grid.Column="1" />
 
-                                    <TextBlock Grid.Row="4" Opacity="0.7" Text="Events sent" />
-                                    <TextBlock x:Name="AnalyticsSentCount" Grid.Row="4" Grid.Column="1" />
-
-                                    <TextBlock Grid.Row="5" Opacity="0.7" Text="Your name" />
+                                    <TextBlock Grid.Row="4" Opacity="0.7" Text="Your name" />
                                     <TextBlock
                                         x:Name="AnalyticsUserName"
-                                        Grid.Row="5"
+                                        Grid.Row="4"
                                         Grid.Column="1"
                                         AutomationProperties.AutomationId="AnalyticsUserName" />
                                 </Grid>
@@ -1121,7 +1137,7 @@
                                     Margin="0,8,0,0"
                                     Opacity="0.7"
                                     Style="{StaticResource CaptionTextBlockStyle}"
-                                    Text="Every event carries these and nothing else:" />
+                                    Text="What Hangly is told, and nothing else:" />
                                 <TextBlock
                                     x:Name="AnalyticsFields"
                                     AutomationProperties.AutomationId="AnalyticsFields"

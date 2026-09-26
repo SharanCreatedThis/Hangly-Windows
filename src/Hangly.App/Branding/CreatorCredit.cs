@@ -6,7 +6,6 @@
 //
 
 using Hangly.App.Services;
-using Hangly.Core.Analytics;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -73,7 +72,6 @@ public static class CreatorCredit
 
     /// <summary>The credit and its two actions, on one line, for the small windows.</summary>
     /// <param name="root">What the coffee sheet opens over.</param>
-    /// <param name="source">Which surface asked, which is all the coffee event records.</param>
     /// <remarks>
     /// Website and coffee, and nothing else. Instagram is already here — it is what the
     /// handle links to — and a third would turn a credit into a row of calls to action,
@@ -90,8 +88,6 @@ public static class CreatorCredit
     /// </param>
     public static FrameworkElement Panel(
         FrameworkElement root,
-        AnalyticsManager analytics,
-        string source,
         bool ownAccent = false,
         bool stacked = false)
     {
@@ -164,7 +160,7 @@ public static class CreatorCredit
         {
             try
             {
-                await Customize.BuyCoffeeSheet.ShowAsync(root, analytics, source);
+                await Customize.BuyCoffeeSheet.ShowAsync(root);
             }
             catch (Exception exception)
             {

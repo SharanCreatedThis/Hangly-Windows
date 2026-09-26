@@ -108,11 +108,13 @@ so without the caveat.
 
 Hangly asks for no permissions and has no server and no accounts.
 
-With analytics on it sends a small, fully listed set of events — which charm was hung,
-which rope style, that a charm was imported — plus the display name you type when you
-first run it. It never sends your Windows account name, your files, your file names, your
-location, or anything describing your screen. You can switch it off in **Customize →
-About**, and `Hangly.exe --check-analytics` prints exactly what one real event contains.
+With analytics on it tells the project who is using Hangly — the name you type when you
+first run it, that this is Windows, the processor, and the Windows and Hangly versions — in
+one message on your first launch, again if you change your name, and again on a new major
+version. It never sends anything about what you do in the app, your Windows account name,
+your files, your location, or anything describing your screen. Switch it off in
+**Customize → About**; `Hangly.exe --check-analytics` prints exactly what would be sent,
+without sending it. Builds made from this source send nothing.
 
 [PRIVACY.md](PRIVACY.md) is the full account, and it describes this build rather than the
 macOS one.

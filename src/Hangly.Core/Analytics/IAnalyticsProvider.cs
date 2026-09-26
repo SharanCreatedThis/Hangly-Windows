@@ -2,75 +2,61 @@
 //  IAnalyticsProvider.cs
 //  Hangly
 //
-//  Where events go, behind an interface so that "nowhere" is a valid answer.
+//  Where the one message goes, behind an interface so that "nowhere" is a valid answer.
 //
 
 namespace Hangly.Core.Analytics;
 
-/// <summary>Somewhere to send events.</summary>
+/// <summary>Somewhere to say who is running Hangly.</summary>
 /// <remarks>
 /// An interface rather than a direct call into a vendor SDK, for three reasons that all
 /// turned out to matter on macOS and matter here: the app has to build and run with no
 /// analytics at all, the tests have to be able to read back what would have been sent,
 /// and the one place that talks to the network should be small enough to read in a
 /// sitting.
+///
+/// <para><b>It can say exactly one thing.</b> Hangly used to report behaviour — launches,
+/// quits, every charm hung — and at twelve thousand people that was millions of events a
+/// month to learn things nobody was reading. What is wanted is a register of people: who
+/// they are, on what, at which version. That is one <c>$identify</c>, and this interface
+/// has no way to send anything else.</para>
 /// </remarks>
 public interface IAnalyticsProvider
 {
-    /// <summary>Called once, when analytics is allowed to begin.</summary>
-    /// <param name="distinctId">The anonymous installation identifier.</param>
-    /// <param name="superProperties">Facts attached to every event from here on.</param>
-    void Start(string distinctId, IReadOnlyDictionary<string, AnalyticsValue> superProperties);
-
-    /// <summary>
-    /// Person-level properties to attach to the next and every later event.
-    /// </summary>
-    /// <remarks>
-    /// Separate from the super properties because they are about the person rather than
-    /// the event, and because they can change while the app is running — a name corrected
-    /// on the Appearance page has to reach the project without a relaunch.
-    /// </remarks>
-    void SetPersonProperties(IReadOnlyDictionary<string, AnalyticsValue> properties);
-
-    void Capture(AnalyticsEvent analyticsEvent);
-
-    /// <summary>
-    /// Stops or resumes sending. Off must take effect immediately, and must not be a
-    /// filter applied later somewhere else.
-    /// </summary>
-    void SetEnabled(bool isEnabled);
-
-    /// <summary>Sends whatever is queued. Called when the app is going away.</summary>
-    void Flush();
+    /// <summary>Tells the project who this person is.</summary>
+    /// <param name="distinctId">The installation identifier.</param>
+    /// <param name="personProperties">What PostHog stores on the person, as <c>$set</c>.</param>
+    /// <param name="eventProperties">What rides on the identify itself.</param>
+    /// <returns>
+    /// Whether the project accepted it. The manager only records a person as identified on
+    /// <see langword="true"/>, so a first launch with no network is retried on the next
+    /// launch rather than never counted.
+    /// </returns>
+    Task<bool> IdentifyAsync(
+        string distinctId,
+        IReadOnlyDictionary<string, AnalyticsValue> personProperties,
+        IReadOnlyDictionary<string, AnalyticsValue> eventProperties);
 }
 
 /// <summary>Sends nothing, anywhere, ever.</summary>
 /// <remarks>
-/// What runs when analytics is switched off, when no project key is configured, and in
-/// every test that is not specifically about analytics.
+/// What runs when no project key is configured — every development and CI build — and in
+/// every test that is not specifically about analytics. It reports failure, so nothing is
+/// ever recorded as sent by a build that sent nothing.
 /// </remarks>
 public sealed class NoOpAnalyticsProvider : IAnalyticsProvider
 {
-    public void Start(string distinctId, IReadOnlyDictionary<string, AnalyticsValue> superProperties)
-    {
-    }
-
-    public void SetPersonProperties(IReadOnlyDictionary<string, AnalyticsValue> properties)
-    {
-    }
-
-    public void Capture(AnalyticsEvent analyticsEvent)
-    {
-    }
-
-    public void SetEnabled(bool isEnabled)
-    {
-    }
-
-    public void Flush()
-    {
-    }
+    public Task<bool> IdentifyAsync(
+        string distinctId,
+        IReadOnlyDictionary<string, AnalyticsValue> personProperties,
+        IReadOnlyDictionary<string, AnalyticsValue> eventProperties) => Task.FromResult(false);
 }
+
+/// <summary>One identify, as it would have left the machine.</summary>
+public sealed record IdentifyCall(
+    string DistinctId,
+    IReadOnlyDictionary<string, AnalyticsValue> PersonProperties,
+    IReadOnlyDictionary<string, AnalyticsValue> EventProperties);
 
 /// <summary>Remembers what it was given, and sends nothing.</summary>
 /// <remarks>
@@ -80,36 +66,19 @@ public sealed class NoOpAnalyticsProvider : IAnalyticsProvider
 /// </remarks>
 public sealed class RecordingAnalyticsProvider : IAnalyticsProvider
 {
-    private readonly List<AnalyticsEvent> captured = [];
+    private readonly List<IdentifyCall> calls = [];
 
-    public IReadOnlyList<AnalyticsEvent> Captured => captured;
+    public IReadOnlyList<IdentifyCall> Calls => calls;
 
-    public string? DistinctId { get; private set; }
+    /// <summary>What the pretend project answers. Set false to stand in for no network.</summary>
+    public bool Accepts { get; set; } = true;
 
-    public IReadOnlyDictionary<string, AnalyticsValue>? SuperProperties { get; private set; }
-
-    public bool IsEnabled { get; private set; } = true;
-
-    public int StartCount { get; private set; }
-
-    public int FlushCount { get; private set; }
-
-    /// <summary>The person properties last handed over, for tests to assert against.</summary>
-    public IReadOnlyDictionary<string, AnalyticsValue>? PersonProperties { get; private set; }
-
-    public void SetPersonProperties(IReadOnlyDictionary<string, AnalyticsValue> properties) =>
-        PersonProperties = properties;
-
-    public void Start(string distinctId, IReadOnlyDictionary<string, AnalyticsValue> superProperties)
+    public Task<bool> IdentifyAsync(
+        string distinctId,
+        IReadOnlyDictionary<string, AnalyticsValue> personProperties,
+        IReadOnlyDictionary<string, AnalyticsValue> eventProperties)
     {
-        DistinctId = distinctId;
-        SuperProperties = superProperties;
-        StartCount++;
+        calls.Add(new IdentifyCall(distinctId, personProperties, eventProperties));
+        return Task.FromResult(Accepts);
     }
-
-    public void Capture(AnalyticsEvent analyticsEvent) => captured.Add(analyticsEvent);
-
-    public void SetEnabled(bool isEnabled) => IsEnabled = isEnabled;
-
-    public void Flush() => FlushCount++;
 }

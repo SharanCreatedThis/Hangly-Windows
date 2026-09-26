@@ -254,7 +254,7 @@ public sealed class WelcomeWindow : Window
         buttons.Children.Add(begin);
         buttons.Children.Add(explore);
         panel.Children.Add(buttons);
-        panel.Children.Add(Branding.CreatorCredit.Panel(body, analytics, "welcome", ownAccent: true));
+        panel.Children.Add(Branding.CreatorCredit.Panel(body, ownAccent: true));
 
         return panel;
     }
@@ -292,9 +292,9 @@ public sealed class WelcomeWindow : Window
             DisplayName = chosen,
         });
 
-        // The launch events waited for this. Said now rather than next launch, so the
-        // first launch is counted on the day it happened and with the name on it.
-        analytics.Announce();
+        // The first identify waited for this. Sent now rather than next launch, so the
+        // person is counted on the day they arrived and with their name on them.
+        _ = analytics.Sync();
 
         // The name is saved before the second step is shown, so dismissing the window from
         // here on is finishing rather than abandoning.

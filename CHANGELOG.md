@@ -6,6 +6,22 @@ pulls the section out and the release workflow hands it to both.
 
 Headings are `## <version> — <date>`. Nothing else is a version heading.
 
+## Unreleased
+
+**Changed**
+
+- Analytics now records who uses Hangly, not what they do with it. One message is sent the
+  first time you start Hangly, again if you change your name, and again when a new major
+  version arrives — your name, that this is Windows, the processor, and the versions of
+  Windows and Hangly. Nothing about launches, charms, ropes or anything else you do in the
+  app is sent any more. PostHog is also asked not to work out where you are.
+- You can change your name in **Customize → Appearance**.
+
+**Fixed**
+
+- The About page no longer says analytics never sends your name. It did, and now it says so.
+- The analytics details no longer draw your name on top of another row.
+
 ## 0.9.4 — 2026-09-22
 
 **Changed**

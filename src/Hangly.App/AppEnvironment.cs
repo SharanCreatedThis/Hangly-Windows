@@ -56,15 +56,6 @@ public sealed class AppEnvironment : IDisposable
     private CharmIndex index = new();
     private CustomCharmStore? customCharms;
 
-    /// <summary>
-    /// What was last reported, so a change is reported once rather than on every save.
-    /// </summary>
-    /// <remarks>
-    /// The store raises on every write, and a write happens for reasons that are not a
-    /// user changing anything — counting the launch is one. Comparing against what was
-    /// last reported is what keeps one act one event.
-    /// </remarks>
-    private OverlaySettings reported = new();
     private Customize.CustomizeWindow? customize;
 
     public AppEnvironment(SettingsStore? store = null, ILaunchAtLogin? launchAtLogin = null)
@@ -211,7 +202,7 @@ public sealed class AppEnvironment : IDisposable
             return;
         }
 
-        var prompt = new Onboarding.FollowPrompt(store, analytics);
+        var prompt = new Onboarding.FollowPrompt(store);
         Onboarding.ProcessLifetime.KeepAlive(prompt);
         prompt.Activate();
         prompt.Shown();
@@ -271,9 +262,8 @@ public sealed class AppEnvironment : IDisposable
 
         // After the tray and before the overlay: starting it counts the launch, which
         // the follow card is scheduled off and which has nothing to do with whether
-        // anything is sent.
-        reported = store.Settings.Overlay;
-        analytics.Start();
+        // anything is sent. Not awaited — an identify is never on the path to a charm.
+        _ = analytics.Start();
         Diagnostics.Log(
             $"analytics {(analytics.IsEnabled ? "on" : "off")}; {analytics.Connection.Summary}");
 
@@ -302,52 +292,6 @@ public sealed class AppEnvironment : IDisposable
     {
         store.UpdateOverlay(overlay => overlay.WithStack(CharmStackState.Of([id])));
         Diagnostics.Log($"tray: hung '{id}' from favourites");
-    }
-
-    /// <summary>Reports charms coming and going, and the count changing.</summary>
-    private void ReportCharmChange(IReadOnlyList<string> before, IReadOnlyList<string> after)
-    {
-        if (before.Count != after.Count)
-        {
-            analytics.Track(Events.RopeCountChanged(after.Count));
-        }
-
-        foreach (string id in after.Except(before, StringComparer.Ordinal))
-        {
-            analytics.Track(Events.CharmSelected(id));
-            analytics.Track(Events.CharmAdded(id));
-        }
-
-        foreach (string id in before.Except(after, StringComparer.Ordinal))
-        {
-            analytics.Track(Events.CharmRemoved(id));
-        }
-    }
-
-    /// <summary>
-    /// Reports which setting moved, and never what it moved to.
-    /// </summary>
-    /// <remarks>
-    /// The name of the setting is the whole payload. A value here would describe the
-    /// person's screen — how large their charm is, where it sits — which PRIVACY.md says
-    /// is never sent.
-    /// </remarks>
-    private void ReportAppearanceChanges(OverlaySettings before, OverlaySettings after)
-    {
-        foreach ((string name, bool changed) in (ReadOnlySpan<(string, bool)>)
-        [
-            ("charm_size", before.CharmSize != after.CharmSize),
-            ("rope_length", before.RopeLength != after.RopeLength),
-            ("opacity", before.Opacity != after.Opacity),
-            ("anchor", before.Anchor != after.Anchor),
-            ("overlay_visible", before.IsEnabled != after.IsEnabled),
-        ])
-        {
-            if (changed)
-            {
-                analytics.Track(Events.AppearanceChanged(name));
-            }
-        }
     }
 
     /// <summary>
@@ -423,10 +367,6 @@ public sealed class AppEnvironment : IDisposable
                     // The size is a bucket on one event. Not worth failing an import for.
                 }
 
-                // The extension and a size bucket, which is all this event has ever
-                // carried: never the path, never the name, never the contents.
-                analytics.Track(Events.AirdropFileDropped(Path.GetExtension(path), size));
-
                 ImportOutcome outcome = ImportCharm(path);
                 if (!outcome.IsAccepted || outcome.Entry is null)
                 {
@@ -459,8 +399,6 @@ public sealed class AppEnvironment : IDisposable
             return outcome;
         }
 
-        analytics.Track(Events.CharmImported);
-        analytics.Track(Events.CharmSaved);
         RebuildIndex();
 
         Diagnostics.Log($"imported a charm; {CustomCharmsStore.Entries.Count} now");
@@ -493,8 +431,6 @@ public sealed class AppEnvironment : IDisposable
                 RecentCharmIds = [.. settings.Library.RecentCharmIds.Where(existing => existing != charmId)],
             },
         });
-
-        analytics.Track(Events.CharmRemoved(charmId));
     }
 
     /// <summary>
@@ -541,7 +477,6 @@ public sealed class AppEnvironment : IDisposable
             renderer,
             CharmLibrary.Resolve(artwork, index, hangingPlaces));
 
-        overlay.DragEntered += () => analytics.Track(Events.AirdropDragEntered);
         overlay.FileDropped += OnFileDroppedOnCharm;
         Diagnostics.Log("overlay window constructed");
 
@@ -665,23 +600,12 @@ public sealed class AppEnvironment : IDisposable
         if (artwork is not null && !hangingPlaces.SequenceEqual(places))
         {
             IReadOnlyList<string> ids = [.. places.Select(place => place.Id)];
-            if (!hanging.SequenceEqual(ids, StringComparer.Ordinal))
-            {
-                ReportCharmChange(hanging, ids);
-            }
 
             hangingPlaces = [.. places];
             hanging = [.. ids];
             overlay?.SetCharms(CharmLibrary.Resolve(artwork, index, hangingPlaces));
         }
 
-        if (reported.RopeStyle != settings.Overlay.RopeStyle)
-        {
-            analytics.Track(Events.RopeStyleChanged(settings.Overlay.RopeStyle));
-        }
-
-        ReportAppearanceChanges(reported, settings.Overlay);
-        reported = settings.Overlay;
 
         overlay?.Apply(settings.Overlay);
     }
@@ -759,9 +683,6 @@ public sealed class AppEnvironment : IDisposable
     /// </summary>
     private void Quit()
     {
-        // Said before the window goes, so the goodbye is sent while there is still a
-        // process to send it from.
-        analytics.Stop();
         customize?.AllowClose();
         customize = null;
         Onboarding.ProcessLifetime.Release();

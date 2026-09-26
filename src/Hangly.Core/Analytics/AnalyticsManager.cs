@@ -2,38 +2,53 @@
 //  AnalyticsManager.cs
 //  Hangly
 //
-//  What is sent, when, and whether it is sent at all.
+//  Who is told about this person, when, and whether they are told at all.
 //
 
+using System.Globalization;
 using Hangly.Core.Settings;
 
 namespace Hangly.Core.Analytics;
 
-/// <summary>Where events are going, as the inspector reports it.</summary>
+/// <summary>What the About page says about where analytics goes.</summary>
 public readonly record struct AnalyticsConnection(string Summary, bool IsSending)
 {
-    /// <summary>Nothing started, because sharing is off or the app has not finished launching.</summary>
     public static AnalyticsConnection NotStarted { get; } = new("Not started", false);
 
-    /// <summary>No project key in this build, so there is nowhere to send.</summary>
     public static AnalyticsConnection NoDestination { get; } = new("No destination configured", false);
 
     public static AnalyticsConnection Connected(string host) => new($"Connected — {host}", true);
 }
 
-/// <summary>Decides what leaves the machine.</summary>
+/// <summary>Why an identify was sent. There are exactly three.</summary>
+public enum IdentifyReason
+{
+    /// <summary>A person the project has never heard from, once they have given a name.</summary>
+    FirstLaunch,
+
+    /// <summary>The name was changed since the project last accepted one.</summary>
+    NameChanged,
+
+    /// <summary>A major version the project has not seen this person on.</summary>
+    /// <remarks>
+    /// Also how somebody identified under the old event-based analytics is carried over:
+    /// they have an identifier and no record of a major version, and this build is the
+    /// first they have run that keeps one.
+    /// </remarks>
+    MajorVersion,
+}
+
+/// <summary>Decides whether this person is described to the project, and does it.</summary>
 /// <remarks>
-/// Every event in the app goes through here, and here is the only place that reads the
-/// privacy setting. Switching analytics off stops capture at this gate <b>and</b> tells
-/// the provider to stop — belt and braces, because "we filter it later" is how data gets
-/// sent by accident.
+/// <b>People, not behaviour.</b> The project learns who runs Hangly — a name, a platform,
+/// an architecture and the versions of the app and the system — and nothing about what
+/// they do with it. One <c>$identify</c> is sent on a first launch, on a rename, and on the
+/// first launch of a new major version, and that is all that ever leaves the machine.
 ///
-/// <para>Nothing here is allowed to fail visibly. There is no error path to the interface
-/// and nothing throws: an event that cannot be sent is a fact nobody needs.</para>
-///
-/// <para>In <c>Hangly.Core</c> rather than the app, so that every claim
-/// <c>PRIVACY.md</c> makes is something a test can assert against a recording provider
-/// rather than something a person has to take on trust.</para>
+/// <para>Everything here is the only place that reads the privacy setting, and nothing
+/// here can fail visibly. There is no error path to the interface and no exception: an
+/// identify that is not accepted is simply tried again on the next launch, because the
+/// fields that say what was sent are written only when the project accepts it.</para>
 /// </remarks>
 public sealed class AnalyticsManager
 {
@@ -46,8 +61,7 @@ public sealed class AnalyticsManager
     private readonly string systemVersion;
 
     private bool hasStarted;
-    private bool hasAnnounced;
-    private bool wasFirstLaunch;
+    private Task? inFlight;
 
     public AnalyticsManager(
         SettingsStore store,
@@ -67,39 +81,27 @@ public sealed class AnalyticsManager
         this.systemVersion = systemVersion;
     }
 
-    /// <summary>Raised when anything the inspector shows has changed.</summary>
+    /// <summary>Raised when anything the About page shows has changed.</summary>
     public event Action? Changed;
 
-    public string? LastEventName { get; private set; }
+    /// <summary>The last identify the project accepted this session, and why it was sent.</summary>
+    public IdentifyReason? LastReason { get; private set; }
 
-    public DateTimeOffset? LastEventAt { get; private set; }
+    public DateTimeOffset? LastSentAt { get; private set; }
 
-    public int SentCount { get; private set; }
-
-    public AnalyticsConnection Connection { get; private set; } = AnalyticsConnection.NotStarted;
+    public AnalyticsConnection Connection =>
+        !IsEnabled ? AnalyticsConnection.NotStarted
+        : hasDestination ? AnalyticsConnection.Connected(host)
+        : AnalyticsConnection.NoDestination;
 
     public bool IsEnabled => store.Settings.Privacy.AnalyticsEnabled;
 
-    /// <summary>Whether the person has told Hangly what to call them yet.</summary>
-    /// <remarks>
-    /// <b>Nothing is sent before this is true.</b> The name is the one thing every event
-    /// carries that identifies a person to a human reader, and an event without it is a
-    /// row in the project that can never be attributed to anybody. The project had those:
-    /// the launch sequence counts the launch and says hello before onboarding has run, so
-    /// every first launch sent three events with an empty name, every time, by
-    /// construction.
-    /// </remarks>
+    /// <summary>Whether a name has been given. Nothing is sent for somebody who has not.</summary>
     public bool HasName => store.Settings.DisplayName.Trim().Length > 0;
 
-    /// <summary>Where events would be sent, whether or not any are.</summary>
     public string Endpoint => hasDestination ? host : "none";
 
     /// <summary>The installation identifier with most of it hidden.</summary>
-    /// <remarks>
-    /// Enough to tell two machines apart when somebody reads it out, and not enough to be
-    /// worth writing down. Null when no identifier exists, which is the normal state of
-    /// an install that has never sent anything.
-    /// </remarks>
     public string? MaskedIdentifier
     {
         get
@@ -109,247 +111,225 @@ public sealed class AnalyticsManager
                 return null;
             }
 
-            string text = id.ToString("D", System.Globalization.CultureInfo.InvariantCulture);
+            string text = id.ToString("D", CultureInfo.InvariantCulture);
             return $"{text[..8]}-••••-••••-••••-••••••••{text[^4..]}";
         }
     }
 
-    /// <summary>Counts the launch, starts the provider if allowed, and says hello.</summary>
+    /// <summary>Counts the launch, then identifies this person if one of the three triggers applies.</summary>
     /// <remarks>
     /// The launch is counted whether or not analytics is on, because the follow card is
     /// scheduled off the same number and that has nothing to do with analytics.
-    ///
-    /// <para>Guarded against running twice. Two <c>app_launch</c> events from one launch
-    /// is not a rounding error; it is every per-launch number doubled.</para>
     /// </remarks>
-    public void Start()
+    public Task Start()
     {
         if (hasStarted)
         {
-            return;
+            return inFlight ?? Task.CompletedTask;
         }
 
         hasStarted = true;
-
-        bool isFirstLaunch = false;
-        store.Update(settings =>
+        store.Update(settings => settings with
         {
-            MilestoneSettings milestones = settings.Milestones with
-            {
-                LaunchCount = settings.Milestones.LaunchCount + 1,
-            };
-
-            isFirstLaunch = milestones.IsFirstLaunch;
-            return settings with { Milestones = milestones };
+            Milestones = settings.Milestones with { LaunchCount = settings.Milestones.LaunchCount + 1 },
         });
 
-        wasFirstLaunch = isFirstLaunch;
-        Announce();
+        return Sync();
     }
 
-    /// <summary>Says hello, once the name is known and sharing is on.</summary>
+    /// <summary>
+    /// Sends an identify if the project's record of this person is out of date, and
+    /// otherwise does nothing.
+    /// </summary>
     /// <remarks>
-    /// <b>Held rather than dropped.</b> A first launch is the one launch worth counting
-    /// accurately and it happens before anybody has typed a name, so the hello waits for
-    /// the name instead of going out without one. Call this again whenever the name might
-    /// have arrived; it is guarded and does nothing on a session that has already said
-    /// hello.
+    /// Safe to call as often as anything might have changed — after the welcome card takes
+    /// a name, after a rename, after sharing is switched back on. It compares what the
+    /// project was last told with what is true now, so calling it twice sends once.
     /// </remarks>
-    public void Announce()
+    public Task Sync()
     {
-        if (hasAnnounced || !hasStarted || !IsEnabled || !HasName)
+        if (inFlight is { IsCompleted: false })
         {
-            return;
+            return inFlight;
         }
 
-        hasAnnounced = true;
-        StartProvider();
-
-        if (wasFirstLaunch)
+        if (!hasStarted || PendingReason() is not IdentifyReason reason)
         {
-            Track(Events.AppFirstLaunch);
+            return Task.CompletedTask;
         }
 
-        Track(Events.AppLaunch);
+        inFlight = Send(reason);
+        return inFlight;
     }
 
-    /// <summary>Called as the app goes away, so the queue is not lost with it.</summary>
-    public void Stop()
+    /// <summary>Which of the three triggers applies right now, or null if none does.</summary>
+    public IdentifyReason? PendingReason()
     {
-        if (!hasAnnounced || !IsEnabled)
+        if (!IsEnabled || !HasName || !hasDestination)
         {
-            return;
+            return null;
         }
 
-        Track(Events.AppQuit);
-        provider.Flush();
+        PrivacySettings privacy = store.Settings.Privacy;
+
+        if (privacy.IdentifiedMajorVersion is not int identifiedMajor)
+        {
+            return privacy.AnonymousId is null || privacy.FirstIdentifyPending
+                ? IdentifyReason.FirstLaunch
+                : IdentifyReason.MajorVersion;
+        }
+
+        if (!string.Equals(privacy.IdentifiedName, CurrentName, StringComparison.Ordinal))
+        {
+            return IdentifyReason.NameChanged;
+        }
+
+        return MajorOf(appVersion) > identifiedMajor ? IdentifyReason.MajorVersion : null;
     }
 
-    public void Track(AnalyticsEvent analyticsEvent)
-    {
-        // The name gate, stated once and here rather than at every call site. Everything
-        // in the app reaches the project through this method, so this is the only place
-        // an unnamed event could get out.
-        if (!IsEnabled || !HasName)
-        {
-            return;
-        }
-
-        var properties = new Dictionary<string, AnalyticsValue>(analyticsEvent.Properties, StringComparer.Ordinal);
-        foreach ((string key, AnalyticsValue value) in RopeProperties())
-        {
-            // The event's own properties win. A charm event naming a charm should not
-            // have it overwritten by the rope's summary of the same thing.
-            properties.TryAdd(key, value);
-        }
-
-        // Read fresh every time, so a name corrected on the Appearance page reaches the
-        // project with the next event rather than the next launch.
-        properties["user_name"] = AnalyticsValue.Of(store.Settings.DisplayName);
-        provider.SetPersonProperties(PersonProperties());
-
-        provider.Capture(new AnalyticsEvent(analyticsEvent.Name, properties));
-
-        LastEventName = analyticsEvent.Name;
-        LastEventAt = DateTimeOffset.Now;
-        SentCount++;
-        Changed?.Invoke();
-    }
-
-    /// <summary>Turns sharing on or off. Off stops capture on the next line, not later.</summary>
-    public void SetEnabled(bool isEnabled)
+    /// <summary>Turns sharing on or off. Off takes effect on the next line, not later.</summary>
+    public Task SetEnabled(bool isEnabled)
     {
         if (isEnabled == IsEnabled)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         if (!isEnabled)
         {
-            provider.SetEnabled(false);
-            provider.Flush();
-            Connection = AnalyticsConnection.NotStarted;
-            LastEventName = null;
-            LastEventAt = null;
-            SentCount = 0;
-
-            // Sharing off discards the identifier, which PRIVACY.md states plainly.
+            // Sharing off discards the identifier and the record of what was sent under
+            // it, which PRIVACY.md states plainly.
             store.Update(settings => settings with { Privacy = settings.Privacy.Forgotten() });
+            LastReason = null;
+            LastSentAt = null;
             Changed?.Invoke();
-            return;
+            return Task.CompletedTask;
         }
 
         store.Update(settings => settings with
         {
             Privacy = settings.Privacy with { AnalyticsEnabled = true },
         });
-
-        // Back on means a new identity, because the old one was discarded on the way out
-        // and stitching the two would defeat the point of discarding it.
-        provider.SetEnabled(true);
-
-        if (!HasName)
-        {
-            return;
-        }
-
-        hasAnnounced = true;
-        StartProvider();
-        Track(Events.AppLaunch);
-    }
-
-    private void StartProvider()
-    {
-        provider.Start(CurrentIdentifier(), SuperProperties());
-        provider.SetPersonProperties(PersonProperties());
-
-        // Said once at the start of every session, which is what the macOS SDK does for
-        // itself. `$set` riding along with an ordinary event only reaches a person who
-        // already exists; `$identify` is the event that creates one. Without it a copy
-        // that launched and quit without touching anything left a person with no name on
-        // it, which is most of a beta.
-        // Guarded by Announce and by SetEnabled, both of which refuse without a name, so
-        // the person this creates always has one.
-        provider.Capture(new AnalyticsEvent(Events.Identify, Identity()));
-
-        Connection = hasDestination ? AnalyticsConnection.Connected(host) : AnalyticsConnection.NoDestination;
         Changed?.Invoke();
+
+        // Back on is a new person, because the old identifier was thrown away on the way
+        // out and stitching the two together would defeat the point of throwing it away.
+        return Sync();
     }
 
-    /// <summary>
-    /// The identify event carries no properties of its own.
-    /// </summary>
+    /// <summary>What the project stores on the person. Shown on the About page, key by key.</summary>
     /// <remarks>
-    /// The provider attaches the super properties and the person properties to
-    /// everything, and the person properties are the whole point of this event. There is
-    /// nothing left for it to say.
-    /// </remarks>
-    private static Dictionary<string, AnalyticsValue> Identity() => new(StringComparer.Ordinal);
-
-    /// <summary>The installation identifier, minted on first use and stored from then on.</summary>
-    private string CurrentIdentifier()
-    {
-        Guid identifier = store.Settings.Privacy.AnonymousId ?? Guid.NewGuid();
-        store.Update(settings => settings with
-        {
-            Privacy = settings.Privacy with { AnonymousId = settings.Privacy.AnonymousId ?? identifier },
-        });
-
-        return store.Settings.Privacy.AnonymousId?.ToString("D", System.Globalization.CultureInfo.InvariantCulture)
-            ?? identifier.ToString("D", System.Globalization.CultureInfo.InvariantCulture);
-    }
-
-    /// <summary>
-    /// Facts about the build, the machine and the person, attached to every event.
-    /// </summary>
-    /// <remarks>
-    /// <b>The name is here deliberately, and it is the only personal thing in the whole
-    /// payload.</b> It is typed during onboarding and can be corrected on the Appearance
-    /// page; it is never read from the Windows account, the Microsoft account, the
-    /// computer name or any other part of the machine. PRIVACY.md says so in those terms.
+    /// <b>The name is the only personal thing here.</b> It is typed during onboarding and
+    /// can be changed in Appearance; it is never read from the Windows account, the
+    /// Microsoft account, the computer name or any other part of the machine.
     ///
-    /// <para><c>os_version</c> and <c>windows_version</c> both carry the same string, on
-    /// purpose. macOS sends <c>macos_version</c>, so a query that wants "which OS version"
-    /// across both platforms needs a key that means the same thing on each, and a query
-    /// that wants Windows specifically still has the old one. Naming only one of them
-    /// would break one of those two questions.</para>
+    /// <para>It is written three times because PostHog shows a person by the first of
+    /// <c>email</c>, <c>name</c> or <c>username</c> it finds, and <c>user_name</c> — which
+    /// earlier builds used and existing queries still read — is in none of those lists.</para>
     /// </remarks>
-    private Dictionary<string, AnalyticsValue> SuperProperties() => new(StringComparer.Ordinal)
+    public Dictionary<string, AnalyticsValue> PersonProperties() => new(StringComparer.Ordinal)
     {
-        ["user_name"] = AnalyticsValue.Of(store.Settings.DisplayName),
+        ["user_name"] = AnalyticsValue.Of(CurrentName),
+        ["name"] = AnalyticsValue.Of(CurrentName),
+        ["username"] = AnalyticsValue.Of(CurrentName),
         ["platform"] = AnalyticsValue.Of("windows"),
         ["architecture"] = AnalyticsValue.Of(Architecture),
         ["app_version"] = AnalyticsValue.Of(appVersion),
         ["build_number"] = AnalyticsValue.Of(buildNumber),
         ["os_version"] = AnalyticsValue.Of(systemVersion),
-        ["windows_version"] = AnalyticsValue.Of(systemVersion),
-        ["analytics_enabled"] = AnalyticsValue.Of(IsEnabled),
-
-        // The names PostHog's own charts group by. macOS sends these because its SDK
-        // sends them for it; this build writes its own payloads, so nothing was filling
-        // them in and Windows was absent from every breakdown built on the macOS data
-        // rather than wrong in it. Same values as the plain keys above, under the names
-        // the product already understands.
         ["$os"] = AnalyticsValue.Of("Windows"),
         ["$os_version"] = AnalyticsValue.Of(systemVersion),
         ["$app_version"] = AnalyticsValue.Of(appVersion),
-        ["$app_build"] = AnalyticsValue.Of(buildNumber),
-        ["$device_type"] = AnalyticsValue.Of("Desktop"),
+    };
+
+    /// <summary>What rides on the identify itself, beside the person.</summary>
+    /// <remarks>
+    /// <b>No geolocation.</b> PostHog derives a country, region and city from the sending
+    /// address unless told not to. <c>$geoip_disable</c> is the switch its ingestion
+    /// honours; <c>$ip</c> null keeps the address itself off the event.
+    /// </remarks>
+    public Dictionary<string, AnalyticsValue> EventProperties(IdentifyReason reason) => new(StringComparer.Ordinal)
+    {
+        ["identify_reason"] = AnalyticsValue.Of(NameOf(reason)),
         ["$lib"] = AnalyticsValue.Of(LibraryName),
         ["$lib_version"] = AnalyticsValue.Of(appVersion),
-
-        // No geolocation. PostHog derives a country, region and city from the sending
-        // address unless the address is explicitly withheld, and PRIVACY.md lists
-        // IP-derived enrichment among the things Hangly never collects.
+        ["$geoip_disable"] = AnalyticsValue.Of(true),
         ["$ip"] = AnalyticsValue.Null,
     };
 
-    /// <summary>What this build calls itself to PostHog.</summary>
+    /// <summary>The words each reason is reported as, identical on both platforms.</summary>
+    public static string NameOf(IdentifyReason reason) => reason switch
+    {
+        IdentifyReason.FirstLaunch => "first_launch",
+        IdentifyReason.NameChanged => "name_changed",
+        IdentifyReason.MajorVersion => "major_version",
+        _ => "unknown",
+    };
+
+    /// <summary>The major part of a version string: 1 for "1.0.3", 0 for "0.9.4+abc".</summary>
+    public static int MajorOf(string version)
+    {
+        string head = version.Split('.', '+', '-')[0];
+        return int.TryParse(head, NumberStyles.None, CultureInfo.InvariantCulture, out int major) ? major : 0;
+    }
+
+    private string CurrentName => store.Settings.DisplayName.Trim();
+
+    private async Task Send(IdentifyReason reason)
+    {
+        string distinctId = CurrentIdentifier();
+        string name = CurrentName;
+        bool accepted = await provider
+            .IdentifyAsync(distinctId, PersonProperties(), EventProperties(reason))
+            .ConfigureAwait(false);
+
+        if (!accepted)
+        {
+            return;
+        }
+
+        // Written only now, and only if sharing is still on and the identifier is still
+        // the one that was sent: switching off mid-flight must not leave a record behind.
+        store.Update(settings =>
+            settings.Privacy.AnalyticsEnabled
+            && settings.Privacy.AnonymousId?.ToString("D", CultureInfo.InvariantCulture) == distinctId
+                ? settings with
+                {
+                    Privacy = settings.Privacy with
+                    {
+                        IdentifiedName = name,
+                        IdentifiedMajorVersion = MajorOf(appVersion),
+                        FirstIdentifyPending = false,
+                    },
+                }
+                : settings);
+
+        LastReason = reason;
+        LastSentAt = DateTimeOffset.Now;
+        Changed?.Invoke();
+    }
+
+    /// <summary>The installation identifier, minted on first use and stored from then on.</summary>
     /// <remarks>
-    /// Not one of PostHog's own SDK names, because it is not one of them: the payloads
-    /// here are hand-written. Naming it honestly is what lets a question about a bug in
-    /// the sending code be answered by a query rather than by guesswork.
+    /// Minting one marks the first identify as pending, which is what lets a first launch
+    /// that could not reach the network still be reported as a first launch next time.
     /// </remarks>
+    private string CurrentIdentifier()
+    {
+        if (store.Settings.Privacy.AnonymousId is not Guid existing)
+        {
+            Guid minted = Guid.NewGuid();
+            store.Update(settings => settings with
+            {
+                Privacy = settings.Privacy with { AnonymousId = minted, FirstIdentifyPending = true },
+            });
+            existing = minted;
+        }
+
+        return existing.ToString("D", CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>What this build calls itself to PostHog: not one of PostHog's SDKs, because it is not one.</summary>
     private const string LibraryName = "hangly-windows";
 
     /// <summary>Which silicon this copy is running on, as PostHog should see it.</summary>
@@ -361,48 +341,4 @@ public sealed class AnalyticsManager
             System.Runtime.InteropServices.Architecture.X86 => "x86",
             var other => other.ToString().ToLowerInvariant(),
         };
-
-    /// <summary>
-    /// The person-level properties, sent with every event so they stay current.
-    /// </summary>
-    /// <remarks>
-    /// PostHog reads <c>$set</c> off an event and applies it to the person the event
-    /// belongs to. Sending it every time rather than once is what makes a renamed person
-    /// actually rename: super properties are handed over when the provider starts, and a
-    /// name changed on the Appearance page afterwards would otherwise not reach the
-    /// project until the next launch.
-    /// </remarks>
-    public Dictionary<string, AnalyticsValue> PersonProperties() => new(StringComparer.Ordinal)
-    {
-        ["user_name"] = AnalyticsValue.Of(store.Settings.DisplayName),
-
-        // The same name again, under the key PostHog shows people by.
-        //
-        // A person's display name is resolved from the first of `email`, `name` or
-        // `username` that the person has, and `user_name` is in none of those lists.
-        // Every Windows person therefore appeared in the project as a bare identifier
-        // with the name sitting in a property nobody was looking at. Written to both, so
-        // existing queries on `user_name` keep working.
-        ["name"] = AnalyticsValue.Of(store.Settings.DisplayName),
-        ["username"] = AnalyticsValue.Of(store.Settings.DisplayName),
-
-        ["platform"] = AnalyticsValue.Of("windows"),
-        ["architecture"] = AnalyticsValue.Of(Architecture),
-        ["app_version"] = AnalyticsValue.Of(appVersion),
-        ["os_version"] = AnalyticsValue.Of(systemVersion),
-        ["$os"] = AnalyticsValue.Of("Windows"),
-        ["$os_version"] = AnalyticsValue.Of(systemVersion),
-    };
-
-    /// <summary>What is on the rope, which is the shape of how the app is used.</summary>
-    private Dictionary<string, AnalyticsValue> RopeProperties()
-    {
-        OverlaySettings overlay = store.Settings.Overlay;
-        return new Dictionary<string, AnalyticsValue>(StringComparer.Ordinal)
-        {
-            ["charm_count"] = AnalyticsValue.Of(overlay.CharmIds.Count),
-            ["active_charm_ids"] = AnalyticsValue.Of([.. overlay.CharmIds.Select(Events.NameOf)]),
-            ["rope_style"] = AnalyticsValue.Of(overlay.RopeStyle.ToString()),
-        };
-    }
 }

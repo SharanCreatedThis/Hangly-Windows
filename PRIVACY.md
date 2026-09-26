@@ -9,165 +9,119 @@ does. Where they differ, it says so.
 
 ## Analytics
 
-On by default, and switchable off in **Customize → About → Anonymous analytics**. Turning
-it off stops collection immediately and discards the installation identifier.
+Hangly keeps a register of the people who use it: who they are, and what they run it on.
+It does not record what anybody does with it.
+
+On by default, and switchable off in **Customize → About → Analytics**. Turning it off
+stops it immediately and discards the installation identifier.
 
 ### The name you give
 
-Hangly asks for a name the first time it runs, and will not go further without one. That
-name is sent with every analytics event while sharing is on.
+Hangly asks for a name the first time it runs, and will not go further without one. With
+analytics on, that name is part of what is sent.
 
-This is a change, and it is deliberate. Earlier versions of this document said Hangly
-never collects your name. That is no longer true and the sentence has been removed rather
-than softened.
-
-What has not changed is where the name comes from. **You type it.** Hangly does not read
-your Windows account name, your Microsoft account, your email address, your computer name,
-or any other part of the machine — there is no code in this build that could. You can
-change it whenever you like in **Customize → Appearance → Your name**, and the new one is
-used from the next event onward.
+**You type it.** Hangly does not read your Windows account name, your Microsoft account,
+your email address, your computer name, or any other part of the machine — there is no
+code in this build that could. Change it whenever you like in **Customize → Appearance →
+Your name**.
 
 If you would rather not send it, switch analytics off. The name stays on your machine and
 is still used to greet you.
 
-Events are sent to [PostHog](https://posthog.com) (US region). Nothing about analytics can
-delay, block or change what the app does: every send is fire-and-forget, and a send that
-fails is written to the local log and forgotten.
+### When anything is sent
 
-> **In a build with no project key, nothing is sent at all.** The key is a build property
-> rather than something written in the source, and a build made without one runs with no
-> destination. The About page states which of the two you are running: it reads either
-> *No destination configured* or *Connected — <host>*.
+One message, called an *identify*, at exactly three moments:
 
-### What is sent
-
-| | |
+| When | |
 |---|---|
-| Installation identifier | A random UUID made on this machine the first time anything is sent. It is not derived from your hardware, account, network or anything else, and it is used for nothing but counting installs. |
-| Build and system | App version, build number, Windows version. |
-| Lifecycle | `app_first_launch`, `app_launch`, `app_quit`. |
-| Charms | `charm_selected`, `charm_added`, `charm_removed`, `charm_reordered`. Built-in charms are named by their catalogue id; a charm you made is reported as `custom`. Reordering carries the two positions and no id. |
-| Rope | `rope_count_changed`, `rope_style_changed`. |
-| Settings | `appearance_changed` — the **name** of the setting that moved, never its value. |
-| Library | `collection_opened` — which collection, by name. |
-| Making a charm | `charm_imported` and `charm_saved` — that a charm was made, and **nothing about the file**: not its name, not its path, not its contents. |
-| Dropping a file on the charm | `airdrop_drag_entered`, `airdrop_picker_opened`, and `airdrop_file_dropped`. **The dropped-file event is the one exception to the line above**: it carries the file's **extension** — `svg`, `png`, `jpg` — and a **coarse size bucket**, and nothing else. No name, no path, no contents. It is there to answer "is anybody using this, and with what", which is not answerable without knowing the kind of file. |
-| The follow card | `follow_popup_shown`, `follow_popup_follow_clicked`, `follow_popup_maybe_later`, `follow_popup_dismissed`. |
-| Links | `follow_instagram_clicked`, `coffee_sheet_opened`, `coffee_copy_upi`, `coffee_qr_viewed`. The coffee events carry which button was pressed, not what you did next — Hangly has no idea whether you sent anything. |
-| With every event | `charm_count`, `active_charm_ids`, `rope_style`, `analytics_enabled`, and the name you typed. |
+| The first time you start Hangly | After you have given a name, never before |
+| You change your name | Once, with the new name |
+| A new major version arrives | The first time you start, say, 2.0 after 1.x |
 
-That is the whole list. One further name exists in the code — `collection_charm_selected`
-— and **nothing sends it**; it is defined so that both platforms would report that act
-under the same name if it were ever wired up. Nothing this build cannot do is sent,
-because the code that would send it does not exist.
+That is all. Starting Hangly, quitting it, hanging a charm, changing a rope, opening a
+window, importing a picture — none of it is sent, and the code that used to send it has
+been removed. If an identify cannot be delivered because you are offline, it is tried again
+the next time you start Hangly.
 
-Both builds report into the same PostHog project and use the same event names, so a
-question asked of one can be asked of both.
+It goes to [PostHog](https://posthog.com) (US region).
 
-Two keys carry the operating system version, deliberately. macOS sends `macos_version`, so
-this build sends `windows_version` for anything asking about Windows specifically, and
-`os_version` as well for anything asking across both. Naming only one of them would break
-one of those two questions.
+> **Builds made from the source send nothing.** The key that lets Hangly reach PostHog is
+> added only by the release workflow. A copy built by anybody else — or by the author for
+> testing — has no destination, and its About page says *No destination configured*.
 
-### Exactly what a single event carries
+### Exactly what an identify carries
 
-This is a real payload, taken from this build with `--check-analytics`:
+This is a real payload, printed by this build with `Hangly.exe --check-analytics` (which
+shows it without sending it):
 
 ```json
 {
-  "event": "app_launch",
-  "distinct_id": "c4639c10-0bb3-4a15-9017-1b80c5c9ebc7",
+  "event": "$identify",
+  "distinct_id": "ce319cc7-eae6-4a95-ae97-f38fcab87ad6",
   "properties": {
-    "user_name": "Sharan",
-    "platform": "windows",
-    "architecture": "arm64",
-    "app_version": "2.0.0",
-    "build_number": "1",
-    "os_version": "10.0.26200.0",
-    "windows_version": "10.0.26200.0",
-    "analytics_enabled": true,
-    "$os": "Windows",
-    "$os_version": "10.0.26200.0",
-    "$app_version": "2.0.0",
-    "$app_build": "1",
-    "$device_type": "Desktop",
+    "identify_reason": "first_launch",
     "$lib": "hangly-windows",
-    "$lib_version": "2.0.0",
+    "$lib_version": "0.9.4",
+    "$geoip_disable": true,
     "$ip": null,
-    "charm_count": 2,
-    "active_charm_ids": ["Nazar boncuğu", "Hamsa"],
-    "rope_style": "Thread",
     "$set": {
       "user_name": "Sharan",
       "name": "Sharan",
       "username": "Sharan",
       "platform": "windows",
       "architecture": "arm64",
-      "app_version": "2.0.0",
+      "app_version": "0.9.4",
+      "build_number": "5",
       "os_version": "10.0.26200.0",
       "$os": "Windows",
-      "$os_version": "10.0.26200.0"
+      "$os_version": "10.0.26200.0",
+      "$app_version": "0.9.4"
     }
   }
 }
 ```
 
-**The `$`-prefixed keys are the same facts under the names PostHog's own charts group
-by.** They carry nothing the plain keys do not; they exist because macOS sends them by way
-of the vendor SDK and this build writes its own payloads, so without them a Windows copy
-was absent from every breakdown rather than wrong in one.
+- **`distinct_id`** is a random identifier made on this machine the first time anything is
+  sent. It is not derived from your hardware, account or network.
+- **`$set`** is what PostHog stores on you. The name appears three times because PostHog
+  shows a person by `name` or `username`, and older Hangly data used `user_name`; it is one
+  name, written where it can be read.
+- **`$geoip_disable`** and **`$ip: null`** stop PostHog working out a country, region or
+  city from the address the message came from.
+- **`identify_reason`** is which of the three moments above this is.
 
-**`$ip` is null on purpose.** PostHog derives a country, a region and a city from the
-sending address unless the payload says not to, and omitting the key is how you get that,
-not how you decline it. The name appears three times because a person's display name is
-resolved from `email`, `name` or `username` and `user_name` is in none of those lists — it
-is one name written where it can be read, not three pieces of information.
-
-**`$set` is the same name and the same build facts again, attached to the person rather
-than to the event.** Nothing is in it that is not already above it.
-
-The same list is on the About page, under **Anonymous analytics**, built from the code that
-sends it rather than typed out — so it cannot drift from what actually leaves.
+The same list is on the About page, built from the code that sends it rather than typed
+out, so it cannot drift from what actually leaves.
 
 ### What is never sent
 
+- Anything about what you do in Hangly: launches, clicks, charms, ropes, windows, imports.
 - Your email address, phone number, or any account. Hangly has no accounts.
-- Your Windows account name, Microsoft account, or computer name. The only name Hangly
-  holds is the one you typed.
-- Files you import: not the contents, not the markup, not the file name, not the folder
-  it came from, not the drive. A dropped file reports its extension and a size bucket, and
-  that is all.
+- Your Windows account name, Microsoft account, or computer name.
+- Files you import, their names, their contents, or where they came from.
 - Your clipboard.
-- Charms you make. They are reported as the word `custom`.
 - Your location.
 - Where your charm sits, how large it is, which display it is on, or anything else
   describing your desktop.
 - Keystrokes, screen contents, other applications, or what you are doing.
 
-These are not aspirations. `AnalyticsTests` in `Hangly.Core.Tests` asserts each of them
-against a recording provider that captures exactly what would have left the machine —
-including a test that fails if a property describing your screen ever appears on an event.
+These are not aspirations. `AnalyticsTests` in `Hangly.Core.Tests` asserts them against a
+recording provider that captures exactly what would have left the machine — including that
+the provider has no way to send anything but an identify.
 
 ### Turning it off
 
-**Customize → About → Anonymous analytics → Share anonymous analytics.**
+**Customize → About → Analytics → Tell Hangly who is using it.**
 
-Switching it off stops capture at the source rather than filtering it later, and throws
-away the installation identifier. If you switch it back on, a new identifier is made, so
-the two cannot be joined.
+Switching it off stops it at the source and throws away the installation identifier and
+the record of what was sent under it. If you switch it back on, a new identifier is made and
+you are sent as a first launch, so the two cannot be joined.
 
 ### Checking what your copy is doing
 
-The same panel shows, for this machine:
-
-- whether sharing is on
-- whether a destination is configured, and which
-- the installation identifier, masked
-- the last event sent, and when
-- how many events have been sent this session
-
-It is in the app rather than behind a developer flag because the argument for collecting
-anything at all is that it can be inspected.
+The same panel shows, for this machine: whether sharing is on, whether a destination is
+configured, the installation identifier (masked), the last identify sent this session and
+why, and your name.
 
 ## Charms you import
 
@@ -178,11 +132,8 @@ A charm you import never leaves your machine. The drawing is copied into
   SVG that draws — script, event handlers, embedded documents and anything referring to a
   URL are removed before it is stored, so an imported drawing cannot ask Hangly to fetch
   anything or run anything.
-- **Nothing about it is sent anywhere.** The analytics events above record *that* an
-  import happened. Not the file name, not its size, not its contents, not the name you
-  see in the Library.
-- **On the rope it is reported as the word `custom`**, as `PRIVACY.md` has always said.
-  The identifier Hangly gives it is random and local to this machine.
+- **Nothing about it is sent anywhere** — not that it happened, not its name, size or
+  contents.
 - Deleting a charm in the Library deletes the copy.
 
 ## Updates

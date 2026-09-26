@@ -257,14 +257,41 @@ public sealed record PrivacySettings
     /// </remarks>
     public Guid? AnonymousId { get; init; }
 
+    /// <summary>The name the project was last told, or null if it has never accepted one.</summary>
+    /// <remarks>
+    /// Recorded only when an identify is accepted, so a rename made with no network is
+    /// sent on a later launch instead of being lost.
+    /// </remarks>
+    public string? IdentifiedName { get; init; }
+
+    /// <summary>The major version the project was last told about, or null if never.</summary>
+    public int? IdentifiedMajorVersion { get; init; }
+
+    /// <summary>Whether the current identifier was minted by a first launch that has not been accepted yet.</summary>
+    /// <remarks>
+    /// What tells a first launch that failed to send apart from a person who has been
+    /// identified under the old event-based analytics and is meeting this build for the
+    /// first time. Both have an identifier and no <see cref="IdentifiedMajorVersion"/>;
+    /// only the first is a first launch.
+    /// </remarks>
+    public bool FirstIdentifyPending { get; init; }
+
     /// <summary>
     /// The same settings with sharing off and the identifier thrown away.
     /// </summary>
     /// <remarks>
     /// Discarding rather than keeping is the published promise: switching sharing back
-    /// on mints a new identifier, "so the two cannot be joined".
+    /// on mints a new identifier, "so the two cannot be joined". What was sent under the
+    /// old identifier goes with it, so the new one starts as a first launch.
     /// </remarks>
-    public PrivacySettings Forgotten() => this with { AnalyticsEnabled = false, AnonymousId = null };
+    public PrivacySettings Forgotten() => this with
+    {
+        AnalyticsEnabled = false,
+        AnonymousId = null,
+        IdentifiedName = null,
+        IdentifiedMajorVersion = null,
+        FirstIdentifyPending = false,
+    };
 }
 
 /// <summary>Counts the app keeps about itself.</summary>

@@ -6,7 +6,6 @@
 //
 
 using Hangly.App.Services;
-using Hangly.Core.Analytics;
 using Hangly.Core.Settings;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -61,14 +60,12 @@ public sealed class FollowPrompt : Window
     public const int LaunchesBetween = 10;
 
     private readonly SettingsStore store;
-    private readonly AnalyticsManager analytics;
     private FollowAnswer answer = FollowAnswer.Dismissed;
     private bool recorded;
 
-    public FollowPrompt(SettingsStore store, AnalyticsManager analytics)
+    public FollowPrompt(SettingsStore store)
     {
         this.store = store;
-        this.analytics = analytics;
 
         Title = "Hangly";
 
@@ -110,7 +107,7 @@ public sealed class FollowPrompt : Window
         // below now, where it is clickable and where it reads the same as it does in
         // every other window, so having it twice would be having it twice.
         body.Children.Add(buttons);
-        body.Children.Add(Branding.CreatorCredit.Panel(body, analytics, "follow_card", stacked: true));
+        body.Children.Add(Branding.CreatorCredit.Panel(body, stacked: true));
 
         Content = body;
 
@@ -158,7 +155,6 @@ public sealed class FollowPrompt : Window
     /// <summary>Records that the card was shown, and when.</summary>
     public void Shown()
     {
-        analytics.Track(Events.FollowPopupShown);
         int launch = store.Settings.Milestones.LaunchCount;
         store.Update(settings => settings with
         {
@@ -194,8 +190,6 @@ public sealed class FollowPrompt : Window
         switch (answer)
         {
             case FollowAnswer.Followed:
-                analytics.Track(Events.FollowPopupFollowClicked);
-                analytics.Track(Events.FollowInstagramClicked);
                 _ = Windows.System.Launcher.LaunchUriAsync(new Uri(AppInfo.InstagramUrl));
 
                 // Someone who followed is never asked again. That is the whole of what
@@ -203,12 +197,7 @@ public sealed class FollowPrompt : Window
                 store.Update(settings => settings with { IsFollowPromptSilenced = true });
                 break;
 
-            case FollowAnswer.MaybeLater:
-                analytics.Track(Events.FollowPopupMaybeLater);
-                break;
-
             default:
-                analytics.Track(Events.FollowPopupDismissed);
                 break;
         }
 

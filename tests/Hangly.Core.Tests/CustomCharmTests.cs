@@ -86,16 +86,6 @@ public class CustomCharmTests : IDisposable
         Assert.Equal([id], library.RecentCharmIds);
     }
 
-    [Fact(DisplayName = "An import is reported to analytics as the word custom, never by name")]
-    public void ImportsAreAnonymousInAnalytics()
-    {
-        string id = CharmId.ForCustom(Guid.NewGuid());
-        Assert.Equal("custom", Hangly.Core.Analytics.Events.NameOf(id));
-        Assert.Equal(
-            Hangly.Core.Analytics.AnalyticsValue.Of("custom"),
-            Hangly.Core.Analytics.Events.CharmSelected(id).Properties["charm"]);
-    }
-
     // MARK: - Index
 
     [Fact(DisplayName = "The index is the catalogue until something is imported")]

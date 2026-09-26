@@ -52,9 +52,10 @@ already on the list.
 
 ## What Hangly collects while you test
 
-The same as always, and no more because you are testing: a small, listed set of events,
-plus the display name you type. Not your files, not your file names, not your Windows
-account. Switch it off in **Customize → About** and nothing is sent at all.
+The same as always, and no more because you are testing: the name you type, that this is
+Windows, the processor, and the Windows and Hangly versions — sent when you first start
+it, if you change your name, and on a new major version. Nothing about what you do in the
+app. Not your files, not your file names, not your Windows account. Switch it off in **Customize → About** and nothing is sent at all.
 [PRIVACY.md](PRIVACY.md) is the full account.
 
 ## What happens to your feedback
