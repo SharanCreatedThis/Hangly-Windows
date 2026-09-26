@@ -8,7 +8,19 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 ## Unreleased
 
+**Added**
+
+- **Choose which display the charm hangs on**, from **Display** in the tray menu, shown
+  when more than one display is connected. The choice is remembered by the monitor itself,
+  not its position, so it survives a restart, a dock and a rearrangement. Unplug that
+  monitor and the charm moves to the main display; plug it back in and it goes back.
+
 **Changed**
+
+- **Updates install themselves.** Hangly checks shortly after it starts and once a day
+  while it runs, downloads a new version quietly, and installs it the next time Hangly
+  starts or quits. Nothing asks and nothing is shown; **Restart to update** in the tray
+  menu applies it at once for anybody who would rather not wait.
 
 - Analytics now records who uses Hangly, not what they do with it. One message is sent the
   first time you start Hangly, again if you change your name, and again when a new major
@@ -24,6 +36,22 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
   the connection comes back.
 
 **Fixed**
+
+- On a desk with displays at different scales, the charm is sized for the display it is
+  moving to, rather than coming out the wrong size for a second.
+- Plugging a monitor in or out, or moving the taskbar, now moves the charm with it.
+- Artwork the rope no longer draws is let go: the in-between sizes a charm grows through
+  as it appears, and everything belonging to a charm taken off the rope.
+- A rare race between the tray menu changing charms and the overlay drawing them.
+- Launch at login now starts the copy of Hangly you are running. An entry left by an
+  earlier copy in another folder used to count as "on" while Windows started the old one.
+- The card asking you to follow the creator waits until the fifth launch, as it does on a
+  Mac, rather than the third.
+- **Less CPU while the charm swings.** Frames now go straight from the GPU to the screen
+  instead of being copied back through system memory first, and once the charm is still
+  Hangly checks the mouse thirty times a second instead of at the display's full rate.
+- **Memory no longer grows as you change charms.** Forty charm changes used to take Hangly
+  from 123 MB to 317 MB, and none of it came back; it now stays between 55 and 75 MB.
 
 - The About page no longer says analytics never sends your name. It did, and now it says so.
 - The analytics details no longer draw your name on top of another row.

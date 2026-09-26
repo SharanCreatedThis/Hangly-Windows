@@ -79,13 +79,13 @@ This is the honest list, and it is the main reason for the beta.
 
 | | |
 |---|---|
-| **x64 machines** | The x64 build is packaged and published. It has never been installed or run. **[UNVERIFIED]** |
-| **Any scaling except 200%** | 100%, 125%, 150%, 175% are all untested. **[UNVERIFIED]** |
-| **More than one monitor** | Including which display it picks and what happens when you unplug one. **[UNVERIFIED]** |
-| **Two monitors at different scalings** | **[UNVERIFIED]** |
+| **x64 machines** | Installed and run on native x64 hardware. **[VERIFIED]** |
+| **Any scaling except 200%** | 100%, 125%, 150%, 175% and 200% tested on hardware. **[VERIFIED]** |
+| **More than one monitor** | Choose it from **Display** in the tray; remembered by the monitor itself; unplug falls back to the main display and replug returns. Implemented and unit-tested; not yet seen on real multiple monitors. **[UNVERIFIED on hardware]** |
+| **Two monitors at different scalings** | Sized with the destination monitor's own DPI. **[UNVERIFIED on hardware]** |
 | **Sleep and wake** | **[UNVERIFIED]** |
 | **Lock and unlock** | **[UNVERIFIED]** |
-| **Windows 10** | The installer claims to support 1809 and later. Nobody has run it on Windows 10. **[UNVERIFIED]** |
+| **Windows 10** | Run on Windows 10. **[VERIFIED]** The 1809 floor itself is not separately tested. |
 | **Taskbar auto-hide** | Turning it on changes the usable screen area, and Hangly may not notice until something else moves it. **[VERIFIED]** in the code, consequence **[UNVERIFIED]** |
 | **Dragging a file from Explorer onto the charm** | The code is there and the drop path works from the file picker; the Explorer drag itself could not be tested automatically. **[UNVERIFIED]** |
 

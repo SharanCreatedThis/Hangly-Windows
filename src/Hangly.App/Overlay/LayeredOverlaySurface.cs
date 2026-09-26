@@ -24,13 +24,25 @@ namespace Hangly.App.Overlay;
 /// window composites as a white rectangle with a perfectly correct rope inside it.
 /// That was observed, not assumed.
 ///
-/// <para><b>Why layered rather than DirectComposition.</b> Both give per-pixel alpha.
-/// A composition swapchain keeps the pixels on the GPU and is the faster of the two, at
-/// the cost of several undocumented-by-order COM vtables. A layered window costs one
-/// read-back of the rendered frame per drawn frame and needs nothing but GDI. For a
-/// window this size carrying a few hundred stroked segments — which stops redrawing
-/// entirely the moment the rope settles — that read-back is not the expensive part, and
-/// being able to read the code is worth more here than the frames it saves.</para>
+/// <para><b>Two ways to get pixels onto it, tried in order.</b> Both give per-pixel alpha.
+///
+/// <list type="number">
+/// <item><b>DirectComposition</b>, preferred. The window has no redirection surface; a
+/// Win2D swap chain is its content, and a frame goes from Win2D to the compositor without
+/// leaving the GPU. Still a layered window, with its alpha fixed at opaque through
+/// <c>SetLayeredWindowAttributes</c>, because layered plus <c>WS_EX_TRANSPARENT</c> is
+/// what makes a window click-through.</item>
+/// <item><b><c>UpdateLayeredWindow</c></b>, the fallback: each frame rendered into a
+/// <c>CanvasRenderTarget</c>, read back to system memory and handed to GDI.</item>
+/// </list>
+///
+/// The second was the only path until it was profiled. The read-back was 5.9 ms of the
+/// 7.9 ms a frame cost at 1431×893 on the ARM64 test machine — a GPU stall, mostly fixed
+/// cost, so reading back only the changed part barely helped — and the rope draws every
+/// frame for the forty-odd seconds it takes to settle after a launch, a nudge or a drag:
+/// about a fifth of a core, for as long as anything moves. The composition path is
+/// tried at creation, and anything it cannot do sends the window back to the first way,
+/// recreated from scratch, with the reason in the log.</para>
 ///
 /// <para>The surface is premultiplied BGRA because that is what
 /// <c>UpdateLayeredWindow</c> blends and what Win2D renders natively. No conversion
@@ -59,6 +71,17 @@ internal sealed class LayeredOverlaySurface : IDisposable
     private byte[] scratch = [];
 
     private CanvasRenderTarget? target;
+
+    // The composition path. All zero or null when the window is on the fallback.
+    private IntPtr compositionDevice;
+    private IntPtr compositionTarget;
+    private IntPtr compositionVisual;
+    private CanvasSwapChain? swapChain;
+    private NativeMethods.Point placedAt = new() { X = int.MinValue, Y = int.MinValue };
+
+    /// <summary>Whether frames go through DirectComposition rather than UpdateLayeredWindow.</summary>
+    public bool IsComposited => swapChain is not null;
+
     private int pixelWidth;
     private int pixelHeight;
     private double pixelScale;
@@ -77,11 +100,60 @@ internal sealed class LayeredOverlaySurface : IDisposable
     {
         RegisterClass();
 
+        if (Environment.GetEnvironmentVariable("HANGLY_OVERLAY_PRESENT") != "layered")
+        {
+            try
+            {
+                CreateWindow(composited: true);
+                StartComposition();
+                Diagnostics.Log("overlay: presenting through DirectComposition");
+                return;
+            }
+            catch (Exception exception)
+            {
+                Diagnostics.Log($"overlay: DirectComposition unavailable ({exception.GetType().Name}: {exception.Message}); using UpdateLayeredWindow");
+                StopComposition();
+                if (handle != IntPtr.Zero)
+                {
+                    NativeMethods.DestroyWindow(handle);
+                    handle = IntPtr.Zero;
+                }
+            }
+        }
+
+        CreateWindow(composited: false);
+    }
+
+    /// <summary>Puts a one-pixel swap chain on the window, which proves every step works.</summary>
+    private void StartComposition()
+    {
+        compositionDevice = Interop.DirectComposition.CreateDevice(device);
+        compositionTarget = Interop.DirectComposition.CreateTarget(compositionDevice, handle);
+        compositionVisual = Interop.DirectComposition.CreateVisual(compositionDevice);
+        swapChain = new CanvasSwapChain(device, 1, 1, 96, DirectXPixelFormat.B8G8R8A8UIntNormalized, 2, CanvasAlphaMode.Premultiplied);
+        Interop.DirectComposition.ResetScale(swapChain);
+        Interop.DirectComposition.SetContent(compositionVisual, swapChain);
+        Interop.DirectComposition.SetRoot(compositionTarget, compositionVisual);
+        Interop.DirectComposition.Commit(compositionDevice);
+    }
+
+    private void StopComposition()
+    {
+        swapChain?.Dispose();
+        swapChain = null;
+        Interop.DirectComposition.Release(ref compositionVisual);
+        Interop.DirectComposition.Release(ref compositionTarget);
+        Interop.DirectComposition.Release(ref compositionDevice);
+    }
+
+    private void CreateWindow(bool composited)
+    {
         uint exStyle = NativeMethods.WsExLayered
             | NativeMethods.WsExToolwindow // no taskbar button, no Alt-Tab entry
             | NativeMethods.WsExTopmost // above every other application
             | NativeMethods.WsExNoactivate // clicking it never steals focus
-            | NativeMethods.WsExTransparent; // click-through until the cursor finds the charm
+            | NativeMethods.WsExTransparent // click-through until the cursor finds the charm
+            | (composited ? NativeMethods.WsExNoRedirectionBitmap : 0); // pixels from DirectComposition
 
         handle = NativeMethods.CreateWindowEx(
             exStyle,
@@ -101,6 +173,16 @@ internal sealed class LayeredOverlaySurface : IDisposable
         {
             throw new InvalidOperationException(
                 $"CreateWindowEx failed: {Marshal.GetLastWin32Error()}");
+        }
+
+        // A layered window is invisible until it has been told how to blend. The fallback
+        // tells it with every UpdateLayeredWindow; the composited window is told once, as
+        // fully opaque, and its content supplies the alpha. The two cannot be mixed: once
+        // this is called, UpdateLayeredWindow fails on the window.
+        if (composited && !NativeMethods.SetLayeredWindowAttributes(handle, 0, 255, NativeMethods.LwaAlpha))
+        {
+            throw new InvalidOperationException(
+                $"SetLayeredWindowAttributes failed: {Marshal.GetLastWin32Error()}");
         }
     }
 
@@ -131,7 +213,37 @@ internal sealed class LayeredOverlaySurface : IDisposable
             return;
         }
 
+        if (swapChain is not null)
+        {
+            // The window is sized here rather than by UpdateLayeredWindow, which is what
+            // sized it on the fallback path. Position is left to Present.
+            // A new swap chain rather than ResizeBuffers: resizing with a new DPI left the
+            // buffer at the old DPI — the rope came out at half size in the top-left
+            // quarter at 200%, measured — and a resize is rare enough that making one is
+            // free by comparison.
+            var replacement = new CanvasSwapChain(
+                device,
+                (float)(widthInPixels / scale),
+                (float)(heightInPixels / scale),
+                (float)(96.0 * scale),
+                DirectXPixelFormat.B8G8R8A8UIntNormalized,
+                2,
+                CanvasAlphaMode.Premultiplied);
+            Interop.DirectComposition.ResetScale(replacement);
+            Interop.DirectComposition.SetContent(compositionVisual, replacement);
+            Interop.DirectComposition.Commit(compositionDevice);
+            swapChain.Dispose();
+            swapChain = replacement;
+            Diagnostics.Log($"overlay: swap chain {replacement.SizeInPixels.Width}x{replacement.SizeInPixels.Height} at {replacement.Dpi:0} dpi");
+            pixelWidth = widthInPixels;
+            pixelHeight = heightInPixels;
+            pixelScale = scale;
+            placedAt = new NativeMethods.Point { X = int.MinValue, Y = int.MinValue };
+            return;
+        }
+
         ReleaseSurface();
+        isWhole = true;
 
         pixelWidth = widthInPixels;
         pixelHeight = heightInPixels;
@@ -204,8 +316,25 @@ internal sealed class LayeredOverlaySurface : IDisposable
     /// <param name="draw">Paints the frame. The session is already cleared to nothing.</param>
     /// <param name="origin">Where the window's top-left belongs, in desktop pixels.</param>
     /// <param name="opacity">Applied uniformly, on top of whatever alpha was drawn.</param>
-    public void Present(Action<CanvasDrawingSession> draw, NativeMethods.Point origin, double opacity)
+    /// <param name="changed">
+    /// The part of the canvas, in points, whose pixels may differ from the last frame —
+    /// the union of what the last frame and this one draw. Only that part is read back
+    /// from the GPU and copied into the DIB; the rest of the DIB already holds the right
+    /// pixels. Null means all of it, and the first frame after a resize is always all of
+    /// it, whatever is passed.
+    /// </param>
+    public void Present(
+        Action<CanvasDrawingSession> draw,
+        NativeMethods.Point origin,
+        double opacity,
+        Hangly.Core.Geometry.Rect? changed = null)
     {
+        if (swapChain is not null)
+        {
+            PresentComposited(draw, origin, opacity);
+            return;
+        }
+
         if (target is null || handle == IntPtr.Zero)
         {
             return;
@@ -219,19 +348,8 @@ internal sealed class LayeredOverlaySurface : IDisposable
             draw(session);
         }
 
-        // Into the reused buffer, out through a reader, and into the DIB. Two copies
-        // where one would do, and the second one is the price of not being able to take
-        // the buffer's address: IBufferByteAccess is the only route to it, and CsWinRT
-        // will not cast a projected WinRT object to a ComImport interface — that was
-        // tried, and threw InvalidCastException at the first frame. The copy is cheap
-        // next to what it replaces. It is bandwidth, not garbage.
-        target.GetPixelBytes(transfer);
-        using (var reader = Windows.Storage.Streams.DataReader.FromBuffer(transfer))
-        {
-            reader.ReadBytes(scratch);
-        }
-
-        Marshal.Copy(scratch, 0, pixels, scratch.Length);
+        CopyToDib(isWhole ? null : changed);
+        isWhole = false;
 
         var size = new NativeMethods.Size { Width = pixelWidth, Height = pixelHeight };
         var source = new NativeMethods.Point { X = 0, Y = 0 };
@@ -261,6 +379,105 @@ internal sealed class LayeredOverlaySurface : IDisposable
         if (!updated)
         {
             Diagnostics.Log($"UpdateLayeredWindow failed: {Marshal.GetLastWin32Error()}");
+        }
+    }
+
+    /// <summary>One frame through the swap chain: drawn, presented, never read back.</summary>
+    private void PresentComposited(Action<CanvasDrawingSession> draw, NativeMethods.Point origin, double opacity)
+    {
+        if (pixelWidth <= 0 || handle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        using (CanvasDrawingSession session = swapChain!.CreateDrawingSession(Microsoft.UI.Colors.Transparent))
+        {
+            if (opacity >= 1)
+            {
+                draw(session);
+            }
+            else
+            {
+                // UpdateLayeredWindow applied the opacity on the fallback; here it is a
+                // layer, which the GPU applies to everything drawn inside it.
+                using (session.CreateLayer((float)Math.Clamp(opacity, 0, 1)))
+                {
+                    draw(session);
+                }
+            }
+        }
+
+        // Not synchronised to the display here: the frame loop already waited for the
+        // compositor, and waiting twice halves the frame rate.
+        swapChain.Present(0);
+
+        if (origin.X != placedAt.X || origin.Y != placedAt.Y || pixelWidth != placedWidth || pixelHeight != placedHeight)
+        {
+            NativeMethods.SetWindowPos(
+                handle,
+                IntPtr.Zero,
+                origin.X,
+                origin.Y,
+                pixelWidth,
+                pixelHeight,
+                NativeMethods.SwpNozorder | NativeMethods.SwpNoactivate);
+            placedAt = origin;
+            placedWidth = pixelWidth;
+            placedHeight = pixelHeight;
+        }
+    }
+
+    private int placedWidth;
+    private int placedHeight;
+
+    /// <summary>Set by a resize: the next frame is read back whole.</summary>
+    private bool isWhole = true;
+
+    /// <summary>Reads <paramref name="changed"/> back from the GPU into the same pixels of the DIB.</summary>
+    /// <remarks>
+    /// <b>Why only part.</b> Reading the whole target back was 5.9 ms of a 7.9 ms frame at
+    /// 1431×893 — measured — and nearly all of those pixels are transparent before and
+    /// after. The readback is a GPU stall plus a copy proportional to the area, so a strip
+    /// around the rope costs a fraction of it.
+    ///
+    /// <para>Into the reused buffer, out into the reused array, and row by row into the
+    /// DIB at the rectangle's place. The middle copy is the price of not being able to take
+    /// the buffer's address: IBufferByteAccess is the only route to it, and CsWinRT will
+    /// not cast a projected WinRT object to a ComImport interface — that was tried, and
+    /// threw InvalidCastException at the first frame. It is bandwidth, not garbage.</para>
+    /// </remarks>
+    private void CopyToDib(Hangly.Core.Geometry.Rect? changed)
+    {
+        int left = 0, top = 0, width = pixelWidth, height = pixelHeight;
+        if (changed is Hangly.Core.Geometry.Rect area)
+        {
+            left = Math.Clamp((int)Math.Floor(area.Left * pixelScale), 0, pixelWidth);
+            top = Math.Clamp((int)Math.Floor(area.Top * pixelScale), 0, pixelHeight);
+            int right = Math.Clamp((int)Math.Ceiling(area.Right * pixelScale), 0, pixelWidth);
+            int bottom = Math.Clamp((int)Math.Ceiling(area.Bottom * pixelScale), 0, pixelHeight);
+            width = right - left;
+            height = bottom - top;
+            if (width <= 0 || height <= 0)
+            {
+                return;
+            }
+        }
+
+        int rowBytes = width * 4;
+        int byteCount = rowBytes * height;
+        target!.GetPixelBytes(transfer, left, top, width, height);
+        System.Runtime.InteropServices.WindowsRuntime.WindowsRuntimeBufferExtensions.CopyTo(
+            transfer!, 0, scratch, 0, byteCount);
+
+        if (width == pixelWidth)
+        {
+            Marshal.Copy(scratch, 0, pixels + (top * pixelWidth * 4), byteCount);
+            return;
+        }
+
+        for (int row = 0; row < height; row++)
+        {
+            Marshal.Copy(scratch, row * rowBytes, pixels + ((((top + row) * pixelWidth) + left) * 4), rowBytes);
         }
     }
 
@@ -356,6 +573,12 @@ internal sealed class LayeredOverlaySurface : IDisposable
     /// <summary>Takes the scale-change notice, if one has arrived.</summary>
     public static bool TakeScaleChanged() => Interlocked.Exchange(ref scaleChanged, 0) == 1;
 
+    /// <summary>Set when a display is added, removed or rearranged, or a work area moves.</summary>
+    private static int displaysChanged;
+
+    /// <summary>Takes the display-change notice, if one has arrived.</summary>
+    public static bool TakeDisplaysChanged() => Interlocked.Exchange(ref displaysChanged, 0) == 1;
+
     private static IntPtr OnMessage(IntPtr hWnd, uint message, IntPtr wParam, IntPtr lParam)
     {
         if (message == NativeMethods.WmDpiChanged)
@@ -368,6 +591,11 @@ internal sealed class LayeredOverlaySurface : IDisposable
             // canvas, the cursor's position, the charm's grab radius — is wrong until
             // something else happens to reposition the window.
             Interlocked.Exchange(ref scaleChanged, 1);
+        }
+        else if (message == NativeMethods.WmDisplayChange
+            || (message == NativeMethods.WmSettingChange && wParam.ToInt64() == NativeMethods.SpiSetWorkArea))
+        {
+            Interlocked.Exchange(ref displaysChanged, 1);
         }
 
         return NativeMethods.DefWindowProc(hWnd, message, wParam, lParam);
@@ -406,6 +634,7 @@ internal sealed class LayeredOverlaySurface : IDisposable
 
     public void Dispose()
     {
+        StopComposition();
         ReleaseSurface();
 
         if (handle != IntPtr.Zero)

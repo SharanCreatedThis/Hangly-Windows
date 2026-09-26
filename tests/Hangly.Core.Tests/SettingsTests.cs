@@ -122,6 +122,8 @@ public class SettingsCodingTests
                 RopeStyle = RopeStyle.GoldChain,
                 OffsetX = -120,
                 DisplayIndex = 2,
+                DisplayId = @"\\?\DISPLAY#GSM7714#5&4",
+                DisplayName = "LG ULTRAWIDE",
             },
         };
 

@@ -83,6 +83,9 @@ public sealed class OverlayWindow : IDisposable
     private Rect frame;
     private double scale = 1;
 
+    /// <summary>The display the window was last fitted to, to notice when that changes.</summary>
+    private DisplayInfo fittedTo;
+
     public OverlayWindow(
         CanvasDevice device,
         OverlaySettings settings,
@@ -219,9 +222,21 @@ public sealed class OverlayWindow : IDisposable
             {
                 PumpMessages();
 
-                // Paces the loop to the compositor, which is what CompositionTarget.Rendering
-                // did while there was still a XAML tree to hang it on.
-                NativeMethods.DwmFlush();
+                // Moving: paced to the compositor, which is what CompositionTarget.Rendering
+                // did while there was still a XAML tree to hang it on. Settled: nothing is
+                // drawn, so there is nothing to pace to; the loop sleeps until a message
+                // arrives or the idle interval passes, and polls the cursor at that rate.
+                // Waiting on the compositor here woke the thread at the display's full rate
+                // to do nothing on three frames in four.
+                if (isIdle)
+                {
+                    NativeMethods.MsgWaitForMultipleObjectsEx(
+                        0, IntPtr.Zero, IdleWaitMs, NativeMethods.QsAllInput, NativeMethods.MwmoInputAvailable);
+                }
+                else
+                {
+                    NativeMethods.DwmFlush();
+                }
 
                 // Taken rather than read, so a second change arriving between the read and
                 // the clear is not the one that gets dropped.
@@ -241,6 +256,17 @@ public sealed class OverlayWindow : IDisposable
                 {
                     rope.Push();
                     Draw();
+                }
+
+                if (LayeredOverlaySurface.TakeDisplaysChanged() || DisplayMoved())
+                {
+                    // A display was plugged in or out, rearranged, or its taskbar moved.
+                    // The chosen display may have just arrived — the rope goes back to it —
+                    // or just left, and the rope falls back to the main display.
+                    Reposition();
+                    rope.Wake();
+                    Draw();
+                    Diagnostics.Log($"displays changed; hanging on '{fittedTo.Name}' at {scale:0.##}x");
                 }
 
                 if (LayeredOverlaySurface.TakeScaleChanged() || ScaleDrifted())
@@ -313,6 +339,26 @@ public sealed class OverlayWindow : IDisposable
         return Math.Abs(current - scale) > 0.001;
     }
 
+    /// <summary>Whether the display the rope belongs on is not the one it was fitted to.</summary>
+    /// <remarks>
+    /// The same once-a-second cadence as <see cref="ScaleDrifted"/>, and for the same
+    /// reason: WM_DISPLAYCHANGE is the fast path, and this is the one that cannot be
+    /// missed. Compares the whole record — which display, where, its work area and its
+    /// scale — so a taskbar moving or a monitor being rearranged counts as well.
+    /// </remarks>
+    private bool DisplayMoved()
+    {
+        if (Environment.TickCount64 - lastDisplayCheck < TopmostIntervalMs)
+        {
+            return false;
+        }
+
+        lastDisplayCheck = Environment.TickCount64;
+        return DisplayObserver.Chosen(settings.DisplayId, settings.DisplayIndex) != fittedTo;
+    }
+
+    private long lastDisplayCheck;
+
     /// <summary>Re-asserts the window's place above everything, about once a second.</summary>
     /// <remarks>
     /// Once a second rather than once a frame. The z-order only changes when something
@@ -369,11 +415,17 @@ public sealed class OverlayWindow : IDisposable
     /// <summary>Puts the window where the settings say, on the display they name.</summary>
     private void Reposition()
     {
-        DisplayInfo display = DisplayObserver.DisplayAt(settings.DisplayIndex);
-        scale = NativeMethods.GetDpiForWindow(surface.Handle) / 96.0;
+        DisplayInfo display = DisplayObserver.Chosen(settings.DisplayId, settings.DisplayIndex);
+        fittedTo = display;
+
+        // The destination display's scale, not the window's: the window's DPI is that of
+        // wherever it is now, and on a desk of mixed scales that is the wrong display for
+        // the one move that matters. Measured the other way, a rope moved from a 100% to a
+        // 200% display came out half size until the next second's drift check.
+        scale = display.Scale > 0 ? display.Scale : NativeMethods.GetDpiForWindow(surface.Handle) / 96.0;
         if (scale <= 0)
         {
-            scale = display.Scale;
+            scale = 1;
         }
 
         // The canvas is measured in points and the desktop in pixels, so the size the
@@ -426,10 +478,10 @@ public sealed class OverlayWindow : IDisposable
         // the clock keeps running because the same tick is what notices the cursor
         // arriving over the charm. A layered window keeps the last frame it was given, so
         // not presenting leaves the settled rope on screen rather than blanking it.
-        clock.SetThrottled(rope.IsSleeping && !rope.IsDragging);
+        isIdle = rope.IsSleeping && !rope.IsDragging;
         if (!rope.IsSleeping || rope.IsDragging)
         {
-            Draw();
+            Draw(onlyIfMoved: true);
         }
     }
 
@@ -463,10 +515,56 @@ public sealed class OverlayWindow : IDisposable
         lastSide = side;
     }
 
-    private void Draw() => surface.Present(
-        session => renderer.Draw(session, rope.Snapshot(), rope.Style),
-        new NativeMethods.Point { X = (int)Math.Round(frame.Left), Y = (int)Math.Round(frame.Top) },
-        settings.Opacity);
+    private void Draw(bool onlyIfMoved = false)
+    {
+        RopeSnapshot snapshot = rope.Snapshot();
+
+        // A frame the eye cannot tell from the last one shown is not presented. Only the
+        // frame loop's own ticks may skip; a settings change, a nudge or a refit always
+        // draws, because what changed there is not the rope's position.
+        if (onlyIfMoved && lastShown is not null
+            && RopeBounds.LargestMove(lastShown, snapshot) * scale < InvisibleMovePixels)
+        {
+            return;
+        }
+
+        lastShown = snapshot;
+
+        // What this frame paints and what the last one did: the only pixels that can have
+        // changed. Everything else on the canvas is transparent in both.
+        double radius = snapshot.Charms.Count > 0 ? snapshot.Charms[^1].Radius : 10;
+        Hangly.Core.Geometry.Rect? painted = RopeBounds.Of(snapshot, 2 * RopeStyleAppearanceTable.WidthFor(rope.Style, radius));
+        Hangly.Core.Geometry.Rect? changed = RopeBounds.Union(lastPainted, painted);
+        lastPainted = painted;
+
+        surface.Present(
+            session => renderer.Draw(session, snapshot, rope.Style),
+            new NativeMethods.Point { X = (int)Math.Round(frame.Left), Y = (int)Math.Round(frame.Top) },
+            settings.Opacity,
+            changed);
+    }
+
+    /// <summary>The last frame presented, to compare the next against.</summary>
+    private RopeSnapshot? lastShown;
+
+    /// <summary>
+    /// A quarter of a device pixel: movement below this cannot change what anti-aliased
+    /// edges look like enough to see, and is never allowed to add up past it.
+    /// </summary>
+    private const double InvisibleMovePixels = 0.25;
+
+    /// <summary>What the last frame painted, in canvas points.</summary>
+    private Hangly.Core.Geometry.Rect? lastPainted;
+
+    /// <summary>Whether the rope is settled and nobody is holding it.</summary>
+    private bool isIdle;
+
+    /// <summary>
+    /// How long the settled loop waits between looks at the cursor: thirty a second, the
+    /// rate the old one-tick-in-four throttle delivered on a 120 Hz display. A message —
+    /// a settings change, a nudge, a display change — ends the wait at once.
+    /// </summary>
+    private const uint IdleWaitMs = 33;
 
     private void PollPointer()
     {

@@ -65,8 +65,21 @@ public sealed class CharmArtworkCache : IDisposable
     private readonly Dictionary<string, SKImage?> naturals = [];
     private readonly Dictionary<(string File, int Level), SKImage?> levels = [];
     private readonly Dictionary<(string File, int Size, Rect Region), CanvasBitmap> rasters = [];
+    private readonly Dictionary<(string File, int Size, Rect Region), long> lastDrawn = [];
     private readonly Dictionary<(string File, int Beads, int Body), CharmArtworkRegions?> regions = [];
     private readonly ICanvasResourceCreator resourceCreator;
+
+    /// <summary>Guards <see cref="documents"/> and <see cref="regions"/>.</summary>
+    /// <remarks>
+    /// The one part of this cache two threads reach: the UI thread measures a charm when
+    /// the rope's charms change, while the overlay's own frame loop is drawing from the
+    /// same documents. Everything else — the rasters and the reductions — is touched only
+    /// by the frame loop.
+    /// </remarks>
+    private readonly object gate = new();
+
+    /// <summary>How many frames this cache has drawn, for <see cref="EndFrame"/>.</summary>
+    private long frame;
 
     public CharmArtworkCache(ICanvasResourceCreator resourceCreator, string directory)
     {
@@ -282,14 +295,17 @@ public sealed class CharmArtworkCache : IDisposable
     public CharmArtworkRegions? Measure(CharmCatalogEntry entry)
     {
         var key = (entry.FileName, entry.BeadCount, entry.BodyRun);
-        if (regions.TryGetValue(key, out CharmArtworkRegions? cached))
+        lock (gate)
         {
-            return cached;
-        }
+            if (regions.TryGetValue(key, out CharmArtworkRegions? cached))
+            {
+                return cached;
+            }
 
-        CharmArtworkRegions? measured = MeasureDocument(Document(entry.FileName), entry);
-        regions[key] = measured;
-        return measured;
+            CharmArtworkRegions? measured = MeasureDocument(Document(entry.FileName), entry);
+            regions[key] = measured;
+            return measured;
+        }
     }
 
     /// <summary>The measurement itself, with no cache and no device behind it.</summary>
@@ -416,6 +432,7 @@ public sealed class CharmArtworkCache : IDisposable
     {
         if (rasters.TryGetValue((fileName, pixels, region), out CanvasBitmap? cached))
         {
+            lastDrawn[(fileName, pixels, region)] = frame;
             return cached;
         }
 
@@ -493,7 +510,102 @@ public sealed class CharmArtworkCache : IDisposable
             Windows.Graphics.DirectX.DirectXPixelFormat.B8G8R8A8UIntNormalized);
 
         rasters[(fileName, pixels, region)] = bitmap;
+        lastDrawn[(fileName, pixels, region)] = frame;
         return bitmap;
+    }
+
+    /// <summary>How many drawn frames a raster may go unused before it is let go.</summary>
+    private const long StaleAfterFrames = 2;
+
+    /// <summary>Lets go of every raster the last few drawn frames did not use.</summary>
+    /// <remarks>
+    /// Called by the renderer once per frame it draws, from the frame loop. The cache is
+    /// keyed on the exact pixel size, and before this it kept every size it had ever made:
+    /// a charm fading in grows through every whole pixel from nothing to its full size, and
+    /// at 200% that left some two hundred bitmaps behind — the sum of their squares, about
+    /// fourteen megabytes, for one charm arriving once. A display change did the same with
+    /// the old display's sizes.
+    ///
+    /// <para>A rope that is swinging or being dragged draws the same sizes every frame, so
+    /// it never loses a raster it is about to draw; only sizes that have been passed
+    /// through go. A settled rope draws nothing and so calls nothing, which is why this
+    /// counts drawn frames rather than time.</para>
+    /// </remarks>
+    public void EndFrame()
+    {
+        frame++;
+        if (rasters.Count == 0)
+        {
+            return;
+        }
+
+        List<(string File, int Size, Rect Region)>? stale = null;
+        foreach (KeyValuePair<(string File, int Size, Rect Region), long> entry in lastDrawn)
+        {
+            if (frame - entry.Value > StaleAfterFrames)
+            {
+                (stale ??= []).Add(entry.Key);
+            }
+        }
+
+        if (stale is null)
+        {
+            return;
+        }
+
+        foreach ((string File, int Size, Rect Region) key in stale)
+        {
+            if (rasters.Remove(key, out CanvasBitmap? bitmap))
+            {
+                bitmap.Dispose();
+            }
+
+            lastDrawn.Remove(key);
+        }
+    }
+
+    /// <summary>How many rasters are held, for the tests and the memory audit.</summary>
+    public int RasterCount => rasters.Count;
+
+    /// <summary>Forgets everything drawn from artwork that is no longer on the rope.</summary>
+    /// <remarks>
+    /// Called from the frame loop when the rope is given new charms. A charm taken off the
+    /// rope used to keep its parsed document, its full-size render and its reduction chain
+    /// for the rest of the run — a megabyte or two each, for every charm ever tried on.
+    /// The measured regions are kept: they are a few rectangles, and the Library asks for
+    /// them again whenever it describes the charm.
+    /// </remarks>
+    public void Retain(IEnumerable<string> fileNames)
+    {
+        var keep = new HashSet<string>(fileNames, StringComparer.Ordinal);
+
+        foreach (string file in naturals.Keys.Where(file => !keep.Contains(file)).ToList())
+        {
+            naturals[file]?.Dispose();
+            naturals.Remove(file);
+        }
+
+        foreach ((string File, int Level) key in levels.Keys.Where(key => !keep.Contains(key.File)).ToList())
+        {
+            levels[key]?.Dispose();
+            levels.Remove(key);
+        }
+
+        foreach ((string File, int Size, Rect Region) key in rasters.Keys.Where(key => !keep.Contains(key.File)).ToList())
+        {
+            rasters[key].Dispose();
+            rasters.Remove(key);
+            lastDrawn.Remove(key);
+        }
+
+        lock (gate)
+        {
+            foreach (string file in documents.Keys.Where(file => !keep.Contains(file)).ToList())
+            {
+                documents[file].Dispose();
+                documents.Remove(file);
+            }
+        }
     }
 
     /// <summary>Draws the artwork into <paramref name="canvas"/> at whatever scale is set.</summary>
@@ -670,21 +782,24 @@ public sealed class CharmArtworkCache : IDisposable
 
     private SKSvg? Document(string fileName)
     {
-        if (documents.TryGetValue(fileName, out SKSvg? cached))
+        lock (gate)
         {
-            return cached;
-        }
+            if (documents.TryGetValue(fileName, out SKSvg? cached))
+            {
+                return cached;
+            }
 
-        string path = Path.Combine(directory, fileName);
-        if (!File.Exists(path))
-        {
-            return null;
-        }
+            string path = Path.Combine(directory, fileName);
+            if (!File.Exists(path))
+            {
+                return null;
+            }
 
-        var svg = new SKSvg();
-        svg.Load(path);
-        documents[fileName] = svg;
-        return svg;
+            var svg = new SKSvg();
+            svg.Load(path);
+            documents[fileName] = svg;
+            return svg;
+        }
     }
 
     public void Dispose()
@@ -714,6 +829,10 @@ public sealed class CharmArtworkCache : IDisposable
         }
 
         rasters.Clear();
-        documents.Clear();
+        lastDrawn.Clear();
+        lock (gate)
+        {
+            documents.Clear();
+        }
     }
 }

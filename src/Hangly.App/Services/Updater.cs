@@ -38,6 +38,11 @@ public readonly record struct UpdateCheck(string? Version, string Message, strin
 /// component and no identifier — the same promise the macOS build's appcast makes, and
 /// the reason PRIVACY.md can say an update check carries nothing.</para>
 ///
+/// <para><b>Silent.</b> A found update is downloaded in the background and applied the
+/// next time Hangly starts — which Velopack does on its own, before any window, for a
+/// package already downloaded — or as Hangly quits, whichever comes first. Nothing asks
+/// and nothing is shown. The About page can still install one at once.</para>
+///
 /// <para><b>Every failure is quiet.</b> A machine with no network, a feed that has not
 /// been published yet, and a release that will not parse are all the same answer: there
 /// is no update today. None of them is worth interrupting someone over, and none of them
@@ -55,6 +60,10 @@ public sealed class Updater
 
     private readonly string feedUrl;
     private UpdateInfo? pending;
+    private UpdateInfo? downloaded;
+
+    /// <summary>The version downloaded and waiting for Hangly to restart, if any.</summary>
+    public string? ReadyVersion => downloaded?.TargetFullRelease.Version.ToString();
 
     public Updater(string feedUrl) => this.feedUrl = feedUrl;
 
@@ -88,7 +97,9 @@ public sealed class Updater
     /// — see <c>Docs/DISTRIBUTION.md</c> §2.</para>
     /// </remarks>
     private UpdateManager Manager() => new(
-        new GithubSource(feedUrl, accessToken: null, prerelease: true),
+        Directory.Exists(feedUrl)
+            ? new SimpleFileSource(new DirectoryInfo(feedUrl))
+            : new GithubSource(feedUrl, accessToken: null, prerelease: true),
         new UpdateOptions { ExplicitChannel = Channel });
 
     /// <summary>Whether this copy can update itself at all.</summary>
@@ -159,6 +170,59 @@ public sealed class Updater
     /// Anything that fails before that point leaves the installed copy exactly as it was,
     /// because nothing is replaced until the whole package has arrived.
     /// </remarks>
+    /// <summary>
+    /// Downloads what the last check found, for Velopack to apply on the next start.
+    /// Never throws.
+    /// </summary>
+    /// <returns>Whether an update is now downloaded and waiting.</returns>
+    public async Task<bool> DownloadAsync()
+    {
+        if (pending is null)
+        {
+            return downloaded is not null;
+        }
+
+        try
+        {
+            UpdateInfo found = pending;
+            await Manager().DownloadUpdatesAsync(found).ConfigureAwait(false);
+            downloaded = found;
+            Diagnostics.Log($"update {found.TargetFullRelease.Version} downloaded; applies on the next start");
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Diagnostics.Log($"update download failed: {exception.GetType().Name}");
+            return false;
+        }
+    }
+
+    /// <summary>Hands a downloaded update to Velopack to apply once this process ends.</summary>
+    /// <remarks>
+    /// Called on the way out of a normal quit, so an update is not left waiting for the next
+    /// start. Silent and without a restart: somebody who chose Quit wanted Hangly gone.
+    /// Velopack's updater waits up to a minute for this process to exit, which a quit does
+    /// at once. If it does not — Windows shutting down around it — the package is still
+    /// there, and the next start applies it instead.
+    /// </remarks>
+    public void ApplyOnExit()
+    {
+        if (downloaded is null)
+        {
+            return;
+        }
+
+        try
+        {
+            Manager().WaitExitThenApplyUpdates(downloaded.TargetFullRelease, silent: true, restart: false);
+            Diagnostics.Log($"update {downloaded.TargetFullRelease.Version} will apply as Hangly exits");
+        }
+        catch (Exception exception)
+        {
+            Diagnostics.Log($"update apply-on-exit failed: {exception.GetType().Name}");
+        }
+    }
+
     public async Task<string> DownloadAndApplyAsync()
     {
         if (pending is null)

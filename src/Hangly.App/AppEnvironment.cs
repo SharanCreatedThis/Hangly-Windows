@@ -118,51 +118,55 @@ public sealed class AppEnvironment : IDisposable
     public Updater Updates { get; } = new(AppInfo.UpdateFeedUrl);
 
     /// <summary>
-    /// Looks for an update in the background, once, a little after launch.
+    /// Keeps Hangly up to date without a word: checks a little after launch and once a
+    /// day after that, and downloads whatever it finds for the next start to apply.
     /// </summary>
     /// <remarks>
-    /// <b>Quiet by design.</b> Nothing pops up, nothing steals focus and nothing blocks:
-    /// the result is one line at the top of the tray menu, where someone will find it
-    /// when they are already looking at the menu, and the About page says the same thing
-    /// in more detail. An ornament that interrupts you to talk about itself has missed
-    /// the point of being an ornament.
+    /// <b>Silent by design.</b> Nothing pops up, nothing steals focus and nothing blocks.
+    /// Hangly starts at sign-in and is rarely quit, so a check made only at launch could
+    /// leave somebody a release behind for weeks; hence the daily repeat. Once a package is
+    /// downloaded the tray gains one line, "Restart to update", for anybody who would
+    /// rather not wait — and otherwise the next restart, or the next Quit, applies it.
     ///
-    /// <para>Delayed rather than immediate, because launch is the one moment the app is
-    /// already doing everything at once, and a check that finds nothing is worth nothing
-    /// to hurry. Every failure is silent — <see cref="Updater"/> never throws — so a
-    /// machine with no network simply never hears back.</para>
+    /// <para>Every failure is silent — <see cref="Updater"/> never throws — so a machine
+    /// with no network simply tries again tomorrow.</para>
     /// </remarks>
     private void CheckForUpdateQuietly()
     {
         _ = Task.Run(async () =>
         {
-            try
+            await Task.Delay(TimeSpan.FromSeconds(UpdateCheckDelaySeconds)).ConfigureAwait(false);
+            while (true)
             {
-                await Task.Delay(TimeSpan.FromSeconds(UpdateCheckDelaySeconds)).ConfigureAwait(false);
-
-                UpdateCheck result = await Updates.CheckAsync().ConfigureAwait(false);
-                if (!result.HasUpdate)
+                try
                 {
-                    Diagnostics.Log($"update check: {result.Message}");
-                    return;
+                    UpdateCheck result = await Updates.CheckAsync().ConfigureAwait(false);
+                    Diagnostics.Log(result.HasUpdate ? $"update available: {result.Version}" : $"update check: {result.Message}");
+                    if (result.HasUpdate)
+                    {
+                        availableUpdate = result;
+                        if (await Updates.DownloadAsync().ConfigureAwait(false))
+                        {
+                            // Nothing more to check for until this one is applied.
+                            return;
+                        }
+                    }
+                }
+                catch (Exception exception)
+                {
+                    Diagnostics.Log($"quiet update check failed: {exception.GetType().Name}");
                 }
 
-                availableUpdate = result;
-                Diagnostics.Log($"update available: {result.Version}");
-
-                // Nothing has to be told. The tray rebuilds its menu from scratch every
-                // time it is opened, so the new line is simply there the next time
-                // someone looks.
-            }
-            catch (Exception exception)
-            {
-                Diagnostics.Log($"quiet update check failed: {exception.GetType().Name}");
+                await Task.Delay(UpdateCheckInterval).ConfigureAwait(false);
             }
         });
     }
 
-    /// <summary>How long after launch the quiet check runs.</summary>
+    /// <summary>How long after launch the first check runs.</summary>
     private const int UpdateCheckDelaySeconds = 20;
+
+    /// <summary>How often a running Hangly checks again.</summary>
+    private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromHours(24);
 
     public void ShowWelcomeIfNeeded()
     {
@@ -237,6 +241,14 @@ public sealed class AppEnvironment : IDisposable
             Diagnostics.Log($"first run: launch at login switched on ({launchAtLogin.IsEnabled})");
         }
 
+        // An entry naming another copy is this person's choice to start Hangly, pointing at
+        // the wrong file. Honour the choice and fix the file, rather than read it as off.
+        if (launchAtLogin.IsStale && store.Settings.LaunchAtLogin)
+        {
+            launchAtLogin.SetEnabled(true);
+            Diagnostics.Log($"launch at login pointed at another copy; repointed ({launchAtLogin.IsEnabled})");
+        }
+
         bool actuallyEnabled = launchAtLogin.IsEnabled;
         if (actuallyEnabled != store.Settings.LaunchAtLogin)
         {
@@ -285,6 +297,41 @@ public sealed class AppEnvironment : IDisposable
 
         // Last, and on its own thread, so nothing above waits on a network call.
         CheckForUpdateQuietly();
+        StartAuditCycle();
+    }
+
+    /// <summary>
+    /// For the memory audit only: with <c>HANGLY_AUDIT_CYCLE</c> set to a number of seconds,
+    /// hangs a different set of one to three charms that often, forty times, walking the
+    /// whole catalogue, then stops — so memory can be read across dozens of charm changes
+    /// without anybody driving the tray. Inert when the variable is not set, which is always
+    /// outside a measurement. The macOS build's equivalent is its audit notifications.
+    /// </summary>
+    private void StartAuditCycle()
+    {
+        if (!int.TryParse(Environment.GetEnvironmentVariable("HANGLY_AUDIT_CYCLE"), out int seconds) || seconds <= 0)
+        {
+            return;
+        }
+
+        IReadOnlyList<CharmCatalogEntry> all = CharmCatalog.All;
+        Microsoft.UI.Dispatching.DispatcherQueueTimer timer =
+            Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().CreateTimer();
+        timer.Interval = TimeSpan.FromSeconds(seconds);
+        int step = 0;
+        timer.Tick += (_, _) =>
+        {
+            int count = (step % 3) + 1;
+            List<string> ids = [.. Enumerable.Range(0, count).Select(offset => all[((step * 3) + offset) % all.Count].Id)];
+            store.UpdateOverlay(overlay => overlay.WithStack(CharmStackState.Of(ids)));
+            Diagnostics.Log($"audit cycle {step + 1}/40: {string.Join(", ", ids)}");
+            if (++step >= 40)
+            {
+                timer.Stop();
+            }
+        };
+        timer.Start();
+        Diagnostics.Log($"audit cycle: every {seconds} s");
     }
 
     /// <summary>Hangs one charm, alone, from the tray's favourites list.</summary>
@@ -659,7 +706,13 @@ public sealed class AppEnvironment : IDisposable
 
         // An update that has been found gets one line at the top, and only then. A menu
         // item that is always there saying "no updates" is a menu item nobody reads.
-        List<MenuEntry> update = availableUpdate is { HasUpdate: true } newer
+        List<MenuEntry> update = Updates.ReadyVersion is { } ready
+            ?
+            [
+                new MenuEntry($"Restart to update to {ready}", RestartToUpdate),
+                MenuEntry.Separator,
+            ]
+            : availableUpdate is { HasUpdate: true } newer
             ?
             [
                 new MenuEntry($"Update to {newer.Version}…", OpenUpdates),
@@ -678,9 +731,67 @@ public sealed class AppEnvironment : IDisposable
             MenuEntry.Separator,
             new MenuEntry("Charms", Children: charms),
             new MenuEntry("Rope", Children: ropes),
+            .. DisplayMenu(settings.Overlay),
             MenuEntry.Separator,
             new MenuEntry("Quit Hangly", Quit),
         ];
+    }
+
+    /// <summary>Which display the rope hangs on, when there is a choice to make.</summary>
+    /// <remarks>
+    /// Absent on a single display, where it could only ever say one thing — unless a
+    /// display was chosen and is now unplugged, when it stays so the choice can be seen and
+    /// undone. The chosen display is remembered by its stable id, so it survives a reboot,
+    /// a dock and a rearrangement, and the rope goes back to it by itself when it returns.
+    /// </remarks>
+    private List<MenuEntry> DisplayMenu(OverlaySettings overlay)
+    {
+        IReadOnlyList<DisplayInfo> displays = DisplayObserver.Displays();
+        List<Hangly.Core.Geometry.DisplayIdentity> identities = [.. displays.Select(display => display.Identity)];
+        bool isMissing = Hangly.Core.Geometry.DisplayChoice.IsMissing(identities, overlay.DisplayId);
+        if (displays.Count < 2 && !isMissing)
+        {
+            return [];
+        }
+
+        int main = Hangly.Core.Geometry.DisplayChoice.Main(identities);
+        int resolved = Hangly.Core.Geometry.DisplayChoice.Resolve(identities, overlay.DisplayId, overlay.DisplayIndex);
+        bool followsMain = overlay.DisplayId is null && resolved == main;
+        IReadOnlyList<string> labels = Hangly.Core.Geometry.DisplayChoice.Labels(identities);
+
+        var entries = new List<MenuEntry>
+        {
+            new(
+                "Main display",
+                () => store.UpdateOverlay(settings => settings with { DisplayId = null, DisplayName = null, DisplayIndex = 0 }),
+                IsChecked: followsMain),
+            MenuEntry.Separator,
+        };
+
+        for (int index = 0; index < displays.Count; index++)
+        {
+            DisplayInfo display = displays[index];
+            string label = labels[index];
+            entries.Add(new MenuEntry(
+                index == main ? $"{label} (main)" : label,
+                () => store.UpdateOverlay(settings => settings with { DisplayId = display.Id, DisplayName = label, DisplayIndex = 0 }),
+                IsChecked: !followsMain && !isMissing && index == resolved));
+        }
+
+        if (isMissing)
+        {
+            // Checked and inert: this is still the choice, and the rope is on the main
+            // display only until it comes back.
+            entries.Add(new MenuEntry($"{overlay.DisplayName ?? "Chosen display"} (not connected)", null, IsChecked: true));
+        }
+
+        return [new MenuEntry("Display", Children: entries)];
+    }
+
+    /// <summary>Applies the downloaded update now, and comes back on the new version.</summary>
+    private async void RestartToUpdate()
+    {
+        Diagnostics.Log($"restart to update: {await Updates.DownloadAndApplyAsync().ConfigureAwait(true)}");
     }
 
     /// <summary>
@@ -688,6 +799,7 @@ public sealed class AppEnvironment : IDisposable
     /// </summary>
     private void Quit()
     {
+        Updates.ApplyOnExit();
         customize?.AllowClose();
         customize = null;
         Onboarding.ProcessLifetime.Release();

@@ -102,11 +102,19 @@ Two consequences worth knowing:
   never knew there was a window at all. That separation is the reason this was a contained
   rewrite of one file instead of a rebuild, and it is the reason to keep it.
 
-  The alternative was a composition swapchain under DirectComposition, which keeps the
-  pixels on the GPU and is the faster of the two. It was not taken: it costs several COM
-  vtables that have to be declared in exactly the right order to work at all, weighed
-  against one read-back of a window this size that only happens while the rope is awake.
-  If a sustained drag ever shows up in a profile, that is the thing to write.
+  **Since M3 the frames go through DirectComposition, with the layered path as the
+  fallback.** The profile this paragraph used to wait for arrived: at 1431×893 (200%) the
+  read-back was 5.9 ms of a 7.9 ms frame, every frame, for the ~45 s a rope takes to
+  settle after a launch, a nudge or a drag. The window is still layered — layered plus
+  `WS_EX_TRANSPARENT` is what makes it click-through — but is created with
+  `WS_EX_NOREDIRECTIONBITMAP`, its alpha fixed opaque with `SetLayeredWindowAttributes`,
+  and a Win2D swap chain is its DirectComposition content. `Interop/DirectComposition.cs`
+  holds the six vtable calls with every slot counted out. Two traps, both measured: Win2D
+  hands out a device's DXGI object only through `IDirect3DDxgiInterfaceAccess`, and it
+  gives its swap chains a 1/DPI matrix for XAML's benefit, which has to be reset to
+  identity or the rope draws at half size. If any step fails the window is destroyed and
+  recreated on the `UpdateLayeredWindow` path, and `HANGLY_OVERLAY_PRESENT=layered`
+  forces that path for comparison.
 - **There is no "all Spaces".** Windows has no public per-window API to show a window on
   every virtual desktop. `IVirtualDesktopManager` can tell you which desktop a window is
   on and move it, but pinning is undocumented COM that changes between builds. The
@@ -133,10 +141,12 @@ XAML tree being composed, and there is no longer one. Both block until the deskt
 compositor has finished a frame, so the pacing is unchanged and so is the reason for not
 using a timer.
 
-Windows has no equivalent of `preferredFrameRateRange`, so the idle rate is implemented
-by delivering one tick in four rather than by asking the system for fewer frames. Skipped
-intervals are **accumulated, not dropped**, so throttling changes how often the solver is
-asked to advance and never how far it advances.
+Windows has no equivalent of `preferredFrameRateRange`. Once the rope settles, the loop
+stops waiting on the compositor and waits on its message queue with a 33 ms timeout, so
+it wakes about thirty times a second to poll the cursor, and immediately for a message.
+(It used to keep waking at the display rate and pass one tick in four downstream.) While
+moving, a frame whose every node, bead and charm rim is within a quarter of a device
+pixel of the last frame presented is not presented — `RopeBounds.LargestMove`.
 
 The loop runs on a thread of its own, which is also the thread that creates the window and
 pumps its messages. That is not a performance choice: a window whose thread does not pump

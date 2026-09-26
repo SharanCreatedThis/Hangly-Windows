@@ -96,8 +96,23 @@ public sealed record OverlaySettings
 
     public RopeStyle RopeStyle { get; init; } = RopeStyleTable.FirstRun;
 
-    /// <summary>Index of the display to hang on, in the order the system reports them.</summary>
+    /// <summary>What builds before 1.0 stored: a position in the display list, main first.</summary>
+    /// <remarks>
+    /// Read, and honoured while <see cref="DisplayId"/> is null, so nobody's rope moves on
+    /// update; never written again once a display has been chosen by id. See
+    /// <see cref="Geometry.DisplayChoice"/>.
+    /// </remarks>
     public int DisplayIndex { get; init; }
+
+    /// <summary>The display chosen to hang on, by its stable id; null for the main display.</summary>
+    /// <remarks>
+    /// Kept while that display is unplugged — the rope falls back to the main display and
+    /// returns by itself when it is plugged in again.
+    /// </remarks>
+    public string? DisplayId { get; init; }
+
+    /// <summary>What the chosen display was called, for a menu to name it while it is away.</summary>
+    public string? DisplayName { get; init; }
 
     /// <summary>The charms on the cord, from the anchor down.</summary>
     /// <remarks>
@@ -167,6 +182,8 @@ public sealed record OverlaySettings
         && OffsetY.Equals(other.OffsetY)
         && RopeStyle == other.RopeStyle
         && DisplayIndex == other.DisplayIndex
+        && string.Equals(DisplayId, other.DisplayId, StringComparison.Ordinal)
+        && string.Equals(DisplayName, other.DisplayName, StringComparison.Ordinal)
         && CharmCount == other.CharmCount
         && CharmIds.SequenceEqual(other.CharmIds, StringComparer.Ordinal)
         && Slots.SequenceEqual(other.Slots);
@@ -184,6 +201,8 @@ public sealed record OverlaySettings
         hash.Add(OffsetY);
         hash.Add(RopeStyle);
         hash.Add(DisplayIndex);
+        hash.Add(DisplayId, StringComparer.Ordinal);
+        hash.Add(DisplayName, StringComparer.Ordinal);
         foreach (string id in CharmIds)
         {
             hash.Add(id, StringComparer.Ordinal);
@@ -211,6 +230,8 @@ public sealed record OverlaySettings
         OffsetX = Math.Clamp(OffsetX, -4000, 4000),
         OffsetY = Math.Clamp(OffsetY, -2000, 2000),
         DisplayIndex = Math.Max(0, DisplayIndex),
+        DisplayId = string.IsNullOrWhiteSpace(DisplayId) ? null : DisplayId,
+        DisplayName = DisplayId is null ? null : DisplayName,
         HorizontalPosition = HorizontalPosition is double at ? Math.Clamp(at, 0, 1) : null,
         CharmIds = ClampedCharmIds(),
         Slots = [.. Slots.Take(CharmStack.MaximumCount).Select(place => place.Clamped())],

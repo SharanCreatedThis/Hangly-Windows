@@ -50,11 +50,12 @@ public sealed class FollowPrompt : Window
 {
     /// <summary>The earliest launch the card may appear at.</summary>
     /// <remarks>
-    /// Not the first, and not the second. Someone who has opened Hangly three times has
-    /// decided to keep it, and that is the earliest moment asking is anything other than
-    /// presumptuous.
+    /// Five, the macOS build's <c>launchesBeforeFollowPrompt</c>, read from its source.
+    /// This was three, inferred when that source was not to hand, and the two platforms
+    /// asked at different moments until the parity audit caught it. Someone who has opened
+    /// Hangly five times has decided to keep it.
     /// </remarks>
-    public const int FirstLaunch = 3;
+    public const int FirstLaunch = 5;
 
     /// <summary>How many launches pass before "maybe later" is asked again.</summary>
     public const int LaunchesBetween = 10;

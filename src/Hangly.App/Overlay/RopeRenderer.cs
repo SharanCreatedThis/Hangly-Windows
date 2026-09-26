@@ -37,7 +37,21 @@ public sealed class RopeRenderer
     public RopeRenderer(CharmArtworkCache artwork) => this.artwork = artwork;
 
     /// <summary>What the charms hanging on the rope are, from the anchor down.</summary>
-    public IReadOnlyList<CharmDescriptor> Charms { get; set; } = [];
+    /// <remarks>
+    /// Set from the frame loop. Setting it lets go of the artwork of every charm that is no
+    /// longer hanging; see <see cref="CharmArtworkCache.Retain"/>.
+    /// </remarks>
+    public IReadOnlyList<CharmDescriptor> Charms
+    {
+        get => charms;
+        set
+        {
+            charms = value;
+            artwork.Retain(value.Select(charm => charm.FileName));
+        }
+    }
+
+    private IReadOnlyList<CharmDescriptor> charms = [];
 
     public void Draw(CanvasDrawingSession session, RopeSnapshot snapshot, RopeStyle style)
     {
@@ -69,6 +83,7 @@ public sealed class RopeRenderer
         }
         DrawBeads(session, snapshot, appearance);
         DrawCharms(session, snapshot);
+        artwork.EndFrame();
     }
 
     /// <summary>

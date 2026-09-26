@@ -206,6 +206,14 @@ and "somebody watched it work". This is the second list.
 | All 70 charms load, rasterise and measure | ✅ |
 | Charms drawn cropped to their measured body, beads on the cord | ✅ one, two and three at a time |
 | Velopack install, run, and settings surviving an install-over | ✅ |
+| **Scaling 100%, 125%, 150%, 175%, 200%** | ✅ by Sharan, on hardware, 26 Sep 2026 |
+| **Native x64 hardware** | ✅ by Sharan, 26 Sep 2026 |
+| **Windows 10** | ✅ by Sharan, 26 Sep 2026 |
+| Silent update: 1.0.1 finds 1.0.2, downloads in the background, next start runs 1.0.2, no window | ✅ M3, ARM64 VM, local Velopack feed |
+| Uninstall through the Settings → Apps command: hook runs, Run entry removed, `app_uninstalled` sent, folder, shortcuts and entry removed, settings kept | ✅ M3, captured by a local stand-in for PostHog |
+| Offline onboarding: install and name with the network off, reboot, reconnect → exactly one identify, same id, name kept; relaunch sends nothing | ✅ M3 |
+| DirectComposition present path: same pixels as the layered path, click-through and grab | ✅ M3, compared side by side |
+| Memory across 40 charm changes stays 55–75 MB (was 123 → 317 MB) | ✅ M3 |
 
 ### Not verified, and not claimed
 
@@ -214,12 +222,10 @@ guest cost an incident once already and is not worth a second:
 
 | | |
 |---|---|
-| 100% and 150% scaling | ❌ never seen |
-| **Native x64 hardware** | ❌ emulation exercises the binary, not the silicon |
-| Two monitors | ❌ the host has one display; not testable here |
-| Monitor hot-unplug | ❌ the fallback exists in `DisplayObserver.DisplayAt` and is untested end to end |
+| Two or more monitors, unplug and replug, mixed scaling | ⚠️ implemented (`DisplayChoice`, stable monitor ids, per-monitor DPI, `WM_DISPLAYCHANGE` plus a once-a-second check) and unit-tested; the same rule verified on macOS with virtual displays. A virtual display driver in the VM needs its publisher trusted first, which is Sharan's decision |
 | Wake from sleep | ❌ never tried |
-| **Windows 10 1809**, the floor the manifest declares | ❌ never tried. Either test it or raise the floor; claiming it is the one option that is not available |
+| **Windows 10 1809**, the floor the manifest declares | ⚠️ Windows 10 verified by Sharan; which build was not recorded |
+| Quit applying a downloaded update (`WaitExitThenApplyUpdates`) | ⚠️ implemented; the next-start path was verified, the Quit path needs a tray click |
 | A file dragged from Explorer onto the charm | ⚠️ implemented, end-to-end drag not exercised. `RegisterDragDrop` succeeds and the replacement is unit-tested, but an OLE drag is a shell-driven modal loop that synthetic input cannot complete — two attempts hung on `DoDragDrop`. Manual-pass item |
 | A DPI change *while running* | ⚠️ handled, never exercised. `WM_DPICHANGED` refits the overlay, and the scale is also compared against the window's own DPI once a second so a missed message cannot leave it stale. Neither path can be triggered from outside the process — Windows refuses a synthetic `WM_DPICHANGED` (`PostMessage` → ERROR_MESSAGE_SYNC_ONLY, `SendMessage` dropped) — so this needs the manual scaling pass |
 
