@@ -127,8 +127,8 @@ multiple monitors and Windows 10.
 
 **v1.1** — Creator Studio, photo import with subject extraction, and sound.
 
-**Not planned.** Weather charms and seasonal charms exist on macOS and are not coming to
-Windows. They are removed from the roadmap permanently rather than deferred.
+**Not planned.** Weather and seasonal charms. They were removed from macOS as well, so
+both apps carry the same seventy charms, and they are off the roadmap permanently.
 
 [STATUS.md](STATUS.md) is the detailed picture, [Docs/RELEASE-READINESS.md](Docs/RELEASE-READINESS.md)
 carries the numbers, and [PORTING.md](PORTING.md) explains what was rewritten rather than
