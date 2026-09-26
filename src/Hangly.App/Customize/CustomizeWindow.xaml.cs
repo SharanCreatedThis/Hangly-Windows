@@ -619,6 +619,7 @@ public sealed partial class CustomizeWindow : Window
 
             ShowToggle.IsOn = overlay.IsEnabled;
             MotionChoice.SelectedIndex = (int)overlay.Motion;
+            FullscreenToggle.IsOn = overlay.HidesDuringFullscreenVideo;
             SoundToggle.IsOn = store.Settings.SoundEffectsEnabled;
             VolumeSlider.Value = Math.Round(store.Settings.SoundVolume * 100);
             VolumeSlider.IsEnabled = SoundToggle.IsOn;
@@ -1390,6 +1391,14 @@ public sealed partial class CustomizeWindow : Window
         if (!isLoading)
         {
             store.UpdateOverlay(overlay => overlay with { Opacity = OpacitySlider.Value });
+        }
+    }
+
+    private void OnFullscreenToggled(object sender, RoutedEventArgs args)
+    {
+        if (!isLoading)
+        {
+            store.UpdateOverlay(overlay => overlay with { HidesDuringFullscreenVideo = FullscreenToggle.IsOn });
         }
     }
 

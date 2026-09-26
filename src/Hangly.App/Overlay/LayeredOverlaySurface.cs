@@ -494,6 +494,9 @@ internal sealed class LayeredOverlaySurface : IDisposable
         RaiseToTop(NativeMethods.SwpShowwindow);
     }
 
+    /// <summary>Takes the window off the screen without destroying anything.</summary>
+    public void Hide() => NativeMethods.ShowWindow(handle, NativeMethods.SwHide);
+
     /// <summary>Puts the window back at the top of the topmost band.</summary>
     /// <remarks>
     /// <b>Why this has to be said more than once.</b> It used to be said exactly once, at

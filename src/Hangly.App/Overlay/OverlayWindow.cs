@@ -222,6 +222,10 @@ public sealed class OverlayWindow : IDisposable
             // bitmap, which on a transparent overlay reads as a black rectangle.
             Draw();
             surface.Show();
+
+            // Held for the life of the loop: Windows keeps the pointer, not the delegate.
+            foregroundChanged = (_, _, _, _, _, _, _) => Interlocked.Exchange(ref foregroundMoved, 1);
+            foregroundHook = FullscreenWatcher.HookForeground(foregroundChanged);
             Diagnostics.Log("overlay window shown");
 
             while (isRunning)
@@ -292,6 +296,11 @@ public sealed class OverlayWindow : IDisposable
                     Diagnostics.Log($"display scale changed; refitted at {scale:0.##}x");
                 }
 
+                if (Interlocked.Exchange(ref foregroundMoved, 0) == 1)
+                {
+                    WatchFullscreen();
+                }
+
                 HoldTopmost();
                 clock.Advance();
             }
@@ -309,6 +318,8 @@ public sealed class OverlayWindow : IDisposable
                 dropTarget = null;
             }
 
+            FullscreenWatcher.Unhook(foregroundHook);
+            foregroundHook = IntPtr.Zero;
             surface.Dispose();
         }
     }
@@ -390,7 +401,50 @@ public sealed class OverlayWindow : IDisposable
         }
 
         lastRaise = now;
-        surface.RaiseToTop();
+
+        // The once-a-second housekeeping tick, which already exists: full screen is checked
+        // on it too, and only while the setting is on. See FullscreenWatcher.
+        WatchFullscreen();
+        if (!isHiddenForFullscreen)
+        {
+            surface.RaiseToTop();
+        }
+    }
+
+    private FullscreenWatcher.WinEventProc? foregroundChanged;
+    private IntPtr foregroundHook;
+    private int foregroundMoved;
+    private bool isHiddenForFullscreen;
+
+    /// <summary>Steps out of the way while a film plays full screen on this display, and comes back after.</summary>
+    /// <remarks>
+    /// Appearance → "Auto-hide during full-screen video", off by default as on macOS. The
+    /// rule is <see cref="Hangly.Core.Fullscreen.FullscreenRule"/>; this only applies it.
+    /// Hidden means off the screen and not drawn — cheaper than showing — and turning the
+    /// setting off brings the charm straight back.
+    /// </remarks>
+    private void WatchFullscreen()
+    {
+        bool hide = settings.HidesDuringFullscreenVideo
+            && Hangly.Core.Fullscreen.FullscreenRule.ShouldHide(FullscreenWatcher.Read(surface.Handle));
+        if (hide == isHiddenForFullscreen)
+        {
+            return;
+        }
+
+        isHiddenForFullscreen = hide;
+        if (hide)
+        {
+            surface.Hide();
+            Diagnostics.Log("full-screen video on this display: charm hidden");
+        }
+        else
+        {
+            surface.Show();
+            rope.Wake();
+            Draw();
+            Diagnostics.Log("full-screen video ended: charm back");
+        }
     }
 
     private static void PumpMessages()
@@ -411,6 +465,7 @@ public sealed class OverlayWindow : IDisposable
         settings = updated;
         rope.SetStyle(updated.RopeStyle);
         ApplyMotion();
+        WatchFullscreen();
 
         // Reposition fits the rope to the new canvas and to both sliders together, so
         // there is nothing to set afterwards. Setting them one at a time after the resize
@@ -539,7 +594,7 @@ public sealed class OverlayWindow : IDisposable
         // arriving over the charm. A layered window keeps the last frame it was given, so
         // not presenting leaves the settled rope on screen rather than blanking it.
         isIdle = rope.IsSleeping && !rope.IsDragging;
-        if (!rope.IsSleeping || rope.IsDragging)
+        if ((!rope.IsSleeping || rope.IsDragging) && !isHiddenForFullscreen)
         {
             Draw(onlyIfMoved: true);
         }

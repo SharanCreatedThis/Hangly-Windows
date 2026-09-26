@@ -10,6 +10,11 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Added**
 
+- **Auto-hide during full-screen video**, in Customize → Appearance → Behaviour. Off by
+  default. While a film, a video in your browser or a game is full screen on the display
+  the charm hangs on, the charm steps out of the way, and it comes back when that stops.
+  A maximised window, a full-screen page with no video, or a borderless tool covering the
+  screen does not hide it.
 - **Sound.** Each charm sounds like what it is made of — bell, glass, metal, wood or cloth
   — when you throw it, when it joins the rope, and when two charms knock together: the
   same sounds, made the same way, as Hangly for Mac. On by default and quiet; switch it
