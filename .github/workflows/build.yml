@@ -115,7 +115,6 @@ jobs:
 
           $svg = (Get-ChildItem -Path $root -Filter "*.svg" -Recurse -File -ErrorAction SilentlyContinue).Count
           Write-Host "charm artwork: $svg SVG files"
-          # Seventy charms plus Bead.svg, the placeholder for one that will not resolve.
           # Counted from the source, not written down: a number here went stale the
           # first time an unused SVG was deleted, and failed a build that was correct.
           $expected = (Get-ChildItem -Path src/Hangly.App/Assets/Charms -Filter "*.svg" -Recurse -File).Count
