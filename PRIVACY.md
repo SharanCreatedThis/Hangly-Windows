@@ -175,14 +175,16 @@ A charm you import never leaves your machine. The drawing is copied into
 
 ## Updates
 
-Hangly checks whether a newer version exists, about twenty seconds after it starts, and
-tells you in the tray menu when there is one. Nothing is downloaded until you ask for it.
+Hangly checks whether a newer version exists about twenty seconds after it starts and
+once a day while it runs. When there is one, it is downloaded quietly and installed the
+next time Hangly starts or quits — nothing asks and nothing is shown. The tray menu offers
+"Restart to update" for anybody who would rather not wait.
 
 - **The check asks GitHub what releases exist.** Hangly's releases are published on
   GitHub, and the check is an ordinary request to GitHub's public releases API for this
   repository, followed by a request for one file — the release's `releases.win-arm64.json`
-  or `releases.win-x64.json`, depending on which build you have. If you choose to
-  install, the package is downloaded from the same release.
+  or `releases.win-x64.json`, depending on which build you have. The package is
+  downloaded from the same release.
 - **Nothing about you or your copy goes with it.** No identifier, no display name, no
   system profile, no account: GitHub sees a request for a public file with an IP address,
   as it does for anyone reading the repository in a browser. The updater

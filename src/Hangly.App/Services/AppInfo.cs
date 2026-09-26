@@ -75,7 +75,16 @@ public static class AppInfo
     /// attached to it, exactly as DISTRIBUTION.md promises. The per-architecture channel
     /// is chosen by the updater, not named here.
     /// </remarks>
-    public static string UpdateFeedUrl => GitHubUrl;
+    public static string UpdateFeedUrl => LocalUpdateFeed ?? GitHubUrl;
+
+    /// <summary>A folder of packages this build updates from, if it was built with one.</summary>
+    /// <remarks>
+    /// Only ever set by a test build, through the <c>HanglyUpdateFeed</c> build property, so
+    /// silent updating can be exercised end to end without publishing anything. A release
+    /// build is made without it and release.yml refuses one that has it.
+    /// </remarks>
+    public static string? LocalUpdateFeed { get; } =
+        Metadata("HanglyUpdateFeed") is { Length: > 0 } folder ? folder : null;
 
     public static string ReleaseNotesUrl =>
         "https://github.com/SharanCreatedThis/Hangly-Windows/releases";

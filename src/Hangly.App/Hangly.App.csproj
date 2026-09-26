@@ -92,6 +92,12 @@
     <HanglyAnalyticsHost Condition="'$(HanglyAnalyticsHost)' == ''">us.i.posthog.com</HanglyAnalyticsHost>
     <HanglyAnalyticsKey Condition="'$(HanglyAnalyticsKey)' == ''"></HanglyAnalyticsKey>
     <HanglyBuildNumber Condition="'$(HanglyBuildNumber)' == ''">5</HanglyBuildNumber>
+    <!--
+      A folder of packages to update from instead of GitHub Releases. Empty in every
+      release, which release.yml checks. Set only to test silent updating end to end:
+          dotnet publish ... -p:HanglyUpdateFeed=C:\hangly\feed
+    -->
+    <HanglyUpdateFeed Condition="'$(HanglyUpdateFeed)' == ''"></HanglyUpdateFeed>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
     <!--
@@ -144,6 +150,7 @@
     <AssemblyMetadata Include="HanglyAnalyticsHost" Value="$(HanglyAnalyticsHost)" />
     <AssemblyMetadata Include="HanglyAnalyticsKey" Value="$(HanglyAnalyticsKey)" />
     <AssemblyMetadata Include="HanglyBuildNumber" Value="$(HanglyBuildNumber)" />
+    <AssemblyMetadata Include="HanglyUpdateFeed" Value="$(HanglyUpdateFeed)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -168,5 +175,11 @@
          out of the executable instead, which is also one fewer file to ship and one fewer
          way for the two copies to drift apart. -->
   </ItemGroup>
+
+  <!-- A build that updates from a local folder must never be one anybody is given. -->
+  <Target Name="RefuseTestUpdateFeed" BeforeTargets="Build"
+          Condition="'$(HanglyUpdateFeed)' != '' and '$(HanglyAllowTestFeed)' != 'true'">
+    <Error Text="HanglyUpdateFeed is set. That is for silent-update tests only; pass -p:HanglyAllowTestFeed=true to confirm this is one." />
+  </Target>
 
 </Project>

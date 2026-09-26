@@ -118,51 +118,55 @@ public sealed class AppEnvironment : IDisposable
     public Updater Updates { get; } = new(AppInfo.UpdateFeedUrl);
 
     /// <summary>
-    /// Looks for an update in the background, once, a little after launch.
+    /// Keeps Hangly up to date without a word: checks a little after launch and once a
+    /// day after that, and downloads whatever it finds for the next start to apply.
     /// </summary>
     /// <remarks>
-    /// <b>Quiet by design.</b> Nothing pops up, nothing steals focus and nothing blocks:
-    /// the result is one line at the top of the tray menu, where someone will find it
-    /// when they are already looking at the menu, and the About page says the same thing
-    /// in more detail. An ornament that interrupts you to talk about itself has missed
-    /// the point of being an ornament.
+    /// <b>Silent by design.</b> Nothing pops up, nothing steals focus and nothing blocks.
+    /// Hangly starts at sign-in and is rarely quit, so a check made only at launch could
+    /// leave somebody a release behind for weeks; hence the daily repeat. Once a package is
+    /// downloaded the tray gains one line, "Restart to update", for anybody who would
+    /// rather not wait — and otherwise the next restart, or the next Quit, applies it.
     ///
-    /// <para>Delayed rather than immediate, because launch is the one moment the app is
-    /// already doing everything at once, and a check that finds nothing is worth nothing
-    /// to hurry. Every failure is silent — <see cref="Updater"/> never throws — so a
-    /// machine with no network simply never hears back.</para>
+    /// <para>Every failure is silent — <see cref="Updater"/> never throws — so a machine
+    /// with no network simply tries again tomorrow.</para>
     /// </remarks>
     private void CheckForUpdateQuietly()
     {
         _ = Task.Run(async () =>
         {
-            try
+            await Task.Delay(TimeSpan.FromSeconds(UpdateCheckDelaySeconds)).ConfigureAwait(false);
+            while (true)
             {
-                await Task.Delay(TimeSpan.FromSeconds(UpdateCheckDelaySeconds)).ConfigureAwait(false);
-
-                UpdateCheck result = await Updates.CheckAsync().ConfigureAwait(false);
-                if (!result.HasUpdate)
+                try
                 {
-                    Diagnostics.Log($"update check: {result.Message}");
-                    return;
+                    UpdateCheck result = await Updates.CheckAsync().ConfigureAwait(false);
+                    Diagnostics.Log(result.HasUpdate ? $"update available: {result.Version}" : $"update check: {result.Message}");
+                    if (result.HasUpdate)
+                    {
+                        availableUpdate = result;
+                        if (await Updates.DownloadAsync().ConfigureAwait(false))
+                        {
+                            // Nothing more to check for until this one is applied.
+                            return;
+                        }
+                    }
+                }
+                catch (Exception exception)
+                {
+                    Diagnostics.Log($"quiet update check failed: {exception.GetType().Name}");
                 }
 
-                availableUpdate = result;
-                Diagnostics.Log($"update available: {result.Version}");
-
-                // Nothing has to be told. The tray rebuilds its menu from scratch every
-                // time it is opened, so the new line is simply there the next time
-                // someone looks.
-            }
-            catch (Exception exception)
-            {
-                Diagnostics.Log($"quiet update check failed: {exception.GetType().Name}");
+                await Task.Delay(UpdateCheckInterval).ConfigureAwait(false);
             }
         });
     }
 
-    /// <summary>How long after launch the quiet check runs.</summary>
+    /// <summary>How long after launch the first check runs.</summary>
     private const int UpdateCheckDelaySeconds = 20;
+
+    /// <summary>How often a running Hangly checks again.</summary>
+    private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromHours(24);
 
     public void ShowWelcomeIfNeeded()
     {
@@ -659,7 +663,13 @@ public sealed class AppEnvironment : IDisposable
 
         // An update that has been found gets one line at the top, and only then. A menu
         // item that is always there saying "no updates" is a menu item nobody reads.
-        List<MenuEntry> update = availableUpdate is { HasUpdate: true } newer
+        List<MenuEntry> update = Updates.ReadyVersion is { } ready
+            ?
+            [
+                new MenuEntry($"Restart to update to {ready}", RestartToUpdate),
+                MenuEntry.Separator,
+            ]
+            : availableUpdate is { HasUpdate: true } newer
             ?
             [
                 new MenuEntry($"Update to {newer.Version}…", OpenUpdates),
@@ -683,11 +693,18 @@ public sealed class AppEnvironment : IDisposable
         ];
     }
 
+    /// <summary>Applies the downloaded update now, and comes back on the new version.</summary>
+    private async void RestartToUpdate()
+    {
+        Diagnostics.Log($"restart to update: {await Updates.DownloadAndApplyAsync().ConfigureAwait(true)}");
+    }
+
     /// <summary>
     /// Quits for real, which means letting the one window that refuses to close, close.
     /// </summary>
     private void Quit()
     {
+        Updates.ApplyOnExit();
         customize?.AllowClose();
         customize = null;
         Onboarding.ProcessLifetime.Release();
