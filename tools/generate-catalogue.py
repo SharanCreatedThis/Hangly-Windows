@@ -140,8 +140,9 @@ def parse(block: str) -> dict:
     source = re.search(r'sourceFileName:\s*"([^"]*)"', block)
     bead_count = field("beadCount", r"(\d+)")
     body_run = field("bodyRun", r"(\d+)")
+    sound = field("sound", r"\.(\w+)")
 
-    if not kind or not source or bead_count is None:
+    if not kind or not source or bead_count is None or sound is None:
         raise SystemExit(f"incomplete entry: {block[:120]}")
 
     return {
@@ -157,6 +158,7 @@ def parse(block: str) -> dict:
         "secondary": colour(block, "secondary"),
         "deep": colour(block, "deep"),
         "light": colour(block, "light"),
+        "sound": sound,
     }
 
 
@@ -270,7 +272,8 @@ def main() -> int:
             f'            CategoryId: "{escape(meta["category"])}",',
             f'            Region: "{escape(meta["region"])}",',
             f'            Description: "{escape(meta["description"])}",',
-            f'            Tags: [{tags}]),',
+            f'            Tags: [{tags}],',
+            f'            Sound: Audio.CharmSound.{e["sound"][0].upper() + e["sound"][1:]}),',
         ]
 
     lines += ["    ];", "}", ""]

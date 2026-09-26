@@ -48,7 +48,8 @@ public sealed record CharmCatalogEntry(
     string CategoryId,
     string Region,
     string Description,
-    IReadOnlyList<string> Tags)
+    IReadOnlyList<string> Tags,
+    Audio.CharmSound Sound = Audio.CharmSound.Soft)
 {
     /// <summary>Compared by value, tags included.</summary>
     /// <remarks>
@@ -68,7 +69,8 @@ public sealed record CharmCatalogEntry(
         && CategoryId == other.CategoryId
         && Region == other.Region
         && Description == other.Description
-        && Tags.SequenceEqual(other.Tags, StringComparer.Ordinal);
+        && Tags.SequenceEqual(other.Tags, StringComparer.Ordinal)
+        && Sound == other.Sound;
 
     public override int GetHashCode() => Id.GetHashCode(StringComparison.Ordinal);
 }

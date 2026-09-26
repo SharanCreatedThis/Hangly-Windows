@@ -47,6 +47,9 @@ public sealed class AppEnvironment : IDisposable
     /// <summary>The overlay, once it exists. Null before bootstrap and after quit.</summary>
     public OverlayWindow? Overlay => overlay;
     private CharmArtworkCache? artwork;
+
+    /// <summary>Sound effects. Holds nothing open between sounds; see <see cref="Audio.AudioService"/>.</summary>
+    private Audio.AudioService? audio;
     private IReadOnlyList<string> hanging = [];
 
     /// <summary>The same rope, with each place's own size, which is what rebuilds it.</summary>
@@ -534,6 +537,7 @@ public sealed class AppEnvironment : IDisposable
         }
 
         CanvasDevice device = CreateDevice();
+        audio ??= new Audio.AudioService(store);
         Diagnostics.Log("canvas device created");
 
         artwork = new CharmArtworkCache(device, CharmArtworkCache.DefaultDirectory);
@@ -546,7 +550,8 @@ public sealed class AppEnvironment : IDisposable
             store.Settings.Overlay,
             rope,
             renderer,
-            CharmLibrary.Resolve(artwork, index, hangingPlaces));
+            CharmLibrary.Resolve(artwork, index, hangingPlaces),
+            audio);
 
         overlay.FileDropped += OnFileDroppedOnCharm;
         Diagnostics.Log("overlay window constructed");
@@ -838,6 +843,7 @@ public sealed class AppEnvironment : IDisposable
         System.Net.NetworkInformation.NetworkChange.NetworkAvailabilityChanged -= OnNetworkAvailabilityChanged;
         store.Changed -= OnSettingsChanged;
         (analyticsProvider as IDisposable)?.Dispose();
+        audio?.Dispose();
         HideOverlay();
         tray?.Dispose();
         tray = null;

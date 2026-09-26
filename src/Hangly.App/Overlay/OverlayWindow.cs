@@ -91,8 +91,10 @@ public sealed class OverlayWindow : IDisposable
         OverlaySettings settings,
         RopeSimulation rope,
         RopeRenderer renderer,
-        IReadOnlyList<CharmDescriptor> charms)
+        IReadOnlyList<CharmDescriptor> charms,
+        Audio.AudioService? audio = null)
     {
+        this.audio = audio;
         this.settings = settings;
         this.rope = rope;
         this.renderer = renderer;
@@ -482,6 +484,15 @@ public sealed class OverlayWindow : IDisposable
     /// </summary>
     private void HangCharms(IReadOnlyList<CharmDescriptor> charms)
     {
+        // A charm that was not on the cord before announces itself — the attach sound, as
+        // on macOS: the newest arrival's material, at a fixed 0.6. The first hanging at
+        // launch is not an arrival.
+        if (renderer.Charms.Count > 0
+            && charms.LastOrDefault(charm => !renderer.Charms.Any(old => old.Id == charm.Id)) is CharmDescriptor arrived)
+        {
+            audio?.Play(arrived.Sound, Hangly.Core.Audio.SoundPolicy.AttachIntensity);
+        }
+
         renderer.Charms = charms;
 
         // What is actually on the cord, with the bead count each charm's artwork was
@@ -494,10 +505,33 @@ public sealed class OverlayWindow : IDisposable
     }
 
     /// <summary>One display frame: poll the cursor, step the physics, present.</summary>
+    private readonly Audio.AudioService? audio;
+    private readonly List<CharmCollision> collisions = [];
+    private Vec2 releaseVelocity;
+
+    private Hangly.Core.Audio.CharmSound SoundOf(int slot) =>
+        slot >= 0 && slot < renderer.Charms.Count ? renderer.Charms[slot].Sound : Hangly.Core.Audio.CharmSound.Soft;
+
+    /// <summary>Knocks between charms, from the solver's collision events.</summary>
+    private void SoundCollisions()
+    {
+        rope.TakeCollisions(collisions);
+        foreach (CharmCollision hit in collisions)
+        {
+            if (Hangly.Core.Audio.SoundPolicy.CollisionIntensity(hit.Speed, rope.Motion) is double intensity)
+            {
+                audio?.Play(Hangly.Core.Audio.SoundPolicy.Carrier(SoundOf(hit.First), SoundOf(hit.Second)), intensity);
+            }
+        }
+
+        collisions.Clear();
+    }
+
     private void OnTick(double deltaTime)
     {
         PollPointer();
         rope.Step(deltaTime);
+        SoundCollisions();
         CountSwings();
 
         // A settled rope is a still image. Stop redrawing it, and drop the tick rate —
@@ -629,10 +663,24 @@ public sealed class OverlayWindow : IDisposable
                 ? (location - lastCursor) / clock.LastDelta
                 : Vec2.Zero;
             rope.UpdateDrag(location, velocity);
+            releaseVelocity = velocity;
         }
         else if (!isButtonDown && rope.IsDragging)
         {
+            // The throw sound: the grabbed charm's material, louder the faster it went.
+            int? slot = rope.DraggedCharmSlot;
             rope.EndDrag();
+            if (Environment.GetEnvironmentVariable("HANGLY_AUDIT_SOUND") is { Length: > 0 })
+            {
+                Diagnostics.Log($"audio: released at {releaseVelocity.Magnitude:0} pt/s");
+            }
+
+            if (Hangly.Core.Audio.SoundPolicy.ThrowIntensity(releaseVelocity.Magnitude) is double intensity)
+            {
+                audio?.Play(SoundOf(slot ?? renderer.Charms.Count - 1), intensity);
+            }
+
+            releaseVelocity = Vec2.Zero;
         }
 
         wasButtonDown = isButtonDown;

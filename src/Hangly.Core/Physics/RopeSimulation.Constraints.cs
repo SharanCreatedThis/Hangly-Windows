@@ -86,6 +86,17 @@ public sealed partial class RopeSimulation
         {
             for (int second = first + 1; second < slots.Count; second++)
             {
+                double minimum = slots[first].Radius + slots[second].Radius;
+                int lower = slots[first].Node, upper = slots[second].Node;
+                if (lower >= 0 && upper >= 0 && lower < Points.Length && upper < Points.Length)
+                {
+                    double distance = (Points[upper].Position - Points[lower].Position).Magnitude;
+                    if (distance < minimum)
+                    {
+                        NoteContact(PairIndex(first, second, slots.Count), minimum - distance);
+                    }
+                }
+
                 double correction = Separate(
                     slots[first].Node,
                     slots[second].Node,

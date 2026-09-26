@@ -790,6 +790,32 @@
                                 Toggled="OnLoginToggled" />
                         </StackPanel>
 
+                        <!-- Sound: the same switch and slider as macOS, the same defaults. -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Sound" />
+                            <ToggleSwitch
+                                x:Name="SoundToggle"
+                                AutomationProperties.AutomationId="SoundToggle"
+                                Header="Play sound effects"
+                                Toggled="OnSoundToggled" />
+                            <TextBlock x:Name="VolumeLabel" Text="Volume" />
+                            <Slider
+                                x:Name="VolumeSlider"
+                                AutomationProperties.AutomationId="VolumeSlider"
+                                AutomationProperties.Name="Sound volume"
+                                Maximum="100"
+                                Minimum="0"
+                                StepFrequency="1"
+                                ValueChanged="OnVolumeChanged" />
+                            <TextBlock
+                                MaxWidth="560"
+                                HorizontalAlignment="Left"
+                                Opacity="0.7"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="Each charm sounds like what it is made of — bell, glass, metal, wood or cloth — when you throw it, when it joins the rope, and when two charms knock together. Silent while a full-screen app, game or presentation is in front."
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+
                         <!--
                             Motion: the same three choices, in the same order, as Appearance on
                             macOS. Follow System reads Windows' Animation effects switch.

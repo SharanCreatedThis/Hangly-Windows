@@ -71,7 +71,8 @@ public static partial class CharmCatalog
             CategoryId: "protection",
             Region: "Turkey and the Mediterranean",
             Description: "A glass eye bead hung to deflect the evil eye, the envious glance believed to bring misfortune. Found across Turkey, Greece and the wider Mediterranean, on doorways, cradles and dashboards alike.",
-            Tags: ["evil eye", "glass", "blue", "amulet", "Turkey", "Greece"]),
+            Tags: ["evil eye", "glass", "blue", "amulet", "Turkey", "Greece"],
+            Sound: Audio.CharmSound.Glass),
         new(
             Id: "hamsa",
             DisplayName: "Hamsa",
@@ -88,7 +89,8 @@ public static partial class CharmCatalog
             CategoryId: "protection",
             Region: "Middle East and North Africa",
             Description: "An open right hand, often with an eye in the palm, carried as protection against harm. Shared by Jewish, Muslim and Christian communities from Morocco to the Levant.",
-            Tags: ["hand", "eye", "amulet", "Fatima", "Miriam"]),
+            Tags: ["hand", "eye", "amulet", "Fatima", "Miriam"],
+            Sound: Audio.CharmSound.Metal),
         new(
             Id: "nimbuMirchi",
             DisplayName: "Nimbu-mirchi",
@@ -105,7 +107,8 @@ public static partial class CharmCatalog
             CategoryId: "protection",
             Region: "India",
             Description: "A lemon and green chillies strung together and hung at shop doors and on vehicles across India to ward off the evil eye, and to give bad luck something sour to chew on instead.",
-            Tags: ["lemon", "chilli", "evil eye", "doorway", "totka"]),
+            Tags: ["lemon", "chilli", "evil eye", "doorway", "totka"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "ghanta",
             DisplayName: "Ghanta",
@@ -122,7 +125,8 @@ public static partial class CharmCatalog
             CategoryId: "ritual",
             Region: "India",
             Description: "The temple bell of Hindu and Buddhist worship. Its ring is said to clear the mind of the person who strikes it and to announce their arrival to the divine.",
-            Tags: ["bell", "temple", "copper", "puja", "sound"]),
+            Tags: ["bell", "temple", "copper", "puja", "sound"],
+            Sound: Audio.CharmSound.Bell),
         new(
             Id: "drishtiBommai",
             DisplayName: "Drishti bommai",
@@ -139,7 +143,8 @@ public static partial class CharmCatalog
             CategoryId: "protection",
             Region: "South India",
             Description: "A fierce painted face hung outside homes and building sites in Tamil Nadu. Its job is to draw the evil eye onto itself and away from whatever it guards.",
-            Tags: ["mask", "demon", "evil eye", "Tamil Nadu", "guardian"]),
+            Tags: ["mask", "demon", "evil eye", "Tamil Nadu", "guardian"],
+            Sound: Audio.CharmSound.Wood),
         new(
             Id: "panchangJie",
             DisplayName: "Pánchángjié",
@@ -156,7 +161,8 @@ public static partial class CharmCatalog
             CategoryId: "luck",
             Region: "China",
             Description: "The endless knot, tied from a single red cord with no beginning and no end. A symbol of longevity, unity and good fortune, hung at Lunar New Year.",
-            Tags: ["knot", "red", "tassel", "New Year", "longevity", "Chinese knot"]),
+            Tags: ["knot", "red", "tassel", "New Year", "longevity", "Chinese knot"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "daruma",
             DisplayName: "Daruma",
@@ -173,7 +179,8 @@ public static partial class CharmCatalog
             CategoryId: "luck",
             Region: "Japan",
             Description: "A round, weighted doll modelled on the monk Bodhidharma. You paint one eye while making a wish and the other when it comes true, and it always rights itself when knocked over.",
-            Tags: ["doll", "wish", "perseverance", "red", "Bodhidharma"]),
+            Tags: ["doll", "wish", "perseverance", "red", "Bodhidharma"],
+            Sound: Audio.CharmSound.Wood),
         new(
             Id: "manekiNeko",
             DisplayName: "Maneki-neko",
@@ -190,7 +197,8 @@ public static partial class CharmCatalog
             CategoryId: "luck",
             Region: "Japan",
             Description: "The beckoning cat, raised paw inviting good fortune through the door. A raised right paw is said to bring money; a raised left paw brings customers.",
-            Tags: ["cat", "beckoning", "calico", "shop", "fortune"]),
+            Tags: ["cat", "beckoning", "calico", "shop", "fortune"],
+            Sound: Audio.CharmSound.Wood),
         new(
             Id: "horseshoe",
             DisplayName: "Horseshoe",
@@ -207,7 +215,8 @@ public static partial class CharmCatalog
             CategoryId: "luck",
             Region: "Europe and the Americas",
             Description: "Iron shaped by fire, nailed above a door for luck. Hung open end up it holds the luck in; open end down it pours the luck over those who pass beneath.",
-            Tags: ["iron", "door", "luck", "seven nails", "blacksmith"]),
+            Tags: ["iron", "door", "luck", "seven nails", "blacksmith"],
+            Sound: Audio.CharmSound.Metal),
         new(
             Id: "scarab",
             DisplayName: "Scarab",
@@ -224,7 +233,8 @@ public static partial class CharmCatalog
             CategoryId: "protection",
             Region: "Ancient Egypt",
             Description: "The dung beetle, sacred to the sun's rebirth each morning as it rolls its ball across the sky. Worn as an amulet in ancient Egypt for protection and renewal.",
-            Tags: ["beetle", "Egypt", "turquoise", "rebirth", "amulet", "sun"]),
+            Tags: ["beetle", "Egypt", "turquoise", "rebirth", "amulet", "sun"],
+            Sound: Audio.CharmSound.Glass),
         new(
             Id: "himmeli",
             DisplayName: "Himmeli",
@@ -241,7 +251,8 @@ public static partial class CharmCatalog
             CategoryId: "ritual",
             Region: "Finland",
             Description: "A geometric mobile of rye straw hung above the table at midwinter in Finland to bless the coming harvest. The name comes from the Swedish word for sky.",
-            Tags: ["straw", "geometric", "mobile", "midwinter", "harvest", "gold"]),
+            Tags: ["straw", "geometric", "mobile", "midwinter", "harvest", "gold"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "dreamCatcher",
             DisplayName: "Dream Catcher",
@@ -258,7 +269,8 @@ public static partial class CharmCatalog
             CategoryId: "protection",
             Region: "North America",
             Description: "An Ojibwe hoop webbed like a spider's, hung over a sleeping child so the bad dreams catch in the net and the good ones slip through the middle and down the feathers.",
-            Tags: ["dream catcher", "Ojibwe", "feathers", "web", "sleep", "protection"]),
+            Tags: ["dream catcher", "Ojibwe", "feathers", "web", "sleep", "protection"],
+            Sound: Audio.CharmSound.Wood),
         new(
             Id: "spiderMan",
             DisplayName: "Spider-Man",
@@ -275,7 +287,8 @@ public static partial class CharmCatalog
             CategoryId: "marvel",
             Region: "Marvel",
             Description: "Hanging head-down from a thread of his own, which is the way he is most often drawn and the only pose in this set that was already a charm before anybody hung it. Pair him with Spider Thread.",
-            Tags: ["Spider-Man", "web", "upside down", "Marvel"]),
+            Tags: ["Spider-Man", "web", "upside down", "Marvel"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "captainAmericaShield",
             DisplayName: "Captain America Shield",
@@ -292,7 +305,8 @@ public static partial class CharmCatalog
             CategoryId: "marvel",
             Region: "Marvel",
             Description: "Concentric rings and a white star, struck face on. The heaviest thing in the set after the hammer, and it hangs like it.",
-            Tags: ["Captain America", "shield", "star", "Marvel"]),
+            Tags: ["Captain America", "shield", "star", "Marvel"],
+            Sound: Audio.CharmSound.Metal),
         new(
             Id: "ironManHelmet",
             DisplayName: "Iron Man Helmet",
@@ -309,7 +323,8 @@ public static partial class CharmCatalog
             CategoryId: "marvel",
             Region: "Marvel",
             Description: "Red and gold plate with the eye slits lit. Faces forward, so it reads as a mask rather than as a head.",
-            Tags: ["Iron Man", "helmet", "gold", "Marvel"]),
+            Tags: ["Iron Man", "helmet", "gold", "Marvel"],
+            Sound: Audio.CharmSound.Metal),
         new(
             Id: "thorHammer",
             DisplayName: "Thor Hammer",
@@ -326,7 +341,8 @@ public static partial class CharmCatalog
             CategoryId: "marvel",
             Region: "Marvel",
             Description: "Mjölnir, head square on, a rune lit on its face. The heaviest charm in the app, and on a chain it barely moves.",
-            Tags: ["Thor", "Mjölnir", "hammer", "Marvel"]),
+            Tags: ["Thor", "Mjölnir", "hammer", "Marvel"],
+            Sound: Audio.CharmSound.Metal),
         new(
             Id: "hulkFist",
             DisplayName: "Hulk Fist",
@@ -343,7 +359,8 @@ public static partial class CharmCatalog
             CategoryId: "marvel",
             Region: "Marvel",
             Description: "A closed green fist inside a ring. Solid, and the dullest-sounding charm here — nothing about it rings.",
-            Tags: ["Hulk", "fist", "green", "Marvel"]),
+            Tags: ["Hulk", "fist", "green", "Marvel"],
+            Sound: Audio.CharmSound.Wood),
         new(
             Id: "spiderManSwinging",
             DisplayName: "Spider-Man Swinging",
@@ -360,7 +377,8 @@ public static partial class CharmCatalog
             CategoryId: "marvel",
             Region: "Marvel",
             Description: "Caught mid-swing on a line he shot a moment ago, one arm up and the rest of him still travelling. The second of him in this set, and the one that looks like it is going somewhere.",
-            Tags: ["Spider-Man", "web", "swing", "Marvel"]),
+            Tags: ["Spider-Man", "web", "swing", "Marvel"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "batmanSymbol",
             DisplayName: "Batman Symbol",
@@ -377,7 +395,8 @@ public static partial class CharmCatalog
             CategoryId: "dc",
             Region: "DC",
             Description: "Wings spread wide and brushed steel-dark. The widest charm in the app, which is why it hangs at a smaller size than the rest of its set.",
-            Tags: ["Batman", "bat", "wings", "DC"]),
+            Tags: ["Batman", "bat", "wings", "DC"],
+            Sound: Audio.CharmSound.Metal),
         new(
             Id: "supermanShield",
             DisplayName: "Superman Shield",
@@ -394,7 +413,8 @@ public static partial class CharmCatalog
             CategoryId: "dc",
             Region: "DC",
             Description: "The crest, cut as a shield and set in silver. Red on chrome, and it catches the light from the same corner every other charm does.",
-            Tags: ["Superman", "shield", "crest", "DC"]),
+            Tags: ["Superman", "shield", "crest", "DC"],
+            Sound: Audio.CharmSound.Metal),
         new(
             Id: "wonderWomanEmblem",
             DisplayName: "Wonder Woman Emblem",
@@ -411,7 +431,8 @@ public static partial class CharmCatalog
             CategoryId: "dc",
             Region: "DC",
             Description: "Gold wings folded into a W, over red and blue. Broad across the shoulders and narrow at the point, so it settles nose-down.",
-            Tags: ["Wonder Woman", "emblem", "gold", "DC"]),
+            Tags: ["Wonder Woman", "emblem", "gold", "DC"],
+            Sound: Audio.CharmSound.Metal),
         new(
             Id: "shazamLightning",
             DisplayName: "Shazam Lightning",
@@ -428,7 +449,8 @@ public static partial class CharmCatalog
             CategoryId: "dc",
             Region: "DC",
             Description: "A single bolt in red and gold. The lightest charm in the set and the quickest to swing.",
-            Tags: ["Shazam", "lightning", "bolt", "DC"]),
+            Tags: ["Shazam", "lightning", "bolt", "DC"],
+            Sound: Audio.CharmSound.Metal),
         new(
             Id: "greenLanternRing",
             DisplayName: "Green Lantern Ring",
@@ -445,7 +467,8 @@ public static partial class CharmCatalog
             CategoryId: "dc",
             Region: "DC",
             Description: "A lit green stone in a silver ring. The one charm in this set that glows rather than shines.",
-            Tags: ["Green Lantern", "ring", "green", "DC"]),
+            Tags: ["Green Lantern", "ring", "green", "DC"],
+            Sound: Audio.CharmSound.Glass),
         new(
             Id: "vel",
             DisplayName: "Vel",
@@ -462,7 +485,8 @@ public static partial class CharmCatalog
             CategoryId: "tamilSpiritual",
             Region: "Tamil Nadu, South India",
             Description: "Murugan's spear, and the sign of the god himself rather than a weapon he carries. A vel is planted at his hill shrines and carried by pilgrims at Thaipusam; the leaf-shaped blade is read as wisdom, broad at the base and sharp at the point.",
-            Tags: ["Murugan", "vel", "spear", "Thaipusam", "Tamil Nadu"]),
+            Tags: ["Murugan", "vel", "spear", "Thaipusam", "Tamil Nadu"],
+            Sound: Audio.CharmSound.Metal),
         new(
             Id: "vinayagarCoin",
             DisplayName: "Vinayagar Coin",
@@ -479,7 +503,8 @@ public static partial class CharmCatalog
             CategoryId: "tamilSpiritual",
             Region: "Tamil Nadu, South India",
             Description: "Vinayagar — Ganesha — struck in relief inside a wreath. He is asked first, before any journey, any examination and any new venture, because he is the one who removes what is in the way.",
-            Tags: ["Vinayagar", "Ganesha", "coin", "elephant", "beginnings"]),
+            Tags: ["Vinayagar", "Ganesha", "coin", "elephant", "beginnings"],
+            Sound: Audio.CharmSound.Metal),
         new(
             Id: "omSymbol",
             DisplayName: "OM Symbol",
@@ -496,7 +521,8 @@ public static partial class CharmCatalog
             CategoryId: "tamilSpiritual",
             Region: "Tamil Nadu, South India",
             Description: "The Om, set in gold and stoned in red and green. It opens a prayer and closes one, and is cut above doorways so that the sound is there whether or not anyone is saying it.",
-            Tags: ["Om", "syllable", "gold", "doorway", "Tamil Nadu"]),
+            Tags: ["Om", "syllable", "gold", "doorway", "Tamil Nadu"],
+            Sound: Audio.CharmSound.Metal),
         new(
             Id: "karuppuStatue",
             DisplayName: "Karuppu Statue",
@@ -513,7 +539,8 @@ public static partial class CharmCatalog
             CategoryId: "tamilSpiritual",
             Region: "Tamil Nadu, South India",
             Description: "Karuppasamy, a guardian deity of the village boundary, cast dark and standing with his aruval raised. He is set at the edge of a settlement facing outward: the one who keeps watch on what a house cannot see.",
-            Tags: ["Karuppasamy", "guardian", "village deity", "aruval", "boundary"]),
+            Tags: ["Karuppasamy", "guardian", "village deity", "aruval", "boundary"],
+            Sound: Audio.CharmSound.Wood),
         new(
             Id: "templeBell",
             DisplayName: "Temple Bell",
@@ -530,7 +557,8 @@ public static partial class CharmCatalog
             CategoryId: "tamilSpiritual",
             Region: "Tamil Nadu, South India",
             Description: "The mani, rung on the way in and not on the way out. The note is meant to clear the mind of whatever it walked in carrying, so that what happens next is the only thing in it.",
-            Tags: ["mani", "bell", "brass", "temple", "Tamil Nadu"]),
+            Tags: ["mani", "bell", "brass", "temple", "Tamil Nadu"],
+            Sound: Audio.CharmSound.Bell),
         new(
             Id: "btsMemberOne",
             DisplayName: "RM",
@@ -547,7 +575,8 @@ public static partial class CharmCatalog
             CategoryId: "bts",
             Region: "BTS",
             Description: "Namjoon — RM, the leader, and the one who speaks for the seven when there is speaking to be done.",
-            Tags: ["RM", "Namjoon", "leader", "BTS"]),
+            Tags: ["RM", "Namjoon", "leader", "BTS"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "btsMemberTwo",
             DisplayName: "Jin",
@@ -564,7 +593,8 @@ public static partial class CharmCatalog
             CategoryId: "bts",
             Region: "BTS",
             Description: "Seokjin — Jin, the eldest, and by his own long-running claim worldwide handsome.",
-            Tags: ["Jin", "Seokjin", "vocalist", "BTS"]),
+            Tags: ["Jin", "Seokjin", "vocalist", "BTS"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "btsMemberThree",
             DisplayName: "SUGA",
@@ -581,7 +611,8 @@ public static partial class CharmCatalog
             CategoryId: "bts",
             Region: "BTS",
             Description: "Yoongi — SUGA, who produces as Agust D and says the least of the seven on stage.",
-            Tags: ["SUGA", "Yoongi", "Agust D", "BTS"]),
+            Tags: ["SUGA", "Yoongi", "Agust D", "BTS"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "btsMemberFour",
             DisplayName: "j-hope",
@@ -598,7 +629,8 @@ public static partial class CharmCatalog
             CategoryId: "bts",
             Region: "BTS",
             Description: "Hoseok — j-hope, the dancer of the group, and the one the others call their sunshine.",
-            Tags: ["j-hope", "Hoseok", "dance", "BTS"]),
+            Tags: ["j-hope", "Hoseok", "dance", "BTS"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "btsMemberFive",
             DisplayName: "Jimin",
@@ -615,7 +647,8 @@ public static partial class CharmCatalog
             CategoryId: "bts",
             Region: "BTS",
             Description: "Jimin — the smallest of the seven and the one trained in contemporary dance before any of this.",
-            Tags: ["Jimin", "dance", "vocalist", "BTS"]),
+            Tags: ["Jimin", "dance", "vocalist", "BTS"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "btsMemberSix",
             DisplayName: "V",
@@ -632,7 +665,8 @@ public static partial class CharmCatalog
             CategoryId: "bts",
             Region: "BTS",
             Description: "Taehyung — V, the baritone, and the one who named himself after a letter.",
-            Tags: ["V", "Taehyung", "baritone", "BTS"]),
+            Tags: ["V", "Taehyung", "baritone", "BTS"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "btsMemberSeven",
             DisplayName: "Jungkook",
@@ -649,7 +683,8 @@ public static partial class CharmCatalog
             CategoryId: "bts",
             Region: "BTS",
             Description: "Jungkook — the maknae, the youngest, and the one who joined at fifteen.",
-            Tags: ["Jungkook", "maknae", "youngest", "BTS"]),
+            Tags: ["Jungkook", "maknae", "youngest", "BTS"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "ronaldoJersey",
             DisplayName: "Ronaldo 7",
@@ -666,7 +701,8 @@ public static partial class CharmCatalog
             CategoryId: "footballLegends",
             Region: "Portugal",
             Description: "Portugal's number seven, in the maroon and gold of the home shirt. The seven is the only number in this set that has become a name.",
-            Tags: ["Ronaldo", "Portugal", "seven", "jersey"]),
+            Tags: ["Ronaldo", "Portugal", "seven", "jersey"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "messiJersey",
             DisplayName: "Messi 10",
@@ -683,7 +719,8 @@ public static partial class CharmCatalog
             CategoryId: "footballLegends",
             Region: "Argentina",
             Description: "Argentina's sky blue and white stripes with the ten on the back — the shirt a World Cup was finally won in.",
-            Tags: ["Messi", "Argentina", "ten", "jersey"]),
+            Tags: ["Messi", "Argentina", "ten", "jersey"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "neymarJersey",
             DisplayName: "Neymar 10",
@@ -700,7 +737,8 @@ public static partial class CharmCatalog
             CategoryId: "footballLegends",
             Region: "Brazil",
             Description: "Brazil's canarinho yellow, green at the collar and cuffs, ten on the back.",
-            Tags: ["Neymar", "Brazil", "ten", "jersey"]),
+            Tags: ["Neymar", "Brazil", "ten", "jersey"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "realMadridCrest",
             DisplayName: "Real Madrid",
@@ -717,7 +755,8 @@ public static partial class CharmCatalog
             CategoryId: "footballLegends",
             Region: "Spain",
             Description: "The C, F and M interlocked under a royal crown — granted by Alfonso XIII in 1920, which is where the Real comes from.",
-            Tags: ["Real Madrid", "crest", "crown", "Spain"]),
+            Tags: ["Real Madrid", "crest", "crown", "Spain"],
+            Sound: Audio.CharmSound.Metal),
         new(
             Id: "fcBarcelonaCrest",
             DisplayName: "FC Barcelona",
@@ -734,7 +773,8 @@ public static partial class CharmCatalog
             CategoryId: "footballLegends",
             Region: "Spain",
             Description: "Blaugrana: the St George's cross and the Catalan bars above, the blue and claret halves below, a ball at the foot.",
-            Tags: ["Barcelona", "crest", "blaugrana", "Catalonia"]),
+            Tags: ["Barcelona", "crest", "blaugrana", "Catalonia"],
+            Sound: Audio.CharmSound.Metal),
         new(
             Id: "billieEilish",
             DisplayName: "Billie Eilish",
@@ -751,7 +791,8 @@ public static partial class CharmCatalog
             CategoryId: "musicLegends",
             Region: "United States",
             Description: "Green roots over black, sat down in oversized everything, looking like she would rather not be photographed.",
-            Tags: ["Billie Eilish", "singer", "green", "music"]),
+            Tags: ["Billie Eilish", "singer", "green", "music"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "xxxtentacion",
             DisplayName: "XXXTentacion",
@@ -768,7 +809,8 @@ public static partial class CharmCatalog
             CategoryId: "musicLegends",
             Region: "United States",
             Description: "Half-blond dreads and folded arms, sitting the way the album covers had him sit.",
-            Tags: ["XXXTentacion", "rapper", "dreads", "music"]),
+            Tags: ["XXXTentacion", "rapper", "dreads", "music"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "michaelJackson",
             DisplayName: "Michael Jackson",
@@ -785,7 +827,8 @@ public static partial class CharmCatalog
             CategoryId: "musicLegends",
             Region: "United States",
             Description: "Caught mid-lean with the fedora down and one sequinned glove up — the pose that needs no caption anywhere on earth.",
-            Tags: ["Michael Jackson", "pop", "fedora", "glove"]),
+            Tags: ["Michael Jackson", "pop", "fedora", "glove"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "taylorSwift",
             DisplayName: "Taylor Swift",
@@ -802,7 +845,8 @@ public static partial class CharmCatalog
             CategoryId: "musicLegends",
             Region: "United States",
             Description: "Sat on a flight case with an acoustic, which is where the songs start before a stadium gets involved.",
-            Tags: ["Taylor Swift", "guitar", "songwriter", "music"]),
+            Tags: ["Taylor Swift", "guitar", "songwriter", "music"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "juiceWrld",
             DisplayName: "Juice WRLD",
@@ -819,7 +863,8 @@ public static partial class CharmCatalog
             CategoryId: "musicLegends",
             Region: "United States",
             Description: "999 across the hoodie — his own number, six-six-six turned over, for taking a bad thing and making something of it.",
-            Tags: ["Juice WRLD", "999", "rapper", "music"]),
+            Tags: ["Juice WRLD", "999", "rapper", "music"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "theWeeknd",
             DisplayName: "The Weeknd",
@@ -836,7 +881,8 @@ public static partial class CharmCatalog
             CategoryId: "musicLegends",
             Region: "Canada",
             Description: "Sequined red jacket over black, arms out and eyes shut, halfway through the note that made the night famous.",
-            Tags: ["The Weeknd", "singer", "red jacket", "music"]),
+            Tags: ["The Weeknd", "singer", "red jacket", "music"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "rachelGreen",
             DisplayName: "Rachel Green",
@@ -853,7 +899,8 @@ public static partial class CharmCatalog
             CategoryId: "friends",
             Region: "United States",
             Description: "Coffee in hand, bag on the shoulder — which is how she spent a decent fraction of ten years.",
-            Tags: ["Rachel", "Friends", "coffee", "New York"]),
+            Tags: ["Rachel", "Friends", "coffee", "New York"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "monicaGeller",
             DisplayName: "Monica Geller",
@@ -870,7 +917,8 @@ public static partial class CharmCatalog
             CategoryId: "friends",
             Region: "United States",
             Description: "Arms folded, all in black, and everything behind her exactly where it ought to be.",
-            Tags: ["Monica", "Friends", "chef", "New York"]),
+            Tags: ["Monica", "Friends", "chef", "New York"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "rossGeller",
             DisplayName: "Ross Geller",
@@ -887,7 +935,8 @@ public static partial class CharmCatalog
             CategoryId: "friends",
             Region: "United States",
             Description: "Holding a dinosaur, because he is a palaeontologist and would like a moment of your time to explain it.",
-            Tags: ["Ross", "Friends", "dinosaur", "New York"]),
+            Tags: ["Ross", "Friends", "dinosaur", "New York"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "joeyTribbiani",
             DisplayName: "Joey Tribbiani",
@@ -904,7 +953,8 @@ public static partial class CharmCatalog
             CategoryId: "friends",
             Region: "United States",
             Description: "Leather jacket, finger up, mouth open. You already know the line.",
-            Tags: ["Joey", "Friends", "actor", "New York"]),
+            Tags: ["Joey", "Friends", "actor", "New York"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "chandlerBing",
             DisplayName: "Chandler Bing",
@@ -921,7 +971,8 @@ public static partial class CharmCatalog
             CategoryId: "friends",
             Region: "United States",
             Description: "In the suit, hands in pockets, mid-sarcasm. Could his job BE any harder to describe?",
-            Tags: ["Chandler", "Friends", "sarcasm", "New York"]),
+            Tags: ["Chandler", "Friends", "sarcasm", "New York"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "phoebeBuffay",
             DisplayName: "Phoebe Buffay",
@@ -938,7 +989,8 @@ public static partial class CharmCatalog
             CategoryId: "friends",
             Region: "United States",
             Description: "Guitar in hand, which means a cat somewhere is about to be sung about at length.",
-            Tags: ["Phoebe", "Friends", "guitar", "New York"]),
+            Tags: ["Phoebe", "Friends", "guitar", "New York"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "walterWhite",
             DisplayName: "Walter White",
@@ -955,7 +1007,8 @@ public static partial class CharmCatalog
             CategoryId: "breakingBad",
             Region: "United States",
             Description: "Yellow hazmat, a flask of blue in one hand and the gas mask in the other. Still telling himself it is about the family.",
-            Tags: ["Walter White", "chemistry", "hazmat", "Breaking Bad"]),
+            Tags: ["Walter White", "chemistry", "hazmat", "Breaking Bad"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "jessePinkman",
             DisplayName: "Jesse Pinkman",
@@ -972,7 +1025,8 @@ public static partial class CharmCatalog
             CategoryId: "breakingBad",
             Region: "United States",
             Description: "Beanie and a yellow jacket, standing like a man who has just been told off and is about to be told off again.",
-            Tags: ["Jesse", "Breaking Bad", "beanie", "Albuquerque"]),
+            Tags: ["Jesse", "Breaking Bad", "beanie", "Albuquerque"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "saulGoodman",
             DisplayName: "Saul Goodman",
@@ -989,7 +1043,8 @@ public static partial class CharmCatalog
             CategoryId: "breakingBad",
             Region: "United States",
             Description: "Pinstripes, a loud tie and a sign carrying his own catchphrase, which is the most honest thing about him.",
-            Tags: ["Saul", "lawyer", "Breaking Bad", "Albuquerque"]),
+            Tags: ["Saul", "lawyer", "Breaking Bad", "Albuquerque"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "gusFring",
             DisplayName: "Gus Fring",
@@ -1006,7 +1061,8 @@ public static partial class CharmCatalog
             CategoryId: "breakingBad",
             Region: "United States",
             Description: "The good suit, the glasses, and absolutely nothing showing on his face. That is the frightening part.",
-            Tags: ["Gus Fring", "Los Pollos", "Breaking Bad", "suit"]),
+            Tags: ["Gus Fring", "Los Pollos", "Breaking Bad", "suit"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "mikeEhrmantraut",
             DisplayName: "Mike Ehrmantraut",
@@ -1023,7 +1079,8 @@ public static partial class CharmCatalog
             CategoryId: "breakingBad",
             Region: "United States",
             Description: "Leather jacket, hands where you can see them, and a patience you would be unwise to test.",
-            Tags: ["Mike", "fixer", "Breaking Bad", "Albuquerque"]),
+            Tags: ["Mike", "fixer", "Breaking Bad", "Albuquerque"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "heisenberg",
             DisplayName: "Heisenberg",
@@ -1040,7 +1097,8 @@ public static partial class CharmCatalog
             CategoryId: "breakingBad",
             Region: "United States",
             Description: "The porkpie hat, the glasses, a bag in one hand and the product in the other. The same man as the hazmat, further along.",
-            Tags: ["Heisenberg", "hat", "Breaking Bad", "alias"]),
+            Tags: ["Heisenberg", "hat", "Breaking Bad", "alias"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "rv",
             DisplayName: "RV",
@@ -1057,7 +1115,8 @@ public static partial class CharmCatalog
             CategoryId: "breakingBad",
             Region: "United States",
             Description: "The Fleetwood Bounder, sun-bleached and desert-dented, that did the cooking before anybody had a laboratory. The most recognisable vehicle on television.",
-            Tags: ["RV", "Fleetwood", "desert", "lab", "Breaking Bad"]),
+            Tags: ["RV", "Fleetwood", "desert", "lab", "Breaking Bad"],
+            Sound: Audio.CharmSound.Metal),
         new(
             Id: "eleven",
             DisplayName: "Eleven",
@@ -1074,7 +1133,8 @@ public static partial class CharmCatalog
             CategoryId: "strangerThings",
             Region: "Hawkins, Indiana",
             Description: "Pink dress, buzzed hair, one hand out. The nosebleed comes after.",
-            Tags: ["Eleven", "Hawkins", "powers", "Stranger Things"]),
+            Tags: ["Eleven", "Hawkins", "powers", "Stranger Things"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "mikeWheeler",
             DisplayName: "Mike Wheeler",
@@ -1091,7 +1151,8 @@ public static partial class CharmCatalog
             CategoryId: "strangerThings",
             Region: "Hawkins, Indiana",
             Description: "Walkie-talkie up, waiting on a reply from someone who may not be able to answer.",
-            Tags: ["Mike", "Hawkins", "walkie-talkie", "Stranger Things"]),
+            Tags: ["Mike", "Hawkins", "walkie-talkie", "Stranger Things"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "dustinHenderson",
             DisplayName: "Dustin Henderson",
@@ -1108,7 +1169,8 @@ public static partial class CharmCatalog
             CategoryId: "strangerThings",
             Region: "Hawkins, Indiana",
             Description: "Cap on, headset on, halfway through a sentence and not slowing down for anybody.",
-            Tags: ["Dustin", "Hawkins", "radio", "Stranger Things"]),
+            Tags: ["Dustin", "Hawkins", "radio", "Stranger Things"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "lucasSinclair",
             DisplayName: "Lucas Sinclair",
@@ -1125,7 +1187,8 @@ public static partial class CharmCatalog
             CategoryId: "strangerThings",
             Region: "Hawkins, Indiana",
             Description: "Camo bandana and a wrist-rocket, drawn and aimed. The only one of them who came prepared.",
-            Tags: ["Lucas", "Hawkins", "slingshot", "Stranger Things"]),
+            Tags: ["Lucas", "Hawkins", "slingshot", "Stranger Things"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "willByers",
             DisplayName: "Will Byers",
@@ -1142,7 +1205,8 @@ public static partial class CharmCatalog
             CategoryId: "strangerThings",
             Region: "Hawkins, Indiana",
             Description: "Holding the string of Christmas lights his mother nailed to the wall to spell things out, letter by letter.",
-            Tags: ["Will", "Hawkins", "lights", "Stranger Things"]),
+            Tags: ["Will", "Hawkins", "lights", "Stranger Things"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "demogorgon",
             DisplayName: "Demogorgon",
@@ -1159,7 +1223,8 @@ public static partial class CharmCatalog
             CategoryId: "strangerThings",
             Region: "Hawkins, Indiana",
             Description: "The face opens into five petals. That is the whole of what anybody needs to know about it.",
-            Tags: ["Demogorgon", "Upside Down", "monster", "Stranger Things"]),
+            Tags: ["Demogorgon", "Upside Down", "monster", "Stranger Things"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "circle",
             DisplayName: "Bead",
@@ -1176,7 +1241,8 @@ public static partial class CharmCatalog
             CategoryId: "classic",
             Region: "Universal",
             Description: "A plain glass bead, the charm Hangly ships with. Simple, weighty and never out of place.",
-            Tags: ["bead", "simple", "default", "violet"]),
+            Tags: ["bead", "simple", "default", "violet"],
+            Sound: Audio.CharmSound.Glass),
         new(
             Id: "camera",
             DisplayName: "Camera",
@@ -1193,7 +1259,8 @@ public static partial class CharmCatalog
             CategoryId: "classic",
             Region: "Universal",
             Description: "For photographers and the perpetually nostalgic. The heaviest charm in the box.",
-            Tags: ["camera", "photo", "graphite", "heavy"]),
+            Tags: ["camera", "photo", "graphite", "heavy"],
+            Sound: Audio.CharmSound.Metal),
         new(
             Id: "star",
             DisplayName: "Star",
@@ -1210,7 +1277,8 @@ public static partial class CharmCatalog
             CategoryId: "classic",
             Region: "Universal",
             Description: "Everyone's first lucky charm. The lightest in the set, so it swings the fastest.",
-            Tags: ["star", "gold", "light", "wish"]),
+            Tags: ["star", "gold", "light", "wish"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "heart",
             DisplayName: "Heart",
@@ -1227,7 +1295,8 @@ public static partial class CharmCatalog
             CategoryId: "classic",
             Region: "Universal",
             Description: "Worn on the sleeve, or in this case at the top of the screen.",
-            Tags: ["heart", "red", "love"]),
+            Tags: ["heart", "red", "love"],
+            Sound: Audio.CharmSound.Soft),
         new(
             Id: "diamond",
             DisplayName: "Diamond",
@@ -1244,6 +1313,7 @@ public static partial class CharmCatalog
             CategoryId: "classic",
             Region: "Universal",
             Description: "Cut, faceted and indestructible. Heavy enough to hang the rope nearly straight.",
-            Tags: ["gem", "ice", "faceted", "blue"]),
+            Tags: ["gem", "ice", "faceted", "blue"],
+            Sound: Audio.CharmSound.Glass),
     ];
 }

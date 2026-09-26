@@ -10,6 +10,11 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Added**
 
+- **Sound.** Each charm sounds like what it is made of — bell, glass, metal, wood or cloth
+  — when you throw it, when it joins the rope, and when two charms knock together: the
+  same sounds, made the same way, as Hangly for Mac. On by default and quiet; switch it
+  off or change the volume in Customize → Appearance → Sound. Silent while a full-screen
+  app, game or presentation is in front, and nothing runs between sounds.
 - **Motion**, in Customize → Appearance: Follow system, Reduced or Full. Reduced hangs the
   charm still until you move it, lets a swing settle in seconds rather than most of a
   minute, and throws and nudges more gently; the rope looks exactly the same at rest.
