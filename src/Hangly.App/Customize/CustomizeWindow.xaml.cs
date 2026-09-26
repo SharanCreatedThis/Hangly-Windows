@@ -619,6 +619,7 @@ public sealed partial class CustomizeWindow : Window
 
             ShowToggle.IsOn = overlay.IsEnabled;
             MotionChoice.SelectedIndex = (int)overlay.Motion;
+            FullscreenToggle.IsOn = overlay.HidesDuringFullscreenVideo;
             LoginToggle.IsOn = store.Settings.LaunchAtLogin;
             NameBox.MaxLength = AppSettings.DisplayNameLimit;
             NameBox.Text = store.Settings.DisplayName;
@@ -1386,6 +1387,14 @@ public sealed partial class CustomizeWindow : Window
         if (!isLoading)
         {
             store.UpdateOverlay(overlay => overlay with { Opacity = OpacitySlider.Value });
+        }
+    }
+
+    private void OnFullscreenToggled(object sender, RoutedEventArgs args)
+    {
+        if (!isLoading)
+        {
+            store.UpdateOverlay(overlay => overlay with { HidesDuringFullscreenVideo = FullscreenToggle.IsOn });
         }
     }
 

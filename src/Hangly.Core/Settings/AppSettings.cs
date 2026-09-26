@@ -114,6 +114,9 @@ public sealed record OverlaySettings
     /// <summary>What the chosen display was called, for a menu to name it while it is away.</summary>
     public string? DisplayName { get; init; }
 
+    /// <summary>Step out of the way while a film plays full screen on this display. Off by default, as on macOS.</summary>
+    public bool HidesDuringFullscreenVideo { get; init; }
+
     /// <summary>Appearance → Motion: follow Windows' animation effects, or choose.</summary>
     public MotionPreference Motion { get; init; } = MotionPreference.FollowSystem;
 
@@ -188,6 +191,7 @@ public sealed record OverlaySettings
         && string.Equals(DisplayId, other.DisplayId, StringComparison.Ordinal)
         && string.Equals(DisplayName, other.DisplayName, StringComparison.Ordinal)
         && Motion == other.Motion
+        && HidesDuringFullscreenVideo == other.HidesDuringFullscreenVideo
         && CharmCount == other.CharmCount
         && CharmIds.SequenceEqual(other.CharmIds, StringComparer.Ordinal)
         && Slots.SequenceEqual(other.Slots);
@@ -208,6 +212,7 @@ public sealed record OverlaySettings
         hash.Add(DisplayId, StringComparer.Ordinal);
         hash.Add(DisplayName, StringComparer.Ordinal);
         hash.Add(Motion);
+        hash.Add(HidesDuringFullscreenVideo);
         foreach (string id in CharmIds)
         {
             hash.Add(id, StringComparer.Ordinal);

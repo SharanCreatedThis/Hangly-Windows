@@ -788,6 +788,18 @@
                                 x:Name="LoginToggle"
                                 Header="Launch at login"
                                 Toggled="OnLoginToggled" />
+                            <ToggleSwitch
+                                x:Name="FullscreenToggle"
+                                AutomationProperties.AutomationId="FullscreenToggle"
+                                Header="Auto-hide during full-screen video"
+                                Toggled="OnFullscreenToggled" />
+                            <TextBlock
+                                MaxWidth="560"
+                                HorizontalAlignment="Left"
+                                Opacity="0.7"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="Steps out of the way while a film or game is full screen on the display the charm hangs on, and comes back when it stops. Off by default: telling a film from any other full-screen app is a guess, and it is occasionally wrong."
+                                TextWrapping="Wrap" />
                         </StackPanel>
 
                         <!--

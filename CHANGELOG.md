@@ -10,6 +10,12 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Added**
 
+- **Auto-hide during full-screen video**, in Customize → Appearance → Behaviour. Off by
+  default. While a film, a video in your browser or a game is full screen on the display
+  the charm hangs on, the charm steps out of the way, and it comes back when that stops.
+  A maximised window, a full-screen page with no video, or a borderless tool covering the
+  screen does not hide it.
+
 - **Motion**, in Customize → Appearance: Follow system, Reduced or Full. Reduced hangs the
   charm still until you move it, lets a swing settle in seconds rather than most of a
   minute, and throws and nudges more gently; the rope looks exactly the same at rest.
