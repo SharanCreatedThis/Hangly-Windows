@@ -16,6 +16,12 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
   Windows and Hangly. Nothing about launches, charms, ropes or anything else you do in the
   app is sent any more. PostHog is also asked not to work out where you are.
 - You can change your name in **Customize → Appearance**.
+- Once a day that Hangly runs, it says it is still running and on which version — nothing
+  else — so the number of people using it and the versions they are on can be counted.
+- If you uninstall Hangly, it says so once, and removes itself from your Windows startup
+  list. It used to leave that entry behind, pointing at a program that was gone.
+- If you install Hangly with no internet connection, your profile is sent by itself when
+  the connection comes back.
 
 **Fixed**
 

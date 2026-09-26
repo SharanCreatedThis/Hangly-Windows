@@ -38,8 +38,9 @@ One message, called an *identify*, at exactly three moments:
 | You change your name | Once, with the new name |
 | A new major version arrives | The first time you start, say, 2.0 after 1.x |
 
-That is all. Starting Hangly, quitting it, hanging a charm, changing a rope, opening a
-window, importing a picture — none of it is sent, and the code that used to send it has
+And once a day that Hangly runs, and once when you uninstall it, the messages below. That is
+all. Starting Hangly, quitting it, hanging a charm, changing a rope, opening a window,
+importing a picture — none of it is sent, and the code that used to send it has
 been removed. If an identify cannot be delivered because you are offline, it is tried again
 the next time you start Hangly.
 
@@ -48,6 +49,42 @@ It goes to [PostHog](https://posthog.com) (US region).
 > **Builds made from the source send nothing.** The key that lets Hangly reach PostHog is
 > added only by the release workflow. A copy built by anybody else — or by the author for
 > testing — has no destination, and its About page says *No destination configured*.
+
+### Once a day: "still running"
+
+On each day Hangly runs, it sends one more message, `daily_active`, after the identify
+and never before it. It says only that this copy ran today, and which platform and
+versions it is:
+
+```json
+{
+  "event": "daily_active",
+  "distinct_id": "<the same identifier>",
+  "properties": {
+    "platform": "windows", "architecture": "arm64",
+    "app_version": "1.0.0", "build_number": "6", "os_version": "10.0.26200.0",
+    "$geoip_disable": true, "$ip": null,
+    "$set": { "platform": "windows", "app_version": "1.0.0", "...": "the same platform facts" }
+  }
+}
+```
+
+No name, no charms, no settings, nothing about what you did. At most once per calendar day,
+checked once an hour while Hangly runs. A day with no network is not sent later. It is what
+lets the project count how many people are still using Hangly and which versions they are
+on, without counting what they do.
+
+### When you uninstall
+
+If you uninstall Hangly through **Settings → Apps**, it sends one last message,
+`app_uninstalled`, with the same identifier and the platform facts — no name — so the
+project knows this copy is gone rather than just quiet. Only with analytics on, and only if
+Hangly had already told the project who you are. If the machine is offline at that moment,
+or Hangly is removed by deleting its folder by hand, nothing is sent: there is no Hangly left
+to try again.
+
+The same step removes Hangly's entry from your Windows startup list, so Windows does not go
+on trying to start a program that is no longer there.
 
 ### Exactly what an identify carries
 
