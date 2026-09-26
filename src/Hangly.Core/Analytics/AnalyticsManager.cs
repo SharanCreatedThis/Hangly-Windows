@@ -60,8 +60,25 @@ public sealed class AnalyticsManager
     private readonly string buildNumber;
     private readonly string systemVersion;
 
+    private readonly TimeSpan retryInterval;
+
+    /// <summary>The thread the manager belongs to, captured when it is made.</summary>
+    /// <remarks>
+    /// <b>Everything here runs on it.</b> Writing the settings store raises its change event
+    /// on the writing thread, and the listeners — the tray, the overlay, the Customize window
+    /// — are UI. A send that finished on a pool thread and recorded itself there would have
+    /// updated WinUI controls from the wrong thread. Retries and network notifications arrive
+    /// on pool threads too, so all of them are posted back here. Null in tests, where there
+    /// is no UI and everything simply runs inline.
+    /// </remarks>
+    private readonly SynchronizationContext? owner = SynchronizationContext.Current;
+
     private bool hasStarted;
     private Task? inFlight;
+    private CancellationTokenSource? retrying;
+
+    /// <summary>How long a pending identify waits before trying again on its own.</summary>
+    public static TimeSpan DefaultRetryInterval { get; } = TimeSpan.FromMinutes(15);
 
     public AnalyticsManager(
         SettingsStore store,
@@ -70,7 +87,8 @@ public sealed class AnalyticsManager
         bool hasDestination,
         string appVersion,
         string buildNumber,
-        string systemVersion)
+        string systemVersion,
+        TimeSpan? retryInterval = null)
     {
         this.store = store;
         this.provider = provider;
@@ -79,7 +97,11 @@ public sealed class AnalyticsManager
         this.appVersion = appVersion;
         this.buildNumber = buildNumber;
         this.systemVersion = systemVersion;
+        this.retryInterval = retryInterval ?? DefaultRetryInterval;
     }
+
+    /// <summary>Whether an identify is waiting for the network, retrying on its own.</summary>
+    public bool IsRetrying => retrying is not null;
 
     /// <summary>Raised when anything the About page shows has changed.</summary>
     public event Action? Changed;
@@ -167,12 +189,93 @@ public sealed class AnalyticsManager
     /// launch.
     private async Task SendThenRecheck(IdentifyReason reason)
     {
-        if (await Send(reason).ConfigureAwait(false))
+        // ConfigureAwait(true), deliberately: the rest of this, and everything Send does
+        // after its await, has to resume on the owner's thread. See `owner`.
+        if (await Send(reason).ConfigureAwait(true))
         {
             inFlight = null;
-            await Sync().ConfigureAwait(false);
+            StopRetrying();
+            await Sync().ConfigureAwait(true);
+        }
+        else
+        {
+            inFlight = null;
+            StartRetrying();
         }
     }
+
+    /// <summary>
+    /// Tries again every <see cref="retryInterval"/> while an identify is pending, and stops
+    /// the moment nothing is.
+    /// </summary>
+    /// <remarks>
+    /// For a network that comes back without saying so — a captive portal, a destination
+    /// that was down. The network notification is the fast path; this is the one that cannot
+    /// be missed. It costs nothing when nothing is pending, because then it is not running.
+    /// </remarks>
+    private void StartRetrying()
+    {
+        if (retrying is not null || PendingReason() is null)
+        {
+            return;
+        }
+
+        var cancellation = new CancellationTokenSource();
+        retrying = cancellation;
+        _ = RetryLoop(cancellation.Token);
+    }
+
+    private async Task RetryLoop(CancellationToken cancellation)
+    {
+        while (!cancellation.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(retryInterval, cancellation).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            OnOwner(() =>
+            {
+                if (PendingReason() is null)
+                {
+                    StopRetrying();
+                    return;
+                }
+
+                _ = Sync();
+            });
+        }
+    }
+
+    private void StopRetrying()
+    {
+        retrying?.Cancel();
+        retrying?.Dispose();
+        retrying = null;
+    }
+
+    private void OnOwner(Action action)
+    {
+        if (owner is null || SynchronizationContext.Current == owner)
+        {
+            action();
+        }
+        else
+        {
+            owner.Post(_ => action(), null);
+        }
+    }
+
+    /// <summary>The network has come back. Sends a waiting identify at once, if there is one.</summary>
+    /// <remarks>
+    /// Called by the app from its network notification, on whatever thread that arrives on.
+    /// Does nothing when nothing is pending, which is almost always.
+    /// </remarks>
+    public void NetworkBecameAvailable() => OnOwner(() => _ = Sync());
 
     /// <summary>Which of the three triggers applies right now, or null if none does.</summary>
     public IdentifyReason? PendingReason()
@@ -212,6 +315,7 @@ public sealed class AnalyticsManager
             // Sharing off discards the identifier and the record of what was sent under
             // it, which PRIVACY.md states plainly.
             store.Update(settings => settings with { Privacy = settings.Privacy.Forgotten() });
+            StopRetrying();
             LastReason = null;
             LastSentAt = null;
             Changed?.Invoke();
@@ -293,7 +397,7 @@ public sealed class AnalyticsManager
         string name = CurrentName;
         bool accepted = await provider
             .IdentifyAsync(distinctId, PersonProperties(), EventProperties(reason))
-            .ConfigureAwait(false);
+            .ConfigureAwait(true);
 
         if (!accepted)
         {

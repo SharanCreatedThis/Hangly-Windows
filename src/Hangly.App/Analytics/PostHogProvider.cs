@@ -42,7 +42,12 @@ public sealed class PostHogProvider : IAnalyticsProvider, IDisposable
     public PostHogProvider(string host, string key)
     {
         this.key = key;
-        endpoint = new Uri($"https://{host}/i/v0/e/");
+        // A bare host is PostHog over HTTPS, which is all a release is ever given. A host
+        // that states its own scheme is a test destination — the capture server the offline
+        // verification runs against — and is taken as written.
+        endpoint = new Uri(host.Contains("://", StringComparison.Ordinal)
+            ? $"{host.TrimEnd('/')}/i/v0/e/"
+            : $"https://{host}/i/v0/e/");
         client = new HttpClient
         {
             // Short on purpose. There is nothing useful to do about a slow request, and a
