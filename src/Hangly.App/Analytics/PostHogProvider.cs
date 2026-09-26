@@ -14,7 +14,7 @@ using Hangly.Core.Analytics;
 
 namespace Hangly.App.Analytics;
 
-/// <summary>Tells PostHog who is running Hangly, and nothing else anywhere.</summary>
+/// <summary>Tells PostHog who is running Hangly and whether it is still here, and nothing else.</summary>
 /// <remarks>
 /// <b>Hand-written against PostHog's capture endpoint rather than using their SDK.</b> The
 /// capture API is one POST of one JSON object, and the only object this app sends is an
@@ -56,13 +56,24 @@ public sealed class PostHogProvider : IAnalyticsProvider, IDisposable
         };
     }
 
-    public async Task<bool> IdentifyAsync(
+    public Task<bool> IdentifyAsync(
         string distinctId,
         IReadOnlyDictionary<string, AnalyticsValue> personProperties,
-        IReadOnlyDictionary<string, AnalyticsValue> eventProperties)
-    {
-        Payload payload = PayloadFor(distinctId, personProperties, eventProperties);
+        IReadOnlyDictionary<string, AnalyticsValue> eventProperties) =>
+        Post(PayloadFor("$identify", distinctId, personProperties, eventProperties), $"$identify ({Reason(eventProperties)})");
 
+    public Task<bool> SendAsync(
+        OperationalEvent operationalEvent,
+        string distinctId,
+        IReadOnlyDictionary<string, AnalyticsValue> properties,
+        IReadOnlyDictionary<string, AnalyticsValue>? personProperties)
+    {
+        string name = OperationalEvents.NameOf(operationalEvent);
+        return Post(PayloadFor(name, distinctId, personProperties, properties), name);
+    }
+
+    private async Task<bool> Post(Payload payload, string what)
+    {
         try
         {
             using HttpResponseMessage response =
@@ -70,13 +81,13 @@ public sealed class PostHogProvider : IAnalyticsProvider, IDisposable
 
             // Logged either way. A privacy claim is easier to believe when the log says
             // what left and what came back.
-            Diagnostics.Log($"analytics: {(int)response.StatusCode} for $identify ({Reason(eventProperties)})");
+            Diagnostics.Log($"analytics: {(int)response.StatusCode} for {what}");
             return response.IsSuccessStatusCode;
         }
         catch (Exception exception)
         {
             // Deliberately not Failure(): a machine with no network is not a fault.
-            Diagnostics.Log($"analytics: $identify ({Reason(eventProperties)}) not sent ({exception.GetType().Name})");
+            Diagnostics.Log($"analytics: {what} not sent ({exception.GetType().Name})");
             return false;
         }
     }
@@ -86,13 +97,14 @@ public sealed class PostHogProvider : IAnalyticsProvider, IDisposable
         string distinctId,
         IReadOnlyDictionary<string, AnalyticsValue> personProperties,
         IReadOnlyDictionary<string, AnalyticsValue> eventProperties) =>
-        JsonSerializer.Serialize(PayloadFor(distinctId, personProperties, eventProperties) with { ApiKey = "phc_…" }, Json);
+        JsonSerializer.Serialize(PayloadFor("$identify", distinctId, personProperties, eventProperties) with { ApiKey = "phc_…" }, Json);
 
     public void Dispose() => client.Dispose();
 
     private Payload PayloadFor(
+        string eventName,
         string distinctId,
-        IReadOnlyDictionary<string, AnalyticsValue> personProperties,
+        IReadOnlyDictionary<string, AnalyticsValue>? personProperties,
         IReadOnlyDictionary<string, AnalyticsValue> eventProperties)
     {
         var properties = new Dictionary<string, object?>(StringComparer.Ordinal);
@@ -101,11 +113,14 @@ public sealed class PostHogProvider : IAnalyticsProvider, IDisposable
             properties[name] = Unwrap(value);
         }
 
-        // PostHog stores $set on the person the identify names. It is the only place the
-        // name and the platform facts are written.
-        properties["$set"] = personProperties.ToDictionary(pair => pair.Key, pair => Unwrap(pair.Value), StringComparer.Ordinal);
+        // PostHog stores $set on the person the event names: the identify writes the name
+        // and the platform facts, the heartbeat keeps the platform facts current.
+        if (personProperties is not null)
+        {
+            properties["$set"] = personProperties.ToDictionary(pair => pair.Key, pair => Unwrap(pair.Value), StringComparer.Ordinal);
+        }
 
-        return new Payload(key, "$identify", distinctId, properties);
+        return new Payload(key, eventName, distinctId, properties);
     }
 
     private static string Reason(IReadOnlyDictionary<string, AnalyticsValue> eventProperties) =>

@@ -1090,7 +1090,7 @@
                                     Opacity="0.75"
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     TextWrapping="Wrap"
-                                    Text="Sends your name, that this is Windows, the processor, and the versions of Windows and Hangly. Sent once when you start Hangly for the first time, again if you change your name, and again when a new major version arrives. Nothing about what you do in the app is ever sent. Switching it off stops it immediately and throws away the installation identifier." />
+                                    Text="Sends your name, that this is Windows, the processor, and the versions of Windows and Hangly — when you first start Hangly, if you change your name, and on a new major version. Once a day that Hangly runs, it also says it is still running, and on which version. If you uninstall, it says so once. Nothing about what you do in the app is ever sent. Switching it off stops it immediately and throws away the installation identifier." />
 
                                 <Grid ColumnSpacing="16" RowSpacing="6">
                                     <Grid.ColumnDefinitions>

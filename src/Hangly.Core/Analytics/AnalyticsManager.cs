@@ -61,6 +61,8 @@ public sealed class AnalyticsManager
     private readonly string systemVersion;
 
     private readonly TimeSpan retryInterval;
+    private readonly TimeSpan dayWatchInterval;
+    private readonly Func<DateTimeOffset> clock;
 
     /// <summary>The thread the manager belongs to, captured when it is made.</summary>
     /// <remarks>
@@ -76,9 +78,18 @@ public sealed class AnalyticsManager
     private bool hasStarted;
     private Task? inFlight;
     private CancellationTokenSource? retrying;
+    private bool isWatchingTheDay;
 
-    /// <summary>How long a pending identify waits before trying again on its own.</summary>
+    /// <summary>How long pending work waits before trying again on its own.</summary>
     public static TimeSpan DefaultRetryInterval { get; } = TimeSpan.FromMinutes(15);
+
+    /// <summary>How often a running app checks whether a new day has begun.</summary>
+    /// <remarks>
+    /// Once an hour. An app left running for days owes one <c>daily_active</c> on each of
+    /// them, and an hour of lateness in counting a day is nothing; a check that ran more
+    /// often would be looking for something that cannot have happened.
+    /// </remarks>
+    public static TimeSpan DefaultDayWatchInterval { get; } = TimeSpan.FromHours(1);
 
     public AnalyticsManager(
         SettingsStore store,
@@ -88,7 +99,9 @@ public sealed class AnalyticsManager
         string appVersion,
         string buildNumber,
         string systemVersion,
-        TimeSpan? retryInterval = null)
+        TimeSpan? retryInterval = null,
+        TimeSpan? dayWatchInterval = null,
+        Func<DateTimeOffset>? clock = null)
     {
         this.store = store;
         this.provider = provider;
@@ -98,9 +111,11 @@ public sealed class AnalyticsManager
         this.buildNumber = buildNumber;
         this.systemVersion = systemVersion;
         this.retryInterval = retryInterval ?? DefaultRetryInterval;
+        this.dayWatchInterval = dayWatchInterval ?? DefaultDayWatchInterval;
+        this.clock = clock ?? (() => DateTimeOffset.Now);
     }
 
-    /// <summary>Whether an identify is waiting for the network, retrying on its own.</summary>
+    /// <summary>Whether something is waiting for the network, retrying on its own.</summary>
     public bool IsRetrying => retrying is not null;
 
     /// <summary>Raised when anything the About page shows has changed.</summary>
@@ -110,6 +125,9 @@ public sealed class AnalyticsManager
     public IdentifyReason? LastReason { get; private set; }
 
     public DateTimeOffset? LastSentAt { get; private set; }
+
+    /// <summary>When this session's <c>daily_active</c> was accepted, if it has been.</summary>
+    public DateTimeOffset? LastActiveSentAt { get; private set; }
 
     public AnalyticsConnection Connection =>
         !IsEnabled ? AnalyticsConnection.NotStarted
@@ -156,17 +174,21 @@ public sealed class AnalyticsManager
             Milestones = settings.Milestones with { LaunchCount = settings.Milestones.LaunchCount + 1 },
         });
 
+        WatchTheDay();
         return Sync();
     }
 
     /// <summary>
-    /// Sends an identify if the project's record of this person is out of date, and
-    /// otherwise does nothing.
+    /// Sends whatever the project is owed — an identify if its record of this person is out
+    /// of date, then today's <c>daily_active</c> if it has not been sent — and otherwise does
+    /// nothing.
     /// </summary>
     /// <remarks>
     /// Safe to call as often as anything might have changed — after the welcome card takes
-    /// a name, after a rename, after sharing is switched back on. It compares what the
-    /// project was last told with what is true now, so calling it twice sends once.
+    /// a name, after a rename, after sharing is switched back on, when an hour passes. It
+    /// compares what the project was last told with what is true now, so calling it twice
+    /// sends once. The identify always goes first: a heartbeat for a person who does not
+    /// exist yet would create an anonymous one.
     /// </remarks>
     public Task Sync()
     {
@@ -175,23 +197,35 @@ public sealed class AnalyticsManager
             return inFlight;
         }
 
-        if (!hasStarted || PendingReason() is not IdentifyReason reason)
+        if (!hasStarted)
         {
             return Task.CompletedTask;
         }
 
-        inFlight = SendThenRecheck(reason);
+        if (PendingReason() is IdentifyReason reason)
+        {
+            inFlight = SendThenRecheck(() => Send(reason));
+        }
+        else if (HeartbeatDue())
+        {
+            inFlight = SendThenRecheck(SendHeartbeat);
+        }
+        else
+        {
+            return Task.CompletedTask;
+        }
+
         return inFlight;
     }
 
     /// Sends, then looks again once: something may have changed while that was on the
-    /// wire — a rename typed during a first launch — and it should not wait for the next
-    /// launch.
-    private async Task SendThenRecheck(IdentifyReason reason)
+    /// wire — a rename typed during a first launch — and the heartbeat that follows an
+    /// identify goes out on the same pass rather than waiting for the next.
+    private async Task SendThenRecheck(Func<Task<bool>> send)
     {
-        // ConfigureAwait(true), deliberately: the rest of this, and everything Send does
+        // ConfigureAwait(true), deliberately: the rest of this, and everything the send does
         // after its await, has to resume on the owner's thread. See `owner`.
-        if (await Send(reason).ConfigureAwait(true))
+        if (await send().ConfigureAwait(true))
         {
             inFlight = null;
             StopRetrying();
@@ -215,7 +249,7 @@ public sealed class AnalyticsManager
     /// </remarks>
     private void StartRetrying()
     {
-        if (retrying is not null || PendingReason() is null)
+        if (retrying is not null || !HasPendingWork())
         {
             return;
         }
@@ -240,7 +274,7 @@ public sealed class AnalyticsManager
 
             OnOwner(() =>
             {
-                if (PendingReason() is null)
+                if (!HasPendingWork())
                 {
                     StopRetrying();
                     return;
@@ -270,7 +304,37 @@ public sealed class AnalyticsManager
         }
     }
 
-    /// <summary>The network has come back. Sends a waiting identify at once, if there is one.</summary>
+    /// <summary>
+    /// Checks once an hour, for as long as the app runs, whether a new day has begun.
+    /// </summary>
+    /// <remarks>
+    /// One wake an hour, and nothing sent unless the day has changed and sharing is on — the
+    /// cost of counting an app that is left running for a week as active on each day of it.
+    /// </remarks>
+    private void WatchTheDay()
+    {
+        if (isWatchingTheDay)
+        {
+            return;
+        }
+
+        isWatchingTheDay = true;
+        _ = DayWatchLoop();
+    }
+
+    private async Task DayWatchLoop()
+    {
+        while (true)
+        {
+            await Task.Delay(dayWatchInterval).ConfigureAwait(false);
+            OnOwner(() => _ = Sync());
+        }
+    }
+
+    /// <summary>Whether an identify or today's heartbeat is still owed.</summary>
+    private bool HasPendingWork() => PendingReason() is not null || HeartbeatDue();
+
+    /// <summary>The network has come back. Sends whatever is waiting at once, if anything is.</summary>
     /// <remarks>
     /// Called by the app from its network notification, on whatever thread that arrives on.
     /// Does nothing when nothing is pending, which is almost always.
@@ -301,6 +365,69 @@ public sealed class AnalyticsManager
 
         return MajorOf(appVersion) > identifiedMajor ? IdentifyReason.MajorVersion : null;
     }
+
+    /// <summary>Whether today's <c>daily_active</c> is owed.</summary>
+    /// <remarks>
+    /// Only once the project knows the person: sharing on, a name, a destination, and no
+    /// identify still pending. Then once per local calendar day.
+    /// </remarks>
+    public bool HeartbeatDue() =>
+        IsEnabled
+        && HasName
+        && hasDestination
+        && PendingReason() is null
+        && store.Settings.Privacy.IdentifiedMajorVersion is not null
+        && !string.Equals(store.Settings.Privacy.LastActiveDay, Today, StringComparison.Ordinal);
+
+    /// <summary>Today, in the local calendar, as the heartbeat records it.</summary>
+    private string Today => clock().ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    /// <summary>Tells the project this install has been uninstalled, if it knows the person.</summary>
+    /// <remarks>
+    /// Called from the uninstaller, which gives the app thirty seconds and no window. Sent
+    /// only with sharing on and only for a person the project already holds; a copy that
+    /// never identified has nobody to mark. Carries the identifier and the platform facts,
+    /// nothing else — no name, which the person already has. Returns whether it was
+    /// accepted, for the log; there is no retry, because there is no next launch.
+    /// </remarks>
+    public Task<bool> UninstalledAsync()
+    {
+        PrivacySettings privacy = store.Settings.Privacy;
+        if (!IsEnabled || !hasDestination || privacy.AnonymousId is not Guid id || privacy.IdentifiedMajorVersion is null)
+        {
+            return Task.FromResult(false);
+        }
+
+        return provider.SendAsync(
+            OperationalEvent.Uninstalled,
+            id.ToString("D", CultureInfo.InvariantCulture),
+            OperationalProperties(),
+            null);
+    }
+
+    /// <summary>What rides on an operational event. The platform facts, and no name.</summary>
+    public Dictionary<string, AnalyticsValue> OperationalProperties()
+    {
+        Dictionary<string, AnalyticsValue> properties = PlatformProperties();
+        properties["$lib"] = AnalyticsValue.Of(LibraryName);
+        properties["$lib_version"] = AnalyticsValue.Of(appVersion);
+        properties["$geoip_disable"] = AnalyticsValue.Of(true);
+        properties["$ip"] = AnalyticsValue.Null;
+        return properties;
+    }
+
+    /// <summary>Which platform, silicon and versions this is. Shared by everything that is sent.</summary>
+    private Dictionary<string, AnalyticsValue> PlatformProperties() => new(StringComparer.Ordinal)
+    {
+        ["platform"] = AnalyticsValue.Of("windows"),
+        ["architecture"] = AnalyticsValue.Of(Architecture),
+        ["app_version"] = AnalyticsValue.Of(appVersion),
+        ["build_number"] = AnalyticsValue.Of(buildNumber),
+        ["os_version"] = AnalyticsValue.Of(systemVersion),
+        ["$os"] = AnalyticsValue.Of("Windows"),
+        ["$os_version"] = AnalyticsValue.Of(systemVersion),
+        ["$app_version"] = AnalyticsValue.Of(appVersion),
+    };
 
     /// <summary>Turns sharing on or off. Off takes effect on the next line, not later.</summary>
     public Task SetEnabled(bool isEnabled)
@@ -343,20 +470,14 @@ public sealed class AnalyticsManager
     /// <c>email</c>, <c>name</c> or <c>username</c> it finds, and <c>user_name</c> — which
     /// earlier builds used and existing queries still read — is in none of those lists.</para>
     /// </remarks>
-    public Dictionary<string, AnalyticsValue> PersonProperties() => new(StringComparer.Ordinal)
+    public Dictionary<string, AnalyticsValue> PersonProperties()
     {
-        ["user_name"] = AnalyticsValue.Of(CurrentName),
-        ["name"] = AnalyticsValue.Of(CurrentName),
-        ["username"] = AnalyticsValue.Of(CurrentName),
-        ["platform"] = AnalyticsValue.Of("windows"),
-        ["architecture"] = AnalyticsValue.Of(Architecture),
-        ["app_version"] = AnalyticsValue.Of(appVersion),
-        ["build_number"] = AnalyticsValue.Of(buildNumber),
-        ["os_version"] = AnalyticsValue.Of(systemVersion),
-        ["$os"] = AnalyticsValue.Of("Windows"),
-        ["$os_version"] = AnalyticsValue.Of(systemVersion),
-        ["$app_version"] = AnalyticsValue.Of(appVersion),
-    };
+        Dictionary<string, AnalyticsValue> person = PlatformProperties();
+        person["user_name"] = AnalyticsValue.Of(CurrentName);
+        person["name"] = AnalyticsValue.Of(CurrentName);
+        person["username"] = AnalyticsValue.Of(CurrentName);
+        return person;
+    }
 
     /// <summary>What rides on the identify itself, beside the person.</summary>
     /// <remarks>
@@ -422,6 +543,40 @@ public sealed class AnalyticsManager
 
         LastReason = reason;
         LastSentAt = DateTimeOffset.Now;
+        Changed?.Invoke();
+        return true;
+    }
+
+    /// <summary>Sends today's <c>daily_active</c>, and records the day only if it was accepted.</summary>
+    /// <remarks>
+    /// Its <c>$set</c> carries the platform facts, so the person's version is the version
+    /// actually running from the first day it runs — which is what "users by version" and
+    /// "who has not upgraded" are read from. Not the name: that is the identify's to set.
+    /// </remarks>
+    private async Task<bool> SendHeartbeat()
+    {
+        if (store.Settings.Privacy.AnonymousId is not Guid id)
+        {
+            return false;
+        }
+
+        string day = Today;
+        string distinctId = id.ToString("D", CultureInfo.InvariantCulture);
+        bool accepted = await provider
+            .SendAsync(OperationalEvent.DailyActive, distinctId, OperationalProperties(), PlatformProperties())
+            .ConfigureAwait(true);
+
+        if (!accepted)
+        {
+            return false;
+        }
+
+        store.Update(settings =>
+            settings.Privacy.AnalyticsEnabled && settings.Privacy.AnonymousId == id
+                ? settings with { Privacy = settings.Privacy with { LastActiveDay = day } }
+                : settings);
+
+        LastActiveSentAt = clock();
         Changed?.Invoke();
         return true;
     }

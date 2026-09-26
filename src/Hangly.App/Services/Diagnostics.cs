@@ -199,6 +199,11 @@ public static class Diagnostics
                 ? $"analytics check: an identify is due ({Core.Analytics.AnalyticsManager.NameOf(reason)})"
                 : "analytics check: nothing is due; nothing would be sent on the next launch");
 
+            Log(manager.HeartbeatDue()
+                ? "analytics check: today's daily_active is due"
+                : $"analytics check: no daily_active due (last counted day: {store.Settings.Privacy.LastActiveDay ?? "none"})");
+            Log($"analytics check daily_active properties: {string.Join(", ", manager.OperationalProperties().Keys)}");
+
             string distinctId = store.Settings.Privacy.AnonymousId?.ToString("D") ?? "(minted on the first send)";
             string payload = provider.Preview(
                 distinctId,
