@@ -390,14 +390,23 @@ public class AnalyticsTests : IDisposable
         AnalyticsManager manager = await ui.Run(() => NewManager(store, retryInterval: TimeSpan.FromHours(1)));
         await ui.Run(() => manager.Start());
 
-        int? writtenOn = null;
-        store.Changed += _ => writtenOn = Environment.CurrentManagedThreadId;
+        // Every write, recorded as it is announced. Waiting on the settings value itself
+        // raced: the store updates its value before raising Changed, so a fast machine
+        // could read the value and check the thread before the handler had run.
+        var writtenOn = new System.Collections.Concurrent.ConcurrentQueue<int>();
+        store.Changed += settings =>
+        {
+            if (settings.Privacy.IdentifiedMajorVersion is not null)
+            {
+                writtenOn.Enqueue(Environment.CurrentManagedThreadId);
+            }
+        };
         provider.Accepts = true;
 
         await Task.Run(manager.NetworkBecameAvailable);
-        Assert.True(await Eventually(() => store.Settings.Privacy.IdentifiedMajorVersion is not null));
+        Assert.True(await Eventually(() => !writtenOn.IsEmpty));
 
-        Assert.Equal(ui.ThreadId, writtenOn);
+        Assert.All(writtenOn, thread => Assert.Equal(ui.ThreadId, thread));
     }
 
     /// <summary>A stand-in for the UI thread: one thread, running whatever is posted to it.</summary>
