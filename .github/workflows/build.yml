@@ -116,7 +116,10 @@ jobs:
           $svg = (Get-ChildItem -Path $root -Filter "*.svg" -Recurse -File -ErrorAction SilentlyContinue).Count
           Write-Host "charm artwork: $svg SVG files"
           # Seventy charms plus Bead.svg, the placeholder for one that will not resolve.
-          if ($svg -lt 71) { $missing += "charm artwork (found $svg, expected 71)" }
+          # Counted from the source, not written down: a number here went stale the
+          # first time an unused SVG was deleted, and failed a build that was correct.
+          $expected = (Get-ChildItem -Path src/Hangly.App/Assets/Charms -Filter "*.svg" -Recurse -File).Count
+          if ($svg -lt $expected) { $missing += "charm artwork (found $svg, expected $expected)" }
 
           if ($missing.Count -gt 0) {
             Write-Host "::error::Published payload is incomplete: $($missing -join ', ')"
