@@ -241,6 +241,14 @@ public sealed class AppEnvironment : IDisposable
             Diagnostics.Log($"first run: launch at login switched on ({launchAtLogin.IsEnabled})");
         }
 
+        // An entry naming another copy is this person's choice to start Hangly, pointing at
+        // the wrong file. Honour the choice and fix the file, rather than read it as off.
+        if (launchAtLogin.IsStale && store.Settings.LaunchAtLogin)
+        {
+            launchAtLogin.SetEnabled(true);
+            Diagnostics.Log($"launch at login pointed at another copy; repointed ({launchAtLogin.IsEnabled})");
+        }
+
         bool actuallyEnabled = launchAtLogin.IsEnabled;
         if (actuallyEnabled != store.Settings.LaunchAtLogin)
         {
