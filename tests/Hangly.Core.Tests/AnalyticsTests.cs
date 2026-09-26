@@ -44,12 +44,18 @@ public class AnalyticsTests : IDisposable
     /// <summary>The same document read again, which is what a relaunch is.</summary>
     private SettingsStore Relaunched() => new(Path.Combine(directory, "settings.json"));
 
+    /// <summary>The time the managers in a test believe it is. Tests move it to make a day pass.</summary>
+    private DateTimeOffset now = new(2026, 9, 26, 10, 0, 0, TimeSpan.FromHours(5.5));
+
     private AnalyticsManager NewManager(
         SettingsStore store,
         string version = "1.0.0",
         bool hasDestination = true,
-        TimeSpan? retryInterval = null) =>
-        new(store, provider, "us.i.posthog.com", hasDestination, version, "7", "10.0.26200", retryInterval);
+        TimeSpan? retryInterval = null,
+        TimeSpan? dayWatchInterval = null) =>
+        new(
+            store, provider, "us.i.posthog.com", hasDestination, version, "7", "10.0.26200",
+            retryInterval, dayWatchInterval, () => now);
 
     /// <summary>Waits, up to a limit, for something asynchronous to become true.</summary>
     private static async Task<bool> Eventually(Func<bool> condition, int milliseconds = 3000)
@@ -182,11 +188,15 @@ public class AnalyticsTests : IDisposable
 
     // MARK: - Nothing else, ever
 
-    [Fact(DisplayName = "The provider can send an identify and nothing else")]
-    public void ProviderHasOneMethod()
+    [Fact(DisplayName = "The provider can send an identify and the two operational events, and nothing else")]
+    public void ProviderIsClosed()
     {
-        System.Reflection.MethodInfo method = Assert.Single(typeof(IAnalyticsProvider).GetMethods());
-        Assert.Equal(nameof(IAnalyticsProvider.IdentifyAsync), method.Name);
+        Assert.Equal(
+            [nameof(IAnalyticsProvider.IdentifyAsync), nameof(IAnalyticsProvider.SendAsync)],
+            typeof(IAnalyticsProvider).GetMethods().Select(method => method.Name).Order());
+        Assert.Equal(
+            ["app_uninstalled", "daily_active"],
+            Enum.GetValues<OperationalEvent>().Select(OperationalEvents.NameOf).Order());
     }
 
     [Fact(DisplayName = "Nothing at all is sent until the person has a name")]
@@ -448,6 +458,157 @@ public class AnalyticsTests : IDisposable
         }
 
         public void Dispose() => queue.CompleteAdding();
+    }
+
+    // MARK: - The daily heartbeat
+
+    [Fact(DisplayName = "A first launch identifies, then says the install is active today, in that order")]
+    public async Task FirstLaunchIdentifiesThenHeartbeats()
+    {
+        SettingsStore store = NewStore();
+        await NewManager(store).Start();
+
+        Assert.Equal(["$identify", "daily_active"], provider.Order);
+        Assert.Equal(provider.Calls[0].DistinctId, provider.Events[0].DistinctId);
+        Assert.Equal("2026-09-26", store.Settings.Privacy.LastActiveDay);
+    }
+
+    [Fact(DisplayName = "At most one heartbeat a day, however many launches")]
+    public async Task OneHeartbeatADay()
+    {
+        await NewManager(NewStore()).Start();
+        await NewManager(Relaunched()).Start();
+        now = now.AddHours(8);
+        await NewManager(Relaunched()).Start();
+
+        Assert.Single(provider.Events);
+    }
+
+    [Fact(DisplayName = "The next day's launch sends a heartbeat and no identify")]
+    public async Task NextDayIsOneHeartbeat()
+    {
+        await NewManager(NewStore()).Start();
+        now = now.AddDays(1);
+        await NewManager(Relaunched()).Start();
+
+        Assert.Equal(["$identify", "daily_active", "daily_active"], provider.Order);
+    }
+
+    [Fact(DisplayName = "An app left running past midnight counts the new day by itself")]
+    public async Task RunningPastMidnightCountsTheDay()
+    {
+        SettingsStore store = NewStore();
+        AnalyticsManager manager = NewManager(store, dayWatchInterval: TimeSpan.FromMilliseconds(20));
+        await manager.Start();
+
+        now = now.AddDays(1);
+        Assert.True(await Eventually(() => provider.Events.Count == 2));
+        Assert.Equal("2026-09-27", store.Settings.Privacy.LastActiveDay);
+
+        await Task.Delay(100);
+        Assert.Equal(2, provider.Events.Count);
+    }
+
+    [Fact(DisplayName = "The heartbeat carries the platform and version, and nothing about the person or their use")]
+    public async Task HeartbeatCarriesOnlyOperationalFacts()
+    {
+        await NewManager(NewStore("Zq Distinct Tester"), "1.4.0").Start();
+        EventCall beat = Assert.Single(provider.Events);
+
+        Assert.Equal(OperationalEvent.DailyActive, beat.Event);
+        Assert.Equal("1.4.0", Text(beat.Properties, "app_version"));
+        Assert.Equal("1.4.0", Text(beat.PersonProperties!, "app_version"));
+        Assert.Equal(AnalyticsValue.Of(true), beat.Properties["$geoip_disable"]);
+        Assert.Equal(AnalyticsValue.Null, beat.Properties["$ip"]);
+
+        IEnumerable<string> keys = beat.Properties.Keys.Concat(beat.PersonProperties!.Keys);
+        string[] forbidden = ["name", "charm", "rope", "display", "screen", "position", "count"];
+        Assert.DoesNotContain(keys, key => forbidden.Any(word => key.Contains(word, StringComparison.OrdinalIgnoreCase)));
+        Assert.DoesNotContain(
+            beat.Properties.Values.Concat(beat.PersonProperties.Values),
+            value => value == AnalyticsValue.Of("Zq Distinct Tester"));
+    }
+
+    [Fact(DisplayName = "An update moves the person's version on its first day, without an identify")]
+    public async Task UpdateMovesTheVersionByHeartbeat()
+    {
+        await NewManager(NewStore(), "1.0.0").Start();
+        now = now.AddDays(1);
+        await NewManager(Relaunched(), "1.1.0").Start();
+
+        Assert.Single(provider.Calls);
+        Assert.Equal("1.1.0", Text(provider.Events[^1].PersonProperties!, "app_version"));
+    }
+
+    [Fact(DisplayName = "No heartbeat while the identify is still waiting: never an anonymous person")]
+    public async Task NoHeartbeatBeforeIdentify()
+    {
+        provider.Accepts = false;
+        SettingsStore store = NewStore();
+        await NewManager(store, retryInterval: TimeSpan.FromHours(1)).Start();
+
+        Assert.Empty(provider.Events);
+        Assert.Null(store.Settings.Privacy.LastActiveDay);
+    }
+
+    [Fact(DisplayName = "A heartbeat that could not be sent is retried, and the day recorded only when it arrives")]
+    public async Task FailedHeartbeatIsRetried()
+    {
+        SettingsStore store = NewStore();
+        AnalyticsManager manager = NewManager(store, retryInterval: TimeSpan.FromMilliseconds(30));
+        await manager.Start();
+
+        now = now.AddDays(1);
+        provider.Accepts = false;
+        await manager.Sync();
+        Assert.Equal("2026-09-26", store.Settings.Privacy.LastActiveDay);
+        Assert.True(manager.IsRetrying);
+
+        provider.Accepts = true;
+        Assert.True(await Eventually(() => store.Settings.Privacy.LastActiveDay == "2026-09-27"));
+        Assert.True(await Eventually(() => !manager.IsRetrying));
+    }
+
+    [Fact(DisplayName = "No heartbeat when switched off, nameless, or without a destination")]
+    public async Task NoHeartbeatWithoutConsent()
+    {
+        SettingsStore off = NewStore();
+        off.Update(settings => settings with { Privacy = settings.Privacy.Forgotten() });
+        await NewManager(off).Start();
+        await NewManager(Relaunched(), hasDestination: false).Start();
+
+        Assert.Empty(provider.Events);
+    }
+
+    // MARK: - Uninstall
+
+    [Fact(DisplayName = "Uninstalling tells the project once, under the same identity, with no name")]
+    public async Task UninstallIsReported()
+    {
+        SettingsStore store = NewStore("Zq Distinct Tester");
+        AnalyticsManager manager = NewManager(store);
+        await manager.Start();
+
+        Assert.True(await manager.UninstalledAsync());
+
+        EventCall gone = provider.Events[^1];
+        Assert.Equal(OperationalEvent.Uninstalled, gone.Event);
+        Assert.Equal(provider.Calls[0].DistinctId, gone.DistinctId);
+        Assert.Null(gone.PersonProperties);
+        Assert.DoesNotContain(gone.Properties.Values, value => value == AnalyticsValue.Of("Zq Distinct Tester"));
+    }
+
+    [Fact(DisplayName = "Uninstalling says nothing when switched off, or for a person never identified")]
+    public async Task UninstallRespectsConsent()
+    {
+        SettingsStore off = NewStore();
+        off.Update(settings => settings with { Privacy = settings.Privacy.Forgotten() });
+        Assert.False(await NewManager(off).UninstalledAsync());
+
+        SettingsStore neverSent = NewNamelessStore();
+        Assert.False(await NewManager(neverSent).UninstalledAsync());
+
+        Assert.Empty(provider.Events);
     }
 
     // MARK: - Consent

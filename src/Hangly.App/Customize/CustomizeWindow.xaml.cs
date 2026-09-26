@@ -1205,14 +1205,29 @@ public sealed partial class CustomizeWindow : Window
                 analytics.PersonProperties().Keys.Prepend("install_id").Distinct());
             AnalyticsEndpoint.Text = analytics.Connection.Summary;
             AnalyticsIdentifier.Text = analytics.MaskedIdentifier ?? "none yet";
-            AnalyticsLastSent.Text = analytics.LastReason is IdentifyReason reason
-                ? $"{AnalyticsManager.NameOf(reason).Replace('_', ' ')} — {analytics.LastSentAt:HH:mm:ss}"
-                : "nothing this session";
+            AnalyticsLastSent.Text = LastSentDescription();
         }
         finally
         {
             isLoading = wasLoading;
         }
+    }
+
+    /// <summary>The most recent thing sent this session, in words.</summary>
+    private string LastSentDescription()
+    {
+        string? identify = analytics.LastReason is IdentifyReason reason
+            ? $"{AnalyticsManager.NameOf(reason).Replace('_', ' ')} — {analytics.LastSentAt:HH:mm:ss}"
+            : null;
+        string? active = analytics.LastActiveSentAt is DateTimeOffset at ? $"active today — {at:HH:mm:ss}" : null;
+
+        return (identify, active) switch
+        {
+            (null, null) => "nothing this session",
+            (string one, null) => one,
+            (null, string other) => other,
+            _ => analytics.LastActiveSentAt >= analytics.LastSentAt ? active! : identify!,
+        };
     }
 
     private void OnAnalyticsChanged()

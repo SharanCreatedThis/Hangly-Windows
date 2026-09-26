@@ -36,9 +36,13 @@ internal static class Program
         // Hangly that will run. See Diagnostics.Install.
         Diagnostics.Install();
 
-        VelopackApp.Build().Run();
+        // The uninstall hook removes the run-at-login entry and, if the project knows this
+        // person, tells it once. See Services/Uninstall.cs for what it may and may not do.
+        VelopackApp.Build()
+            .OnBeforeUninstallFastCallback(_ => Uninstall.Run())
+            .Run();
 
-        // A development switch, not a feature. It opens and measures all eighty-one
+        // A development switch, not a feature. It opens and measures all seventy
         // charms and writes what failed, which is the one question a screenshot of three
         // of them cannot answer. The macOS build has the same check and calls it from its
         // own development-only launch path.
