@@ -87,6 +87,11 @@ public sealed class AppEnvironment : IDisposable
             AppInfo.BuildNumber,
             AppInfo.WindowsVersion);
 
+        // A first identify made offline goes as soon as the network comes back, not on
+        // the next launch. The manager ignores this when nothing is pending, which is
+        // nearly always, and marshals it onto this thread itself.
+        System.Net.NetworkInformation.NetworkChange.NetworkAvailabilityChanged += OnNetworkAvailabilityChanged;
+
         OverlaySettings settings = this.store.Settings.Overlay;
         rope = new RopeSimulation(
             style: settings.RopeStyle,
@@ -689,8 +694,17 @@ public sealed class AppEnvironment : IDisposable
         Application.Current.Exit();
     }
 
+    private void OnNetworkAvailabilityChanged(object? sender, System.Net.NetworkInformation.NetworkAvailabilityEventArgs args)
+    {
+        if (args.IsAvailable)
+        {
+            analytics.NetworkBecameAvailable();
+        }
+    }
+
     public void Dispose()
     {
+        System.Net.NetworkInformation.NetworkChange.NetworkAvailabilityChanged -= OnNetworkAvailabilityChanged;
         store.Changed -= OnSettingsChanged;
         (analyticsProvider as IDisposable)?.Dispose();
         HideOverlay();

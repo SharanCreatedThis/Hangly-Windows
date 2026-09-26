@@ -47,8 +47,26 @@ public class AnalyticsTests : IDisposable
     private AnalyticsManager NewManager(
         SettingsStore store,
         string version = "1.0.0",
-        bool hasDestination = true) =>
-        new(store, provider, "us.i.posthog.com", hasDestination, version, "7", "10.0.26200");
+        bool hasDestination = true,
+        TimeSpan? retryInterval = null) =>
+        new(store, provider, "us.i.posthog.com", hasDestination, version, "7", "10.0.26200", retryInterval);
+
+    /// <summary>Waits, up to a limit, for something asynchronous to become true.</summary>
+    private static async Task<bool> Eventually(Func<bool> condition, int milliseconds = 3000)
+    {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        while (clock.ElapsedMilliseconds < milliseconds)
+        {
+            if (condition())
+            {
+                return true;
+            }
+
+            await Task.Delay(10);
+        }
+
+        return condition();
+    }
 
     public void Dispose()
     {
@@ -233,6 +251,194 @@ public class AnalyticsTests : IDisposable
         Assert.Equal("Recorded", privacy.IdentifiedName);
         Assert.Equal(3, privacy.IdentifiedMajorVersion);
         Assert.False(privacy.FirstIdentifyPending);
+    }
+
+    // MARK: - One person, however often they change
+
+    [Fact(DisplayName = "Five renames are five updates to one person, never a second one")]
+    public async Task FiveRenamesStayOnePerson()
+    {
+        SettingsStore store = NewStore("Name 0");
+        AnalyticsManager manager = NewManager(store);
+        await manager.Start();
+
+        for (int rename = 1; rename <= 6; rename++)
+        {
+            store.Update(settings => settings with { DisplayName = $"Name {rename}" });
+            await manager.Sync();
+        }
+
+        Assert.Equal(7, provider.Calls.Count);
+        Assert.Single(provider.Calls.Select(call => call.DistinctId).Distinct());
+        Assert.All(provider.Calls.Skip(1), call => Assert.Equal("name_changed", Reason(call)));
+        Assert.Equal("Name 6", Text(provider.Calls[^1].PersonProperties, "name"));
+        Assert.Equal("Name 6", store.Settings.Privacy.IdentifiedName);
+    }
+
+    [Fact(DisplayName = "Updates and reboots keep the same person")]
+    public async Task UpdatesAndRebootsKeepThePerson()
+    {
+        await NewManager(NewStore(), "1.0.0").Start();
+        foreach (string version in new[] { "1.0.1", "1.1.0", "1.2.0", "2.0.0", "2.0.1" })
+        {
+            // Each is a relaunch against the same document: an update, or a reboot.
+            await NewManager(Relaunched(), version).Start();
+        }
+
+        Assert.Equal(2, provider.Calls.Count);
+        Assert.Single(provider.Calls.Select(call => call.DistinctId).Distinct());
+        Assert.Equal("major_version", Reason(provider.Calls[1]));
+    }
+
+    // MARK: - Offline onboarding
+
+    [Fact(DisplayName = "Offline, then the network returns: sent at once, without a relaunch, exactly once")]
+    public async Task NetworkReturningSendsThePendingIdentify()
+    {
+        provider.Accepts = false;
+        SettingsStore store = NewStore();
+        AnalyticsManager manager = NewManager(store, retryInterval: TimeSpan.FromHours(1));
+        await manager.Start();
+        Assert.True(manager.IsRetrying);
+
+        provider.Accepts = true;
+        manager.NetworkBecameAvailable();
+        Assert.True(await Eventually(() => store.Settings.Privacy.IdentifiedMajorVersion is not null));
+
+        manager.NetworkBecameAvailable();
+        await manager.Sync();
+
+        Assert.Equal(2, provider.Calls.Count);
+        Assert.Equal("first_launch", Reason(provider.Calls[1]));
+        Assert.Single(provider.Calls.Select(call => call.DistinctId).Distinct());
+        Assert.False(manager.IsRetrying);
+    }
+
+    [Fact(DisplayName = "A network that returns silently is caught by the retry, which then stops")]
+    public async Task RetryCatchesASilentReturn()
+    {
+        provider.Accepts = false;
+        SettingsStore store = NewStore();
+        AnalyticsManager manager = NewManager(store, retryInterval: TimeSpan.FromMilliseconds(30));
+        await manager.Start();
+
+        provider.Accepts = true;
+        Assert.True(await Eventually(() => store.Settings.Privacy.IdentifiedMajorVersion is not null));
+        Assert.True(await Eventually(() => !manager.IsRetrying));
+
+        int sent = provider.Calls.Count;
+        await Task.Delay(150);
+        Assert.Equal(sent, provider.Calls.Count);
+    }
+
+    [Fact(DisplayName = "Offline install, reboot while still offline, then online: one person")]
+    public async Task OfflineAcrossARebootIsStillOnePerson()
+    {
+        provider.Accepts = false;
+        await NewManager(NewStore(), retryInterval: TimeSpan.FromHours(1)).Start();
+        await NewManager(Relaunched(), retryInterval: TimeSpan.FromHours(1)).Start();
+
+        provider.Accepts = true;
+        AnalyticsManager online = NewManager(Relaunched(), retryInterval: TimeSpan.FromHours(1));
+        await online.Start();
+        online.NetworkBecameAvailable();
+        await online.Sync();
+
+        // Two attempts that never arrived, one that did, and nothing after it: every
+        // attempt carried the same identifier, so PostHog holds one person.
+        Assert.Single(provider.Calls.Select(call => call.DistinctId).Distinct());
+        Assert.Equal(["first_launch", "first_launch", "first_launch"], provider.Calls.Select(Reason));
+        Assert.NotNull(Relaunched().Settings.Privacy.IdentifiedMajorVersion);
+    }
+
+    [Fact(DisplayName = "Nothing retries when nothing is pending")]
+    public async Task NoRetryWhenSent()
+    {
+        AnalyticsManager manager = NewManager(NewStore(), retryInterval: TimeSpan.FromMilliseconds(20));
+        await manager.Start();
+
+        Assert.False(manager.IsRetrying);
+        await Task.Delay(100);
+        Assert.Single(provider.Calls);
+    }
+
+    [Fact(DisplayName = "Switching off while retrying stops the retry")]
+    public async Task TurningOffStopsRetrying()
+    {
+        provider.Accepts = false;
+        AnalyticsManager manager = NewManager(NewStore(), retryInterval: TimeSpan.FromMilliseconds(20));
+        await manager.Start();
+        Assert.True(manager.IsRetrying);
+
+        await manager.SetEnabled(false);
+
+        Assert.False(manager.IsRetrying);
+        int sent = provider.Calls.Count;
+        await Task.Delay(100);
+        Assert.Equal(sent, provider.Calls.Count);
+    }
+
+    // MARK: - Threads
+
+    [Fact(DisplayName = "A network notification on a pool thread writes the settings on the owner's thread")]
+    public async Task WorkHappensOnTheOwnersThread()
+    {
+        using var ui = new SingleThreadContext();
+        SettingsStore store = NewStore();
+        provider.Accepts = false;
+
+        AnalyticsManager manager = await ui.Run(() => NewManager(store, retryInterval: TimeSpan.FromHours(1)));
+        await ui.Run(() => manager.Start());
+
+        int? writtenOn = null;
+        store.Changed += _ => writtenOn = Environment.CurrentManagedThreadId;
+        provider.Accepts = true;
+
+        await Task.Run(manager.NetworkBecameAvailable);
+        Assert.True(await Eventually(() => store.Settings.Privacy.IdentifiedMajorVersion is not null));
+
+        Assert.Equal(ui.ThreadId, writtenOn);
+    }
+
+    /// <summary>A stand-in for the UI thread: one thread, running whatever is posted to it.</summary>
+    private sealed class SingleThreadContext : SynchronizationContext, IDisposable
+    {
+        private readonly System.Collections.Concurrent.BlockingCollection<(SendOrPostCallback, object?)> queue = [];
+        private readonly Thread thread;
+
+        public SingleThreadContext()
+        {
+            thread = new Thread(() =>
+            {
+                SetSynchronizationContext(this);
+                foreach ((SendOrPostCallback callback, object? state) in queue.GetConsumingEnumerable())
+                {
+                    callback(state);
+                }
+            })
+            { IsBackground = true };
+            thread.Start();
+        }
+
+        public int ThreadId => thread.ManagedThreadId;
+
+        public override void Post(SendOrPostCallback d, object? state) => queue.Add((d, state));
+
+        public Task<T> Run<T>(Func<T> work)
+        {
+            var done = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Post(_ => done.SetResult(work()), null);
+            return done.Task;
+        }
+
+        public Task Run(Func<Task> work)
+        {
+            var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Post(_ => work().ContinueWith(_ => done.SetResult(), TaskScheduler.Default), null);
+            return done.Task;
+        }
+
+        public void Dispose() => queue.CompleteAdding();
     }
 
     // MARK: - Consent
