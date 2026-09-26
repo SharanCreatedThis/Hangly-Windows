@@ -513,6 +513,12 @@ public sealed record AppSettings
 
     public OverlaySettings Overlay { get; init; } = new();
 
+    /// <summary>Sound effects: on by default, as on macOS.</summary>
+    public bool SoundEffectsEnabled { get; init; } = true;
+
+    /// <summary>Sound volume, 0–1. The macOS default: quiet, because it is an ornament.</summary>
+    public double SoundVolume { get; init; } = 0.14;
+
     public PrivacySettings Privacy { get; init; } = new();
 
     public MilestoneSettings Milestones { get; init; } = new();
@@ -522,6 +528,7 @@ public sealed record AppSettings
     public AppSettings Clamped() => this with
     {
         Overlay = Overlay.Clamped(),
+        SoundVolume = double.IsFinite(SoundVolume) ? Math.Clamp(SoundVolume, 0, 1) : 0.14,
         DisplayName = DisplayName.Trim() is { Length: > 0 } trimmed
             ? trimmed[..Math.Min(trimmed.Length, DisplayNameLimit)]
             : string.Empty,

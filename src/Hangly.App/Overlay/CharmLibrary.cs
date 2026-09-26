@@ -88,6 +88,8 @@ public static class CharmLibrary
             // artwork.
             CharmCatalog.BeadsFor(entry, regions),
             regions?.Body ?? WholeArtwork,
-            regions?.Beads ?? []);
+            regions?.Beads ?? [],
+            // The material from the catalogue; a charm somebody made is soft, as on macOS.
+            entry.Sound);
     }
 }

@@ -40,7 +40,8 @@ public sealed record CharmDescriptor(
     CharmPalette Palette,
     IReadOnlyList<CharmBead> Beads,
     Rect Body,
-    IReadOnlyList<Rect> BeadRegions);
+    IReadOnlyList<Rect> BeadRegions,
+    Hangly.Core.Audio.CharmSound Sound = Hangly.Core.Audio.CharmSound.Soft);
 
 /// <summary>Rasterises charm artwork, once per size.</summary>
 /// <remarks>
