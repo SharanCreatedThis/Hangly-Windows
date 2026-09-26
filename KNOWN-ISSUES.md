@@ -15,14 +15,24 @@ Labels are about **how each is known**: **[MEASURED]** on the author's machine,
 is not code-signed. Click More info → Run anyway. Signing is being arranged through
 SignPath Foundation. **[VERIFIED]**
 
-**The download is about 120 MB**, and **so is each update.** It contains its own copy of
-.NET, so there is nothing else to install and nothing else to keep up to date. Velopack can
+**The download is about 300 MB**, and **so is each update.** It contains its own copy of
+.NET, so there is nothing else to install and nothing else to keep up to date — and, since
+Creator Studio, the 170 MB model that finds the subject of a photo on this PC, with the
+runtime that runs it. Measured: a compressed x64 build is 301 MB with the Studio, against
+141 MB before it. **[MEASURED]** Velopack can
 ship small differences between versions instead, and the release pipeline is not set up to
 produce them yet — so updating from one beta to the next downloads the whole thing again.
 Measured: the 0.9.0 → 0.9.1 update was 122.9 MB and took 68 seconds. **[MEASURED]**
 
-**The charm draws over full-screen windows**, including games and video. There is no
-"hide when something is full-screen" behaviour yet. **[MEASURED]**
+**The charm draws over full-screen windows**, including games and video, unless you switch
+on **Auto-hide during full-screen video** in Customize → Appearance → Behaviour. It is off
+by default. **[MEASURED]**
+
+**Creator Studio takes a few seconds to find the subject.** The picture opens at once and
+the cut-out arrives when the model has finished: 4–6 seconds a photo on the CPU of the
+ARM64 test VM. A PC with a DirectX 12 GPU runs it through DirectML instead; that path has
+not been measured on real hardware yet. Save waits for the subject, so a placeholder
+cut-out is never saved by accident. **[MEASURED in a VM]**
 
 **Uninstalling leaves your settings behind** in `%APPDATA%\Hangly`, on purpose, so a
 reinstall remembers your charms. Delete that folder to be rid of them. **[VERIFIED]**
@@ -93,11 +103,6 @@ This is the honest list, and it is the main reason for the beta.
 
 ## Not in this version, on purpose
 
-- **Sound.** Removed rather than left as a switch that does nothing. Coming in v1.1.
-- **Creator Studio** — the full editor macOS has. The **Create** tab is this version's
-  answer, and it works. Studio is v1.1.
-- **Photo import with subject cut-out.** You can import a photo; Hangly will not cut the
-  subject out of it for you. v1.1.
 - **Weather charms and seasonal charms.** These exist on macOS and are **not coming to
   Windows**. Removed from the roadmap permanently.
 

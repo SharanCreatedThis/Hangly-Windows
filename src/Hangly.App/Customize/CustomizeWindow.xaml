@@ -4,7 +4,8 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
-    xmlns:local="using:Hangly.App.Customize">
+    xmlns:local="using:Hangly.App.Customize"
+    xmlns:studio="using:Hangly.App.Studio">
 
     <Grid x:Name="Root">
         <Grid.Resources>
@@ -630,80 +631,12 @@
                 </Grid>
 
                 <!--
-                    Create. The smallest thing that turns a picture into a charm: pick a
-                    file, see it, name it, hang it. Everything it does not offer —
-                    cutting out a background, moving the knot, editing the beads — is
-                    deliberately absent rather than unfinished.
+                    Create is Creator Studio: the same Studio, layout and flow as macOS,
+                    hosted here as the macOS Create section hosts it. See StudioView.xaml.
                 -->
-                <ScrollViewer x:Name="CreatePage" Visibility="Collapsed">
-                    <StackPanel Margin="24,16,24,24" MaxWidth="640" HorizontalAlignment="Left" Spacing="16">
-                        <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Create" />
-                        <TextBlock
-                            Opacity="0.8"
-                            Style="{StaticResource BodyTextBlockStyle}"
-                            Text="Turn a picture into a charm. PNG, JPG or SVG."
-                            TextWrapping="Wrap" />
-
-                        <Button
-                            x:Name="CreateChooseButton"
-                            AutomationProperties.AutomationId="CreateChooseButton"
-                            Click="OnCreateChoose"
-                            Content="Choose a picture…" />
-
-                        <Border
-                            x:Name="CreatePreviewFrame"
-                            Height="260"
-                            Padding="16"
-                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Visibility="Collapsed">
-                            <Image
-                                x:Name="CreatePreview"
-                                AutomationProperties.AutomationId="CreatePreview"
-                                Stretch="Uniform" />
-                        </Border>
-
-                        <StackPanel x:Name="CreateDetails" Spacing="6" Visibility="Collapsed">
-                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Name" />
-                            <TextBox
-                                x:Name="CreateNameBox"
-                                MaxWidth="320"
-                                HorizontalAlignment="Left"
-                                AutomationProperties.AutomationId="CreateNameBox"
-                                AutomationProperties.Name="Charm name"
-                                MaxLength="40"
-                                TextChanged="OnCreateNameChanged" />
-                            <TextBlock
-                                Opacity="0.7"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="It joins the Custom collection in your Library." />
-
-                            <StackPanel Margin="0,10,0,0" Orientation="Horizontal" Spacing="8">
-                                <Button
-                                    x:Name="CreateAndHangButton"
-                                    AutomationProperties.AutomationId="CreateAndHangButton"
-                                    Click="OnCreateAndHang"
-                                    Content="Create &amp; Hang"
-                                    Style="{StaticResource AccentButtonStyle}" />
-                                <Button
-                                    x:Name="CreateAndSaveButton"
-                                    AutomationProperties.AutomationId="CreateAndSaveButton"
-                                    Click="OnCreateAndSave"
-                                    Content="Create &amp; Save" />
-                            </StackPanel>
-                        </StackPanel>
-
-                        <TextBlock
-                            x:Name="CreateMessage"
-                            AutomationProperties.AutomationId="CreateMessage"
-                            MaxWidth="560"
-                            Opacity="0.85"
-                            Style="{StaticResource BodyTextBlockStyle}"
-                            TextWrapping="Wrap" />
-                    </StackPanel>
-                </ScrollViewer>
+                <Grid x:Name="CreatePage" Visibility="Collapsed">
+                    <studio:StudioView x:Name="StudioPane" />
+                </Grid>
 
                 <!-- Appearance -->
                 <ScrollViewer x:Name="AppearancePage" Visibility="Collapsed">

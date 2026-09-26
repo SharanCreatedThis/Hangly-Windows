@@ -125,7 +125,10 @@ macOS one.
 **v1.0** — what is in the beta, signed, plus the manual QA pass across scaling factors,
 multiple monitors and Windows 10.
 
-**v1.1** — Creator Studio, photo import with subject extraction, and sound.
+**Shipped since the beta:** Creator Studio (drop a photo, get a charm with the subject cut
+out, on this PC), sound, reduced motion and auto-hide during full-screen video.
+
+**Later:** a High Quality cut-out mode and GPU acceleration measured on real hardware.
 
 **Not planned.** Weather charms and seasonal charms exist on macOS and are not coming to
 Windows. They are removed from the roadmap permanently rather than deferred.

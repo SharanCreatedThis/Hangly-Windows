@@ -4,6 +4,9 @@ obj/
 publish/
 artifacts/
 
+# Creator Studio's subject model, fetched and hash-checked by the build (Hangly.App.csproj).
+.models/
+
 # IDE
 *.user
 .vs/

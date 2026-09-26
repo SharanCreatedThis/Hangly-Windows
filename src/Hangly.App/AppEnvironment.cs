@@ -61,6 +61,9 @@ public sealed class AppEnvironment : IDisposable
 
     private Customize.CustomizeWindow? customize;
 
+    /// <summary>The XAML thread's queue, for things the overlay's thread asks the windows to do.</summary>
+    private Microsoft.UI.Dispatching.DispatcherQueue? xamlQueue;
+
     public AppEnvironment(SettingsStore? store = null, ILaunchAtLogin? launchAtLogin = null)
     {
         this.store = store ?? new SettingsStore(SettingsStore.DefaultPath);
@@ -320,6 +323,13 @@ public sealed class AppEnvironment : IDisposable
         OpenCustomize();
         customize?.ShowSectionNamed(section);
         Diagnostics.Log($"audit: opened {section}");
+
+        // With HANGLY_AUDIT_STUDIO naming a picture, it is opened in the Studio as a drop would.
+        if (Environment.GetEnvironmentVariable("HANGLY_AUDIT_STUDIO") is { Length: > 0 } picture)
+        {
+            customize?.OpenInStudio(picture, null);
+            Diagnostics.Log("audit: opened a picture in the Studio");
+        }
     }
 
     /// <summary>
@@ -413,55 +423,31 @@ public sealed class AppEnvironment : IDisposable
     /// once the file has been read and accepted, charm_saved once it is stored. Neither
     /// carries the file, its name or its size.
     /// </remarks>
-    /// <summary>A file was dropped on a charm: import it and put it in that place.</summary>
+    /// <summary>A picture was dropped on a charm: open it in Creator Studio, for that place.</summary>
     /// <remarks>
-    /// <b>Off the frame loop.</b> This is raised from the thread that owns the overlay
-    /// window, and importing rasterises an SVG and writes two files; doing that inline
-    /// would stall the rope for as long as it took. The work is handed to the thread pool
-    /// and only the settings write comes back, which the store already serialises.
+    /// <b>The Studio, not a silent import</b> (decision D7): dropping is the primary way in,
+    /// so it opens the Studio with the picture in it — background removed, subject found —
+    /// and Save with "Use on rope" puts the charm in the place it was dropped on. Dropping
+    /// on the middle of three still replaces the middle of three; it just shows you the
+    /// charm first. macOS does the same.
     ///
-    /// <para><b>The place, not the charm.</b> Replacing through the stack is what keeps
-    /// everything else true: the place keeps its size, the rope keeps its order, and
-    /// favourites and recents are untouched except for the recent entry the import earns.
-    /// Dropping on the middle of three replaces the middle of three.</para>
+    /// <para>Raised on the overlay's own thread; the window is XAML and is opened on the
+    /// thread that owns XAML.</para>
     /// </remarks>
     private void OnFileDroppedOnCharm(int slot, string path)
     {
-        _ = Task.Run(() =>
+        Diagnostics.Log($"picture dropped on place {slot}; opening the Studio");
+        if (xamlQueue?.TryEnqueue(() => OpenStudio(path, slot)) != true)
         {
-            try
-            {
-                long size = 0;
-                try
-                {
-                    size = new FileInfo(path).Length;
-                }
-                catch (IOException)
-                {
-                    // The size is a bucket on one event. Not worth failing an import for.
-                }
+            Diagnostics.Log("drop could not reach the UI thread");
+        }
+    }
 
-                ImportOutcome outcome = ImportCharm(path);
-                if (!outcome.IsAccepted || outcome.Entry is null)
-                {
-                    Diagnostics.Log($"drop refused: {outcome.Message}");
-                    return;
-                }
-
-                string id = Hangly.Core.Models.CharmId.ForCustom(outcome.Entry.Id);
-                store.Update(settings => settings with
-                {
-                    Overlay = settings.Overlay.WithStack(settings.Overlay.Stack.WithCharm(slot, id)),
-                    Library = settings.Library.WithRecent(id),
-                });
-
-                Diagnostics.Log($"dropped charm went into place {slot}");
-            }
-            catch (Exception exception)
-            {
-                Diagnostics.Failure("drop import", exception);
-            }
-        });
+    /// <summary>Opens Customize on Create with a picture in the Studio.</summary>
+    public void OpenStudio(string path, int? slot)
+    {
+        OpenCustomize();
+        customize?.OpenInStudio(path, slot);
     }
 
     public ImportOutcome ImportCharm(string path)
@@ -553,6 +539,7 @@ public sealed class AppEnvironment : IDisposable
             CharmLibrary.Resolve(artwork, index, hangingPlaces),
             audio);
 
+        xamlQueue ??= Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
         overlay.FileDropped += OnFileDroppedOnCharm;
         Diagnostics.Log("overlay window constructed");
 
@@ -632,6 +619,13 @@ public sealed class AppEnvironment : IDisposable
         OpenCustomize();
         customize?.ShowLibrary();
         Diagnostics.Log("opened on the library");
+    }
+
+    /// <summary>Opens Creator Studio, empty, ready for a picture.</summary>
+    private void OpenCreate()
+    {
+        OpenCustomize();
+        customize?.ShowSectionNamed("create");
     }
 
     /// <summary>Opens Customize on the About page, showing the update that was found.</summary>
@@ -752,6 +746,7 @@ public sealed class AppEnvironment : IDisposable
                 () => store.UpdateOverlay(overlay => overlay with { IsEnabled = !overlay.IsEnabled })),
             MenuEntry.Separator,
             new MenuEntry("Library", OpenLibrary),
+            new MenuEntry("Create…", OpenCreate),
             MenuEntry.Separator,
             new MenuEntry("Charms", Children: charms),
             new MenuEntry("Rope", Children: ropes),

@@ -140,6 +140,14 @@
          reference resolves only the one the build happens to be running on. -->
     <PackageReference Include="SkiaSharp" Version="4.152.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.152.1" />
+
+    <!-- Runs Creator Studio's subject model, offline: on the GPU through DirectML where
+         there is one, on the CPU where there is not. The DirectML build carries ONNX
+         Runtime's CPU provider as well, so it is the only runtime package; the two cannot
+         be referenced together, because both ship onnxruntime.dll. The GPU is an
+         accelerator, not a requirement (D1), and the Studio stays usable while the model
+         runs (StudioSession). -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.DirectML" Version="1.24.4" />
   </ItemGroup>
 
   <ItemGroup>
@@ -175,6 +183,47 @@
          out of the executable instead, which is also one fewer file to ship and one fewer
          way for the two copies to drift apart. -->
   </ItemGroup>
+
+  <!--
+    Creator Studio's subject model: IS-Net (DIS, general use), Apache-2.0, 170 MB. Chosen
+    over BiRefNet for speed at Vision-level accuracy: 4.2 s a picture on a VM's CPU against
+    58 s (PHASE-A-PLAN.md, D1 follow-up). Too large for git, which refuses files over
+    100 MB, so the build fetches it once into .models/ at the repository root and checks
+    it against a pinned SHA-256 before shipping it; a different file fails the build
+    rather than ship. The app itself never downloads anything: the model travels inside
+    the install, and cut-outs work offline from the first launch.
+  -->
+  <PropertyGroup>
+    <SubjectModelUrl>https://github.com/danielgatis/rembg/releases/download/v0.0.0/isnet-general-use.onnx</SubjectModelUrl>
+    <SubjectModelSha256>60920E99C45464F2BA57BEE2AD08C919A52BBF852739E96947FBB4358C0D964A</SubjectModelSha256>
+    <SubjectModelCache>$(MSBuildProjectDirectory)/../../.models/</SubjectModelCache>
+    <SubjectModelFile>$(SubjectModelCache)isnet-general-use.onnx</SubjectModelFile>
+  </PropertyGroup>
+
+  <Target Name="FetchSubjectModel" BeforeTargets="AssignTargetPaths" Condition="!Exists('$(SubjectModelFile)')">
+    <DownloadFile SourceUrl="$(SubjectModelUrl)" DestinationFolder="$(SubjectModelCache)" DestinationFileName="isnet-general-use.onnx.partial" Retries="3" />
+    <GetFileHash Files="$(SubjectModelCache)isnet-general-use.onnx.partial" Algorithm="SHA256">
+      <Output TaskParameter="Hash" PropertyName="FetchedSubjectModelHash" />
+    </GetFileHash>
+    <Delete Files="$(SubjectModelCache)isnet-general-use.onnx.partial" Condition="'$(FetchedSubjectModelHash)' != '$(SubjectModelSha256)'" />
+    <Error Condition="'$(FetchedSubjectModelHash)' != '$(SubjectModelSha256)'" Text="The subject model's SHA-256 is $(FetchedSubjectModelHash), not the pinned $(SubjectModelSha256). Not shipping it." />
+    <Move SourceFiles="$(SubjectModelCache)isnet-general-use.onnx.partial" DestinationFiles="$(SubjectModelFile)" />
+  </Target>
+
+  <ItemGroup>
+    <!-- None, not Content, for the PRI reason given for CreatorUPIQR.png above. -->
+    <None Include="$(SubjectModelFile)" Link="Models/subject.onnx" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    The DirectML package also carries its debug layer, its symbols and an import library.
+    None of them run in the app — the debug layer is only loaded by developer tooling — and
+    together they are about 15 MB of every download. Removed after publishing, before the
+    release step packs the folder.
+  -->
+  <Target Name="DropDirectMLDeveloperFiles" AfterTargets="Publish">
+    <Delete Files="$(PublishDir)DirectML.Debug.dll;$(PublishDir)DirectML.Debug.pdb;$(PublishDir)DirectML.pdb;$(PublishDir)onnxruntime.lib" />
+  </Target>
 
   <!-- A build that updates from a local folder must never be one anybody is given. -->
   <Target Name="RefuseTestUpdateFeed" BeforeTargets="Build"
