@@ -64,7 +64,7 @@ Four rules shape every decision below.
             ▼
    ┌──────────────────────────────────────────────────────┐
    │ Models — OverlaySettings, AppSettings, CharmStack,    │
-   │          RopeStyle, WeatherMood, ScreenPlacement      │
+   │          RopeStyle, RopeTimeProfile, ScreenPlacement  │
    │          (pure values, no imports beyond Foundation)  │
    └──────────────────────────────────────────────────────┘
 ```
@@ -521,12 +521,6 @@ is a question for `CharmStackTests`, which will answer it exhaustively.
 **A fourth time of day.** A `RopeTimeProfile` case, its three scales, and an hour
 range in `forHour(_:)`. Everything else — the menu, persistence, the solver — is
 driven from `allCases`. See [the physics notes](Physics.md#the-time-of-day).
-
-**A sixth kind of weather.** A `WeatherCondition` case, its codes in
-`fromWMOCode(_:)`, and a `WeatherMood` describing what it does to a colour. The
-renderer is handed a mood and never learns what the weather is, which is what keeps
-every effect expressible as an adjustment to the artwork rather than a layer over
-it. See [the weather notes](Weather.md).
 
 **A new rope style.** Add a `RopeStyle` case and its two rows — a `RopePhysicsProfile`
 the solver reads and a `RopeAppearance` the renderer reads. The solver, the renderer

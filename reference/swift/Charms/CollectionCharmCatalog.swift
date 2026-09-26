@@ -139,11 +139,11 @@ enum CollectionCharmCatalog {
     /// Floor on a bead's weight, so the smallest still pulls on the cord.
     static let minimumBeadMass = 0.05
 
-    /// The hand-drawn collection, the seasonal packs, the four collections, the
-    /// five story collections, then the classics — the order the charm menu offers
+    /// The hand-drawn collection, the four collections, the five story
+    /// collections, then the classics — the order the charm menu offers
     /// them in.
     static let entries: [Entry] =
-        collectionEntries + seasonalEntries + collectionPackEntries + storyPackEntries + classicEntries
+        collectionEntries + collectionPackEntries + storyPackEntries + classicEntries
 
     private static let collectionEntries: [Entry] = [
         Entry(

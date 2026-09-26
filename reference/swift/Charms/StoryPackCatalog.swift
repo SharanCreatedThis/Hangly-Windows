@@ -21,9 +21,9 @@ import Foundation
 /// Palettes are sampled from the artwork rather than chosen, by the rule the four
 /// before them used: `primary` is the mean of the most saturated tenth of the
 /// opaque pixels, `deep` and `light` the means of the darkest and lightest
-/// twelfths, and `secondary` is `primary` at 62 per cent. The ambient glow and the
-/// weather tinting read these, so a palette that disagrees with the picture shows
-/// up on screen as a halo in the wrong colour.
+/// twelfths, and `secondary` is `primary` at 62 per cent. The ambient glow reads
+/// these, so a palette that disagrees with the picture shows up on screen as a halo
+/// in the wrong colour.
 extension CollectionCharmCatalog {
     /// The five, in the order the Library offers them. Split across two files so
     /// that neither runs past the length the linter allows.

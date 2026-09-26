@@ -15,15 +15,14 @@ namespace Hangly.Core.Tests;
 /// </summary>
 public class CharmCatalogTests
 {
-    /// <summary>Seventy charms ship, which is eleven fewer than macOS.</summary>
+    /// <summary>Seventy charms ship — the same seventy as macOS.</summary>
     /// <remarks>
-    /// The Swift declares eighty-one. The difference is the seasonal pack, cut from this
-    /// build along with the eleven charms that only existed to fill it — see STATUS.md.
-    /// The generator is where that is expressed, by not reading
-    /// <c>SeasonalCharmCatalog.swift</c> at all, so this number and the Swift's are both
-    /// right about their own platform.
+    /// Windows once carried eleven fewer than macOS, because the seasonal packs were cut
+    /// here first. They have since been removed from macOS too, so the Swift in
+    /// <c>reference/</c> and this catalogue agree, and the generator no longer leaves
+    /// anything out.
     /// </remarks>
-    [Fact(DisplayName = "Seventy charms ship: the Swift's eighty-one less the seasonal pack")]
+    [Fact(DisplayName = "Seventy charms ship, the same as macOS")]
     public void CountMatchesTheOriginal() => Assert.Equal(70, CharmCatalog.All.Count);
 
     [Fact(DisplayName = "No charm is filed under a category the chips do not offer")]

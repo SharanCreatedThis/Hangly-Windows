@@ -29,15 +29,13 @@ OUT = ROOT / "src" / "Hangly.Core" / "Models" / "CharmCatalog.Generated.cs"
 LIBRARY = SWIFT / "CharmLibrary.json"
 
 # The order the charm menu offers them in. CollectionCharmCatalog.entries is
-#   collectionEntries + seasonalEntries + collectionPackEntries + storyPackEntries
-#   + classicEntries
+#   collectionEntries + collectionPackEntries + storyPackEntries + classicEntries
 # and storyPackEntries is legendEntries + screenEntries. Reproduced here because the
 # order is the catalogue's own and a reordering would silently renumber the menu.
 #
-# seasonalEntries is deliberately absent. The Windows build does not ship the seasonal
-# packs, so it does not ship the charms that only existed to fill them — see STATUS.md
-# for the scope decision. The Swift is left exactly as it is; this is the one place that
-# knows Windows carries fewer charms than macOS.
+# The two platforms now carry the same seventy charms. The seasonal packs, which only
+# macOS ever had, were removed from both — so there is nothing left for this file to
+# leave out.
 SOURCES = [
     ("Charms/CollectionCharmCatalog.swift", "collectionEntries"),
     ("Charms/CollectionPackCatalog.swift", "collectionPackEntries"),
@@ -45,11 +43,6 @@ SOURCES = [
     ("Charms/StoryPackCatalog+Screen.swift", "screenEntries"),
     ("Charms/ClassicCharmCatalog.swift", "classicEntries"),
 ]
-
-# Categories the Windows build does not offer, dropped along with every charm filed
-# under them. A category left in the chip row with nothing behind it is worse than one
-# that was never offered.
-DROPPED_CATEGORIES = {"seasonal"}
 
 # One line about each collection, for the Library's hero cards.
 #
@@ -80,11 +73,7 @@ def library_metadata() -> tuple[dict[str, dict], list[tuple[str, str]]]:
     """Per-charm Library facts, and the category list, out of CharmLibrary.json."""
     document = json.loads(LIBRARY.read_text(encoding="utf-8"))
     charms = {entry["id"]: entry for entry in document["charms"]}
-    categories = [
-        (c["id"], c["name"])
-        for c in document["categories"]
-        if c["id"] not in DROPPED_CATEGORIES
-    ]
+    categories = [(c["id"], c["name"]) for c in document["categories"]]
     return charms, categories
 
 

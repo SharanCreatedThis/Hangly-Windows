@@ -8,7 +8,7 @@
 import Foundation
 
 /// Marvel, DC, Tamil Spiritual and BTS, described exactly as the hand-drawn
-/// collection and the seasonal packs are.
+/// collection is.
 ///
 /// Two things about these are worth knowing before changing any number here.
 ///
@@ -25,8 +25,8 @@ import Foundation
 ///
 /// Palettes are sampled from the artwork rather than chosen: `primary` is the mean
 /// of its most saturated tenth, `deep` and `light` its darkest and lightest twelfths.
-/// That is what the ambient glow and the weather tinting read, so a palette that
-/// disagrees with the picture shows up as a halo in the wrong colour.
+/// That is what the ambient glow reads, so a palette that disagrees with the picture
+/// shows up as a halo in the wrong colour.
 extension CollectionCharmCatalog {
     static let collectionPackEntries: [Entry] = [
         Entry(
