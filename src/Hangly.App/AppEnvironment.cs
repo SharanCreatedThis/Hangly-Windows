@@ -688,9 +688,61 @@ public sealed class AppEnvironment : IDisposable
             MenuEntry.Separator,
             new MenuEntry("Charms", Children: charms),
             new MenuEntry("Rope", Children: ropes),
+            .. DisplayMenu(settings.Overlay),
             MenuEntry.Separator,
             new MenuEntry("Quit Hangly", Quit),
         ];
+    }
+
+    /// <summary>Which display the rope hangs on, when there is a choice to make.</summary>
+    /// <remarks>
+    /// Absent on a single display, where it could only ever say one thing — unless a
+    /// display was chosen and is now unplugged, when it stays so the choice can be seen and
+    /// undone. The chosen display is remembered by its stable id, so it survives a reboot,
+    /// a dock and a rearrangement, and the rope goes back to it by itself when it returns.
+    /// </remarks>
+    private List<MenuEntry> DisplayMenu(OverlaySettings overlay)
+    {
+        IReadOnlyList<DisplayInfo> displays = DisplayObserver.Displays();
+        List<Hangly.Core.Geometry.DisplayIdentity> identities = [.. displays.Select(display => display.Identity)];
+        bool isMissing = Hangly.Core.Geometry.DisplayChoice.IsMissing(identities, overlay.DisplayId);
+        if (displays.Count < 2 && !isMissing)
+        {
+            return [];
+        }
+
+        int main = Hangly.Core.Geometry.DisplayChoice.Main(identities);
+        int resolved = Hangly.Core.Geometry.DisplayChoice.Resolve(identities, overlay.DisplayId, overlay.DisplayIndex);
+        bool followsMain = overlay.DisplayId is null && resolved == main;
+        IReadOnlyList<string> labels = Hangly.Core.Geometry.DisplayChoice.Labels(identities);
+
+        var entries = new List<MenuEntry>
+        {
+            new(
+                "Main display",
+                () => store.UpdateOverlay(settings => settings with { DisplayId = null, DisplayName = null, DisplayIndex = 0 }),
+                IsChecked: followsMain),
+            MenuEntry.Separator,
+        };
+
+        for (int index = 0; index < displays.Count; index++)
+        {
+            DisplayInfo display = displays[index];
+            string label = labels[index];
+            entries.Add(new MenuEntry(
+                index == main ? $"{label} (main)" : label,
+                () => store.UpdateOverlay(settings => settings with { DisplayId = display.Id, DisplayName = label, DisplayIndex = 0 }),
+                IsChecked: !followsMain && !isMissing && index == resolved));
+        }
+
+        if (isMissing)
+        {
+            // Checked and inert: this is still the choice, and the rope is on the main
+            // display only until it comes back.
+            entries.Add(new MenuEntry($"{overlay.DisplayName ?? "Chosen display"} (not connected)", null, IsChecked: true));
+        }
+
+        return [new MenuEntry("Display", Children: entries)];
     }
 
     /// <summary>Applies the downloaded update now, and comes back on the new version.</summary>

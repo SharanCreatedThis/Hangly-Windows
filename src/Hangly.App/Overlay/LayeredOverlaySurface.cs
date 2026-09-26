@@ -356,6 +356,12 @@ internal sealed class LayeredOverlaySurface : IDisposable
     /// <summary>Takes the scale-change notice, if one has arrived.</summary>
     public static bool TakeScaleChanged() => Interlocked.Exchange(ref scaleChanged, 0) == 1;
 
+    /// <summary>Set when a display is added, removed or rearranged, or a work area moves.</summary>
+    private static int displaysChanged;
+
+    /// <summary>Takes the display-change notice, if one has arrived.</summary>
+    public static bool TakeDisplaysChanged() => Interlocked.Exchange(ref displaysChanged, 0) == 1;
+
     private static IntPtr OnMessage(IntPtr hWnd, uint message, IntPtr wParam, IntPtr lParam)
     {
         if (message == NativeMethods.WmDpiChanged)
@@ -368,6 +374,11 @@ internal sealed class LayeredOverlaySurface : IDisposable
             // canvas, the cursor's position, the charm's grab radius — is wrong until
             // something else happens to reposition the window.
             Interlocked.Exchange(ref scaleChanged, 1);
+        }
+        else if (message == NativeMethods.WmDisplayChange
+            || (message == NativeMethods.WmSettingChange && wParam.ToInt64() == NativeMethods.SpiSetWorkArea))
+        {
+            Interlocked.Exchange(ref displaysChanged, 1);
         }
 
         return NativeMethods.DefWindowProc(hWnd, message, wParam, lParam);

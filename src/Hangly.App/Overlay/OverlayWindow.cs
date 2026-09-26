@@ -83,6 +83,9 @@ public sealed class OverlayWindow : IDisposable
     private Rect frame;
     private double scale = 1;
 
+    /// <summary>The display the window was last fitted to, to notice when that changes.</summary>
+    private DisplayInfo fittedTo;
+
     public OverlayWindow(
         CanvasDevice device,
         OverlaySettings settings,
@@ -243,6 +246,17 @@ public sealed class OverlayWindow : IDisposable
                     Draw();
                 }
 
+                if (LayeredOverlaySurface.TakeDisplaysChanged() || DisplayMoved())
+                {
+                    // A display was plugged in or out, rearranged, or its taskbar moved.
+                    // The chosen display may have just arrived — the rope goes back to it —
+                    // or just left, and the rope falls back to the main display.
+                    Reposition();
+                    rope.Wake();
+                    Draw();
+                    Diagnostics.Log($"displays changed; hanging on '{fittedTo.Name}' at {scale:0.##}x");
+                }
+
                 if (LayeredOverlaySurface.TakeScaleChanged() || ScaleDrifted())
                 {
                     // Re-fit to the display the window is now on. Reposition re-reads the
@@ -313,6 +327,26 @@ public sealed class OverlayWindow : IDisposable
         return Math.Abs(current - scale) > 0.001;
     }
 
+    /// <summary>Whether the display the rope belongs on is not the one it was fitted to.</summary>
+    /// <remarks>
+    /// The same once-a-second cadence as <see cref="ScaleDrifted"/>, and for the same
+    /// reason: WM_DISPLAYCHANGE is the fast path, and this is the one that cannot be
+    /// missed. Compares the whole record — which display, where, its work area and its
+    /// scale — so a taskbar moving or a monitor being rearranged counts as well.
+    /// </remarks>
+    private bool DisplayMoved()
+    {
+        if (Environment.TickCount64 - lastDisplayCheck < TopmostIntervalMs)
+        {
+            return false;
+        }
+
+        lastDisplayCheck = Environment.TickCount64;
+        return DisplayObserver.Chosen(settings.DisplayId, settings.DisplayIndex) != fittedTo;
+    }
+
+    private long lastDisplayCheck;
+
     /// <summary>Re-asserts the window's place above everything, about once a second.</summary>
     /// <remarks>
     /// Once a second rather than once a frame. The z-order only changes when something
@@ -369,11 +403,17 @@ public sealed class OverlayWindow : IDisposable
     /// <summary>Puts the window where the settings say, on the display they name.</summary>
     private void Reposition()
     {
-        DisplayInfo display = DisplayObserver.DisplayAt(settings.DisplayIndex);
-        scale = NativeMethods.GetDpiForWindow(surface.Handle) / 96.0;
+        DisplayInfo display = DisplayObserver.Chosen(settings.DisplayId, settings.DisplayIndex);
+        fittedTo = display;
+
+        // The destination display's scale, not the window's: the window's DPI is that of
+        // wherever it is now, and on a desk of mixed scales that is the wrong display for
+        // the one move that matters. Measured the other way, a rope moved from a 100% to a
+        // 200% display came out half size until the next second's drift check.
+        scale = display.Scale > 0 ? display.Scale : NativeMethods.GetDpiForWindow(surface.Handle) / 96.0;
         if (scale <= 0)
         {
-            scale = display.Scale;
+            scale = 1;
         }
 
         // The canvas is measured in points and the desktop in pixels, so the size the

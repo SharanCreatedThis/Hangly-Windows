@@ -16,9 +16,20 @@ namespace Hangly.App.Services;
 /// than in <paramref name="Bounds"/>, so a top-docked taskbar pushes the rope down
 /// instead of hiding its anchor behind itself.
 /// </param>
-/// <param name="Scale">The display's DPI scale, where 1 is 96 DPI.</param>
+/// <param name="Scale">The display's own DPI scale, where 1 is 96 DPI.</param>
 /// <param name="IsPrimary">Whether this is the display the shell considers primary.</param>
-public readonly record struct DisplayInfo(Rect Bounds, Rect WorkArea, double Scale, bool IsPrimary);
+/// <param name="Id">Stable identity; see <see cref="DisplayIdentity"/>.</param>
+/// <param name="Name">What the monitor calls itself.</param>
+public readonly record struct DisplayInfo(
+    Rect Bounds,
+    Rect WorkArea,
+    double Scale,
+    bool IsPrimary,
+    string Id = "",
+    string Name = "")
+{
+    public DisplayIdentity Identity => new(Id, Name, IsPrimary);
+}
 
 /// <summary>Enumerates the attached displays.</summary>
 /// <remarks>
@@ -26,37 +37,48 @@ public readonly record struct DisplayInfo(Rect Bounds, Rect WorkArea, double Sca
 /// unplugged, rearranged and rescaled while the app is running, and a cached list is one
 /// that puts the rope on a monitor that is no longer there.
 ///
-/// <para>The macOS original hangs on <c>NSScreen.screens.first</c> — the primary display,
-/// deliberately not the one with keyboard focus, so the overlay does not hop between
-/// displays as the user switches apps. The same rule holds here: the index is a stable
-/// position in the enumeration, never "wherever the mouse is".</para>
+/// <para>The rope hangs on the display chosen by its stable id, or the main display when
+/// none is chosen or the chosen one is unplugged — never "wherever the mouse is", so it
+/// does not hop between displays as the user switches apps. The rule is
+/// <see cref="DisplayChoice"/>'s and is the same on macOS.</para>
 /// </remarks>
 public static class DisplayObserver
 {
     public static IReadOnlyList<DisplayInfo> Displays()
     {
         var displays = new List<DisplayInfo>();
+        Dictionary<string, (string Id, string Name)> targets = Targets();
 
         NativeMethods.EnumDisplayMonitors(
             IntPtr.Zero,
             IntPtr.Zero,
             (IntPtr monitor, IntPtr _, ref NativeMethods.Rect _, IntPtr _) =>
             {
-                var info = new NativeMethods.MonitorInfo
+                var info = new NativeMethods.MonitorInfoEx
                 {
-                    Size = System.Runtime.InteropServices.Marshal.SizeOf<NativeMethods.MonitorInfo>(),
+                    Size = System.Runtime.InteropServices.Marshal.SizeOf<NativeMethods.MonitorInfoEx>(),
                 };
 
-                if (NativeMethods.GetMonitorInfo(monitor, ref info))
+                if (NativeMethods.GetMonitorInfoEx(monitor, ref info))
                 {
+                    // The monitor's own scale, not the window's: a window moving to a
+                    // display at a different scale has to be sized for where it is going.
+                    double scale = NativeMethods.GetDpiForMonitor(
+                        monitor, NativeMethods.MdtEffectiveDpi, out uint dpi, out _) == 0 && dpi > 0
+                        ? dpi / 96.0
+                        : 1;
+
+                    (string id, string name) = targets.TryGetValue(info.DeviceName ?? string.Empty, out var target)
+                        ? target
+                        : (info.DeviceName ?? string.Empty, string.Empty);
+
                     displays.Add(new DisplayInfo(
                         ToRect(info.Monitor),
                         ToRect(info.WorkArea),
-
-                        // Per-monitor scale is read from the window once it exists; until
-                        // then the system scale is the best available answer.
-                        Scale: 1,
-                        IsPrimary: (info.Flags & 1) != 0));
+                        scale,
+                        IsPrimary: (info.Flags & 1) != 0,
+                        id,
+                        name));
                 }
 
                 return true;
@@ -80,14 +102,75 @@ public static class DisplayObserver
         return [.. displays.OrderByDescending(display => display.IsPrimary)];
     }
 
-    /// <summary>
-    /// The display at <paramref name="index"/>, falling back to the primary when a
-    /// remembered display has been unplugged.
-    /// </summary>
-    public static DisplayInfo DisplayAt(int index)
+    /// <summary>The display the settings choose, as <see cref="DisplayChoice"/> resolves it.</summary>
+    public static DisplayInfo Chosen(string? displayId, int legacyIndex)
     {
         IReadOnlyList<DisplayInfo> displays = Displays();
-        return index >= 0 && index < displays.Count ? displays[index] : displays[0];
+        return displays[DisplayChoice.Resolve([.. displays.Select(display => display.Identity)], displayId, legacyIndex)];
+    }
+
+    /// <summary>Each attached monitor's stable id and name, by GDI device name.</summary>
+    /// <remarks>
+    /// Empty when the display-configuration API is unavailable — a remote session can say
+    /// so — and then every display is known by its GDI name instead, which still works
+    /// until the arrangement changes.
+    /// </remarks>
+    private static Dictionary<string, (string Id, string Name)> Targets()
+    {
+        var targets = new Dictionary<string, (string Id, string Name)>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            if (NativeMethods.GetDisplayConfigBufferSizes(NativeMethods.QdcOnlyActivePaths, out uint pathCount, out uint modeCount) != 0)
+            {
+                return targets;
+            }
+
+            var paths = new NativeMethods.DisplayConfigPathInfo[pathCount];
+            var modes = new NativeMethods.DisplayConfigModeInfo[modeCount];
+            if (NativeMethods.QueryDisplayConfig(NativeMethods.QdcOnlyActivePaths, ref pathCount, paths, ref modeCount, modes, IntPtr.Zero) != 0)
+            {
+                return targets;
+            }
+
+            foreach (NativeMethods.DisplayConfigPathInfo path in paths.AsSpan(0, (int)pathCount))
+            {
+                var source = new NativeMethods.DisplayConfigSourceDeviceName
+                {
+                    Header = new NativeMethods.DisplayConfigDeviceInfoHeader
+                    {
+                        Type = NativeMethods.DisplayConfigDeviceInfoGetSourceName,
+                        Size = (uint)System.Runtime.InteropServices.Marshal.SizeOf<NativeMethods.DisplayConfigSourceDeviceName>(),
+                        AdapterId = path.SourceAdapterId,
+                        Id = path.SourceId,
+                    },
+                };
+                var target = new NativeMethods.DisplayConfigTargetDeviceName
+                {
+                    Header = new NativeMethods.DisplayConfigDeviceInfoHeader
+                    {
+                        Type = NativeMethods.DisplayConfigDeviceInfoGetTargetName,
+                        Size = (uint)System.Runtime.InteropServices.Marshal.SizeOf<NativeMethods.DisplayConfigTargetDeviceName>(),
+                        AdapterId = path.TargetAdapterId,
+                        Id = path.TargetId,
+                    },
+                };
+
+                if (NativeMethods.DisplayConfigGetSourceName(ref source) == 0
+                    && NativeMethods.DisplayConfigGetTargetName(ref target) == 0
+                    && !string.IsNullOrEmpty(source.ViewGdiDeviceName)
+                    && !string.IsNullOrEmpty(target.MonitorDevicePath))
+                {
+                    // A mirrored pair shares one source; the first monitor found names it.
+                    targets.TryAdd(source.ViewGdiDeviceName, (target.MonitorDevicePath, target.MonitorFriendlyDeviceName ?? string.Empty));
+                }
+            }
+        }
+        catch (Exception exception) when (exception is DllNotFoundException or EntryPointNotFoundException)
+        {
+            // Older than Windows 7, or a stripped-down session; GDI names it is.
+        }
+
+        return targets;
     }
 
     private static Rect ToRect(NativeMethods.Rect rect) => new(
