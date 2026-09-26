@@ -204,6 +204,10 @@ public sealed class OverlayWindow : IDisposable
             }
 
             Reposition();
+
+            // Before the first step, so a rope that should appear hanging still never
+            // takes one step of the launch swing.
+            ApplyMotion();
             rope.Start();
 
             // Subscribed here rather than in the constructor so the handler is attached on
@@ -267,6 +271,11 @@ public sealed class OverlayWindow : IDisposable
                     rope.Wake();
                     Draw();
                     Diagnostics.Log($"displays changed; hanging on '{fittedTo.Name}' at {scale:0.##}x");
+                }
+
+                if (LayeredOverlaySurface.TakeMotionChanged())
+                {
+                    ApplyMotion();
                 }
 
                 if (LayeredOverlaySurface.TakeScaleChanged() || ScaleDrifted())
@@ -399,6 +408,7 @@ public sealed class OverlayWindow : IDisposable
     {
         settings = updated;
         rope.SetStyle(updated.RopeStyle);
+        ApplyMotion();
 
         // Reposition fits the rope to the new canvas and to both sliders together, so
         // there is nothing to set afterwards. Setting them one at a time after the resize
@@ -410,6 +420,22 @@ public sealed class OverlayWindow : IDisposable
         // something happened to wake it — and a change of size has already thrown away the
         // surface holding the frame that is currently on screen.
         Draw();
+    }
+
+    /// <summary>Full or reduced motion, from Appearance → Motion and Windows' own switch.</summary>
+    /// <remarks>
+    /// Live: a change in either takes effect on the next step, calming a rope that is
+    /// already swinging rather than stopping it dead.
+    /// </remarks>
+    private void ApplyMotion()
+    {
+        RopeMotion motion = SystemMotion.Resolve(settings.Motion);
+        if (motion != rope.Motion)
+        {
+            rope.SetMotion(motion);
+            rope.Wake();
+            Diagnostics.Log($"motion: {motion} ({settings.Motion})");
+        }
     }
 
     /// <summary>Puts the window where the settings say, on the display they name.</summary>

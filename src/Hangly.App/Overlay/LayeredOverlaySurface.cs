@@ -579,6 +579,12 @@ internal sealed class LayeredOverlaySurface : IDisposable
     /// <summary>Takes the display-change notice, if one has arrived.</summary>
     public static bool TakeDisplaysChanged() => Interlocked.Exchange(ref displaysChanged, 0) == 1;
 
+    /// <summary>Set when Windows' animation-effects switch changes.</summary>
+    private static int motionChanged;
+
+    /// <summary>Takes the animation-effects notice, if one has arrived.</summary>
+    public static bool TakeMotionChanged() => Interlocked.Exchange(ref motionChanged, 0) == 1;
+
     private static IntPtr OnMessage(IntPtr hWnd, uint message, IntPtr wParam, IntPtr lParam)
     {
         if (message == NativeMethods.WmDpiChanged)
@@ -596,6 +602,10 @@ internal sealed class LayeredOverlaySurface : IDisposable
             || (message == NativeMethods.WmSettingChange && wParam.ToInt64() == NativeMethods.SpiSetWorkArea))
         {
             Interlocked.Exchange(ref displaysChanged, 1);
+        }
+        else if (message == NativeMethods.WmSettingChange && wParam.ToInt64() == Services.SystemMotion.SpiSetClientAreaAnimation)
+        {
+            Interlocked.Exchange(ref motionChanged, 1);
         }
 
         return NativeMethods.DefWindowProc(hWnd, message, wParam, lParam);

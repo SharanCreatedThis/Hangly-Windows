@@ -10,6 +10,12 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Added**
 
+- **Motion**, in Customize → Appearance: Follow system, Reduced or Full. Reduced hangs the
+  charm still until you move it, lets a swing settle in seconds rather than most of a
+  minute, and throws and nudges more gently; the rope looks exactly the same at rest.
+  Follow system uses Animation effects in Windows Settings → Accessibility → Visual
+  effects, and changes the moment you switch it.
+
 - **Choose which display the charm hangs on**, from **Display** in the tray menu, shown
   when more than one display is connected. The choice is remembered by the monitor itself,
   not its position, so it survives a restart, a dock and a rearrangement. Unplug that

@@ -171,6 +171,13 @@ public sealed partial class RopeSimulation
             Reset();
         }
 
+        // Under reduced motion nothing moves until somebody moves it — including whatever
+        // swing the rope was laid out with. The macOS build does the same in its start.
+        if (!RopeMotionTable.PhysicsOf(Motion).SwingsOnLaunch)
+        {
+            ResetToHanging();
+        }
+
         accumulator = 0;
         IsRunning = true;
         Wake();
@@ -239,7 +246,8 @@ public sealed partial class RopeSimulation
         }
 
         double length = Configuration.TotalLength;
-        double speed = Math.Sqrt(
+        // Scaled like a throw under reduced motion: a nudge somebody asked for, gentler.
+        double speed = Configuration.ThrowScale * Math.Sqrt(
             2 * Configuration.Gravity * length * (1 - Math.Cos(Configuration.InitialAngle)));
 
         ref RopePoint charm = ref Points[^1];
@@ -312,7 +320,13 @@ public sealed partial class RopeSimulation
         }
     }
 
-    public void Reset() => Reset(Configuration.InitialAngle);
+    /// <remarks>
+    /// Under reduced motion the rope appears hanging still: the launch swing is the one
+    /// motion nobody asked for. The initial angle itself is left alone because
+    /// <see cref="Push"/> measures a nudge by it, and a nudge somebody asked for should
+    /// still move the rope.
+    /// </remarks>
+    public void Reset() => Reset(RopeMotionTable.PhysicsOf(Motion).SwingsOnLaunch ? Configuration.InitialAngle : 0);
 
     /// <summary>
     /// Rebuilds the rope hanging straight down with no motion, for users who have asked
@@ -359,7 +373,8 @@ public sealed partial class RopeSimulation
             Style,
             TimeProfile,
             CharmSize,
-            RopeLength);
+            RopeLength,
+            Motion);
 
         // A rope that has not started has no motion to preserve, so it is laid out on the
         // new canvas rather than moved onto it. That is the difference between the overlay

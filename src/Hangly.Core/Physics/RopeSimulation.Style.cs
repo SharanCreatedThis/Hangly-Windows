@@ -35,7 +35,7 @@ public sealed partial class RopeSimulation
         }
 
         Style = newStyle;
-        Configuration = Configuration.Applying(newStyle, TimeProfile);
+        Configuration = Configuration.Applying(newStyle, TimeProfile, Motion);
         RefreshLayout();
         ApplyMasses();
         Wake();
@@ -93,6 +93,26 @@ public sealed partial class RopeSimulation
         }
 
         TimeProfile = newProfile;
-        Configuration = Configuration.Applying(Style, newProfile);
+        Configuration = Configuration.Applying(Style, newProfile, Motion);
+    }
+
+    /// <summary>How much the rope moves: full, or reduced for people who asked for less.</summary>
+    public RopeMotion Motion { get; private set; } = RopeMotion.Full;
+
+    /// <summary>Switches the motion profile, live, without disturbing where the rope is.</summary>
+    /// <remarks>
+    /// Changes how quickly motion dies away and how far a throw carries from the next step
+    /// on. A rope already swinging calms rather than stopping dead, which would itself be
+    /// a jolt; the launch swing is only ever decided at <see cref="Reset()"/>.
+    /// </remarks>
+    public void SetMotion(RopeMotion newMotion)
+    {
+        if (newMotion == Motion)
+        {
+            return;
+        }
+
+        Motion = newMotion;
+        Configuration = Configuration.Applying(Style, TimeProfile, newMotion);
     }
 }

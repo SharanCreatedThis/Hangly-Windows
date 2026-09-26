@@ -114,7 +114,7 @@ public sealed partial class RopeSimulation
         }
 
         DragTarget = ReachableTarget(location);
-        DragVelocity = velocity.Limited(Configuration.MaximumSpeed);
+        DragVelocity = (velocity * Configuration.ThrowScale).Limited(Configuration.MaximumSpeed);
     }
 
     /// <summary>Pins the drag target to the circle the rope can actually reach.</summary>

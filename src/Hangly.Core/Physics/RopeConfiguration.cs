@@ -39,6 +39,19 @@ public readonly record struct RopeConfiguration
     /// </summary>
     public double Damping { get; init; }
 
+    /// <summary>Multiplier on the speed a released charm carries; see <see cref="RopeMotionPhysics"/>.</summary>
+    /// <remarks>
+    /// Zero reads as one. This is a struct, so a configuration built field by field
+    /// starts with zero here, and a zero would silently turn every throw into a drop.
+    /// </remarks>
+    public double ThrowScale
+    {
+        get => throwScale > 0 ? throwScale : 1;
+        init => throwScale = value;
+    }
+
+    private readonly double throwScale;
+
     /// <summary>Gauss-Seidel relaxation passes per step. More passes means a stiffer rope.</summary>
     /// <remarks>
     /// Corrections propagate roughly one link per pass, so this must exceed
@@ -167,6 +180,7 @@ public readonly record struct RopeConfiguration
         SegmentLength = 11,
         Gravity = 2000,
         Damping = 0.999,
+        ThrowScale = 1,
         ConstraintIterations = 256,
         StretchPasses = 256,
         ConvergenceTolerance = 0.05,
@@ -213,7 +227,8 @@ public readonly record struct RopeConfiguration
         RopeStyle style = RopeStyleTable.Default,
         RopeTimeProfile profile = RopeTimeProfileTable.Baseline,
         double charmSize = 1,
-        double ropeLength = 1)
+        double ropeLength = 1,
+        RopeMotion motion = RopeMotion.Full)
     {
         RopeConfiguration configuration = Default;
         Size room = Layout.CanvasScale(charmSize, ropeLength);
@@ -237,7 +252,7 @@ public readonly record struct RopeConfiguration
             SlackBelow = Math.Max(0, size.Height - configuration.AnchorHeight - configuration.TotalLength),
         };
 
-        return configuration.Applying(style, profile);
+        return configuration.Applying(style, profile, motion);
     }
 
     /// <summary>Returns this configuration with a style's solver values applied.</summary>
@@ -248,7 +263,10 @@ public readonly record struct RopeConfiguration
     /// count, length, timestep, sleep — is a property of the canvas and is left exactly
     /// as it was.
     /// </remarks>
-    public RopeConfiguration Applying(RopeStyle style, RopeTimeProfile profile = RopeTimeProfileTable.Baseline)
+    public RopeConfiguration Applying(
+        RopeStyle style,
+        RopeTimeProfile profile = RopeTimeProfileTable.Baseline,
+        RopeMotion motion = RopeMotion.Full)
     {
         RopePhysicsProfile physics = RopeStyleTable.PhysicsOf(style);
         RopeConfiguration defaults = Default;
@@ -268,11 +286,21 @@ public readonly record struct RopeConfiguration
         // that applying morning and then afternoon gives the afternoon, not a rope that
         // remembers the morning.
         RopeTimePhysics time = RopeTimeProfileTable.PhysicsOf(profile);
-        return configuration with
+        configuration = configuration with
         {
             Damping = 1 - ((1 - configuration.Damping) * time.EnergyLossScale),
             InitialAngle = defaults.InitialAngle * time.ReleaseAngleScale,
             RestSpeed = defaults.RestSpeed * time.RestSpeedScale,
+        };
+
+        // Reduced motion last of all, scaling what style and time decided, for the same
+        // reason the time of day scales the style: a reduced leather rope is still the
+        // quicker one. Full motion is the identity.
+        RopeMotionPhysics reduced = RopeMotionTable.PhysicsOf(motion);
+        return configuration with
+        {
+            Damping = 1 - ((1 - configuration.Damping) * reduced.EnergyLossScale),
+            ThrowScale = reduced.ThrowScale,
         };
     }
 
