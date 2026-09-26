@@ -327,7 +327,6 @@ public sealed partial class CustomizeWindow : Window
         filter = CharmFilter.Category(card.Id);
         HighlightChips();
         ShowResults();
-        analytics.Track(Events.CollectionOpened(card.Name));
     }
 
     private void BuildFilterChips()
@@ -589,7 +588,6 @@ public sealed partial class CustomizeWindow : Window
         }
 
         store.UpdateOverlay(overlay => overlay with { RopeStyle = style });
-        analytics.Track(Events.RopeStyleChanged(style));
         RopeList.SelectedIndex = index;
     }
 
@@ -621,6 +619,8 @@ public sealed partial class CustomizeWindow : Window
 
             ShowToggle.IsOn = overlay.IsEnabled;
             LoginToggle.IsOn = store.Settings.LaunchAtLogin;
+            NameBox.MaxLength = AppSettings.DisplayNameLimit;
+            NameBox.Text = store.Settings.DisplayName;
 
             RebuildSlots();
             ShowResults();
@@ -629,6 +629,41 @@ public sealed partial class CustomizeWindow : Window
         {
             isLoading = false;
         }
+    }
+
+    private void OnNameKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs args)
+    {
+        if (args.Key == Windows.System.VirtualKey.Enter)
+        {
+            CommitName();
+            args.Handled = true;
+        }
+    }
+
+    private void OnNameCommitted(object sender, RoutedEventArgs args) => CommitName();
+
+    /// <summary>Saves a changed name and lets analytics tell the project, once.</summary>
+    /// <remarks>
+    /// An empty box puts the old name back rather than saving nothing: the name is required
+    /// everywhere else, and clearing it here would be a way round that.
+    /// </remarks>
+    private void CommitName()
+    {
+        if (isLoading)
+        {
+            return;
+        }
+
+        string chosen = NameBox.Text.Trim();
+        if (chosen.Length == 0 || chosen == store.Settings.DisplayName)
+        {
+            NameBox.Text = store.Settings.DisplayName;
+            return;
+        }
+
+        store.Update(settings => settings with { DisplayName = chosen });
+        _ = analytics.Sync();
+        Diagnostics.Log("name changed");
     }
 
     private void UpdateSliderLabels()
@@ -691,7 +726,6 @@ public sealed partial class CustomizeWindow : Window
 
         int source = selectedSlot;
         store.UpdateOverlay(overlay => overlay.WithStack(overlay.Stack.Moved(source, destination)));
-        analytics.Track(Events.CharmReordered(source, destination));
 
         // The selection follows the charm rather than staying where the charm was: the
         // person is moving a thing, not a slot, and having the panel jump to a different
@@ -780,7 +814,6 @@ public sealed partial class CustomizeWindow : Window
                 : overlay;
         });
 
-        analytics.Track(Events.CharmReordered(args.OldStartingIndex, args.NewStartingIndex));
         RebuildSlots();
     }
 
@@ -949,8 +982,6 @@ public sealed partial class CustomizeWindow : Window
 
     private void OnCreateChoose(object sender, RoutedEventArgs args)
     {
-        analytics.Track(Events.AirdropPickerOpened);
-
         string? path = Interop.FileDialog.OpenFile(
             WinRT.Interop.WindowNative.GetWindowHandle(this),
             "Choose a picture",
@@ -1049,8 +1080,6 @@ public sealed partial class CustomizeWindow : Window
         }
 
         environment.CharmsChanged();
-        analytics.Track(Events.CharmImported);
-        analytics.Track(Events.CharmSaved);
 
         string id = Hangly.Core.Models.CharmId.ForCustom(outcome.Entry.Id);
         store.Update(settings => settings with
@@ -1173,14 +1202,12 @@ public sealed partial class CustomizeWindow : Window
             // from what is actually sent.
             AnalyticsFields.Text = string.Join(
                 ", ",
-                analytics.PersonProperties().Keys.Concat(["install_id", "event name", "event properties"]).Distinct());
+                analytics.PersonProperties().Keys.Prepend("install_id").Distinct());
             AnalyticsEndpoint.Text = analytics.Connection.Summary;
             AnalyticsIdentifier.Text = analytics.MaskedIdentifier ?? "none yet";
-            AnalyticsLastEvent.Text = analytics.LastEventName is null
-                ? "nothing sent"
-                : $"{analytics.LastEventName} — {analytics.LastEventAt:HH:mm:ss}";
-            AnalyticsSentCount.Text = analytics.SentCount.ToString(
-                System.Globalization.CultureInfo.CurrentCulture);
+            AnalyticsLastSent.Text = analytics.LastReason is IdentifyReason reason
+                ? $"{AnalyticsManager.NameOf(reason).Replace('_', ' ')} — {analytics.LastSentAt:HH:mm:ss}"
+                : "nothing this session";
         }
         finally
         {
@@ -1203,20 +1230,17 @@ public sealed partial class CustomizeWindow : Window
             return;
         }
 
-        analytics.SetEnabled(AnalyticsToggle.IsOn);
+        _ = analytics.SetEnabled(AnalyticsToggle.IsOn);
         LoadAnalytics();
     }
 
     private void OnRefreshAnalytics(object sender, RoutedEventArgs args) => LoadAnalytics();
 
-    private void OnInstagramClicked(object sender, RoutedEventArgs args) =>
-        analytics.Track(Events.FollowInstagramClicked);
-
     private async void OnCoffeeClicked(object sender, RoutedEventArgs args)
     {
         try
         {
-            await BuyCoffeeSheet.ShowAsync(Root, analytics, "about");
+            await BuyCoffeeSheet.ShowAsync(Root);
         }
         catch (Exception exception)
         {
@@ -1314,7 +1338,6 @@ public sealed partial class CustomizeWindow : Window
         }
 
         store.UpdateOverlay(overlay => overlay with { HorizontalPosition = at });
-        analytics.Track(Events.AppearanceChanged("position"));
     }
 
     private void ShowPositionLabel() =>
@@ -1411,7 +1434,6 @@ public sealed partial class CustomizeWindow : Window
 
     private void Import()
     {
-        analytics.Track(Events.AirdropPickerOpened);
         string? path = Interop.FileDialog.OpenFile(
             WinRT.Interop.WindowNative.GetWindowHandle(this),
             "Import a charm",

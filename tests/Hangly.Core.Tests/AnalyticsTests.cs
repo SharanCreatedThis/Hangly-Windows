@@ -4,7 +4,6 @@
 //
 
 using Hangly.Core.Analytics;
-using Hangly.Core.Models;
 using Hangly.Core.Settings;
 using Xunit;
 
@@ -15,6 +14,10 @@ namespace Hangly.Core.Tests;
 /// detail — each one is a sentence from that document, asserted against what a recording
 /// provider actually received.
 /// </summary>
+/// <remarks>
+/// The promise is now small enough to state in one line: one <c>$identify</c>, on a first
+/// launch, a rename or a new major version, and nothing else, ever.
+/// </remarks>
 public class AnalyticsTests : IDisposable
 {
     private readonly string directory = Path.Combine(
@@ -24,16 +27,10 @@ public class AnalyticsTests : IDisposable
     private readonly RecordingAnalyticsProvider provider = new();
 
     /// <summary>A store for somebody who has been through onboarding.</summary>
-    /// <remarks>
-    /// Named, because nothing is sent to a project on behalf of somebody who is not, and
-    /// a fixture that starts nameless is a fixture testing the one state where the answer
-    /// to everything is "nothing happened". The tests about that state say so by name and
-    /// use <see cref="NewNamelessStore"/>.
-    /// </remarks>
-    private SettingsStore NewStore()
+    private SettingsStore NewStore(string name = "Test Person")
     {
         SettingsStore store = NewNamelessStore();
-        store.Update(settings => settings with { DisplayName = "Sharan" });
+        store.Update(settings => settings with { DisplayName = name });
         return store;
     }
 
@@ -44,15 +41,14 @@ public class AnalyticsTests : IDisposable
         return new SettingsStore(Path.Combine(directory, "settings.json"));
     }
 
-    /// <summary>A store that already holds these settings, for the identity tests.</summary>
-    private SettingsStore NewStore(AppSettings initial)
-    {
-        Directory.CreateDirectory(directory);
-        return new SettingsStore(Path.Combine(directory, "settings.json"), initial);
-    }
+    /// <summary>The same document read again, which is what a relaunch is.</summary>
+    private SettingsStore Relaunched() => new(Path.Combine(directory, "settings.json"));
 
-    private AnalyticsManager NewManager(SettingsStore store, bool hasDestination = true) =>
-        new(store, provider, "eu.i.posthog.com", hasDestination, "2.0.0", "1", "10.0.26200");
+    private AnalyticsManager NewManager(
+        SettingsStore store,
+        string version = "1.0.0",
+        bool hasDestination = true) =>
+        new(store, provider, "us.i.posthog.com", hasDestination, version, "7", "10.0.26200");
 
     public void Dispose()
     {
@@ -64,523 +60,325 @@ public class AnalyticsTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    [Fact(DisplayName = "A first launch says so, and says hello, exactly once each")]
-    public void FirstLaunchIsReportedOnce()
-    {
-        SettingsStore store = NewStore();
-        NewManager(store).Start();
+    private static string Reason(IdentifyCall call) =>
+        ((AnalyticsValue.Text)call.EventProperties["identify_reason"]).Value;
 
-        // $identify leads, because it is what creates the person the other two are
-        // attributed to. Asserted in order, so it cannot quietly stop happening.
-        Assert.Equal(
-            ["$identify", "app_first_launch", "app_launch"],
-            provider.Captured.Select(e => e.Name));
-    }
+    private static string Text(IReadOnlyDictionary<string, AnalyticsValue> properties, string key) =>
+        ((AnalyticsValue.Text)properties[key]).Value;
 
-    [Fact(DisplayName = "A later launch is not a first launch")]
-    public void SecondLaunchIsOrdinary()
-    {
-        SettingsStore store = NewStore();
-        NewManager(store).Start();
-        provider.Captured.ToList().Clear();
+    // MARK: - The three triggers
 
-        var second = new RecordingAnalyticsProvider();
-        new AnalyticsManager(store, second, "eu.i.posthog.com", true, "2.0.0", "1", "10.0.26200").Start();
-
-        Assert.Equal(["$identify", "app_launch"], second.Captured.Select(e => e.Name));
-    }
-
-    /// <summary>
-    /// Two app_launch events from one launch is not a rounding error; it is every
-    /// per-launch number doubled.
-    /// </summary>
-    [Fact(DisplayName = "Starting twice does not send twice")]
-    public void StartIsIdempotent()
+    [Fact(DisplayName = "A first launch identifies the person once, as a first launch")]
+    public async Task FirstLaunchIdentifiesOnce()
     {
         SettingsStore store = NewStore();
         AnalyticsManager manager = NewManager(store);
-        manager.Start();
-        manager.Start();
-        manager.Start();
 
-        // $identify, app_first_launch, app_launch — once each, however often Start runs.
-        Assert.Equal(3, provider.Captured.Count);
-        Assert.Equal(1, provider.StartCount);
+        await manager.Start();
+        await manager.Start();
+        await manager.Sync();
+
+        IdentifyCall call = Assert.Single(provider.Calls);
+        Assert.Equal("first_launch", Reason(call));
+        Assert.Equal(store.Settings.Privacy.AnonymousId?.ToString("D"), call.DistinctId);
     }
 
-    [Fact(DisplayName = "Nothing is sent while the app simply sits there")]
-    public void IdleSendsNothing()
+    [Fact(DisplayName = "An ordinary relaunch sends nothing")]
+    public async Task RelaunchSendsNothing()
     {
-        SettingsStore store = NewStore();
+        await NewManager(NewStore()).Start();
+        await NewManager(Relaunched()).Start();
+        await NewManager(Relaunched()).Start();
+
+        Assert.Single(provider.Calls);
+    }
+
+    [Fact(DisplayName = "A rename identifies the person again, under the new name, once")]
+    public async Task RenameIdentifiesOnce()
+    {
+        SettingsStore store = NewStore("Before");
         AnalyticsManager manager = NewManager(store);
-        manager.Start();
-        int afterLaunch = provider.Captured.Count;
+        await manager.Start();
 
-        // Everything the inspector reads, read repeatedly. None of it is an event.
-        for (int i = 0; i < 50; i++)
-        {
-            _ = manager.IsEnabled;
-            _ = manager.MaskedIdentifier;
-            _ = manager.Connection;
-            _ = manager.SentCount;
-            _ = manager.Endpoint;
-        }
+        store.Update(settings => settings with { DisplayName = "After" });
+        await manager.Sync();
+        await manager.Sync();
 
-        Assert.Equal(afterLaunch, provider.Captured.Count);
+        Assert.Equal(2, provider.Calls.Count);
+        IdentifyCall rename = provider.Calls[1];
+        Assert.Equal("name_changed", Reason(rename));
+        Assert.Equal("After", Text(rename.PersonProperties, "name"));
+        Assert.Equal(provider.Calls[0].DistinctId, rename.DistinctId);
     }
 
-    [Fact(DisplayName = "Switched off, nothing is captured at all")]
-    public void DisabledCapturesNothing()
+    [Fact(DisplayName = "A rename made on a later launch is still sent")]
+    public async Task RenameBetweenLaunchesIsSent()
     {
-        SettingsStore store = NewStore();
-        store.Update(s => s with { Privacy = s.Privacy with { AnalyticsEnabled = false } });
+        await NewManager(NewStore("Before")).Start();
 
+        SettingsStore store = Relaunched();
+        store.Update(settings => settings with { DisplayName = "After" });
+        await NewManager(store).Start();
+
+        Assert.Equal("name_changed", Reason(provider.Calls[^1]));
+    }
+
+    [Fact(DisplayName = "A new major version identifies the person again; a minor one does not")]
+    public async Task MajorVersionsOnly()
+    {
+        await NewManager(NewStore(), "1.0.0").Start();
+        await NewManager(Relaunched(), "1.4.2").Start();
+        Assert.Single(provider.Calls);
+
+        await NewManager(Relaunched(), "2.0.0").Start();
+        Assert.Equal(2, provider.Calls.Count);
+        Assert.Equal("major_version", Reason(provider.Calls[1]));
+        Assert.Equal("2.0.0", Text(provider.Calls[1].PersonProperties, "app_version"));
+
+        await NewManager(Relaunched(), "2.1.0").Start();
+        Assert.Equal(2, provider.Calls.Count);
+    }
+
+    [Fact(DisplayName = "Going back to an older version sends nothing")]
+    public async Task DowngradeSendsNothing()
+    {
+        await NewManager(NewStore(), "2.0.0").Start();
+        await NewManager(Relaunched(), "1.9.0").Start();
+
+        Assert.Single(provider.Calls);
+    }
+
+    [Fact(DisplayName = "Somebody identified by the old analytics carries over as a major version, under the same identity")]
+    public async Task LegacyIdentityCarriesOver()
+    {
+        Guid legacy = Guid.NewGuid();
+        SettingsStore store = NewStore();
+        store.Update(settings => settings with { Privacy = settings.Privacy with { AnonymousId = legacy } });
+
+        await NewManager(store).Start();
+
+        IdentifyCall call = Assert.Single(provider.Calls);
+        Assert.Equal("major_version", Reason(call));
+        Assert.Equal(legacy.ToString("D"), call.DistinctId);
+    }
+
+    // MARK: - Nothing else, ever
+
+    [Fact(DisplayName = "The provider can send an identify and nothing else")]
+    public void ProviderHasOneMethod()
+    {
+        System.Reflection.MethodInfo method = Assert.Single(typeof(IAnalyticsProvider).GetMethods());
+        Assert.Equal(nameof(IAnalyticsProvider.IdentifyAsync), method.Name);
+    }
+
+    [Fact(DisplayName = "Nothing at all is sent until the person has a name")]
+    public async Task NothingIsSentWhileNameless()
+    {
+        SettingsStore store = NewNamelessStore();
         AnalyticsManager manager = NewManager(store);
-        manager.Start();
-        manager.Track(Events.CharmSelected("nazar"));
-        manager.Stop();
 
-        Assert.Empty(provider.Captured);
-    }
-
-    [Fact(DisplayName = "The launch is still counted when sharing is off")]
-    public void LaunchIsCountedRegardless()
-    {
-        SettingsStore store = NewStore();
-        store.Update(s => s with { Privacy = s.Privacy with { AnalyticsEnabled = false } });
-
-        NewManager(store).Start();
-
-        Assert.Equal(1, store.Settings.Milestones.LaunchCount);
-        Assert.Empty(provider.Captured);
-    }
-
-    [Fact(DisplayName = "Switching off discards the identifier, as the promise says")]
-    public void TurningOffForgetsTheIdentifier()
-    {
-        SettingsStore store = NewStore();
-        AnalyticsManager manager = NewManager(store);
-        manager.Start();
-
-        Assert.NotNull(store.Settings.Privacy.AnonymousId);
-        Guid first = store.Settings.Privacy.AnonymousId!.Value;
-
-        manager.SetEnabled(false);
+        await manager.Start();
+        Assert.Empty(provider.Calls);
         Assert.Null(store.Settings.Privacy.AnonymousId);
-        Assert.False(provider.IsEnabled);
-        Assert.Equal(0, manager.SentCount);
 
-        // Back on mints a new one, so the two cannot be joined.
-        manager.SetEnabled(true);
-        Assert.NotNull(store.Settings.Privacy.AnonymousId);
-        Assert.NotEqual(first, store.Settings.Privacy.AnonymousId!.Value);
+        store.Update(settings => settings with { DisplayName = "Named" });
+        await manager.Sync();
+
+        Assert.Equal("first_launch", Reason(Assert.Single(provider.Calls)));
     }
 
-    [Fact(DisplayName = "Switching off stops capture immediately, not eventually")]
-    public void TurningOffStopsCaptureAtOnce()
+    [Fact(DisplayName = "Whitespace is not a name")]
+    public async Task WhitespaceIsNotAName()
+    {
+        await NewManager(NewStore("   ")).Start();
+
+        Assert.Empty(provider.Calls);
+    }
+
+    [Fact(DisplayName = "A build with no destination sends nothing, and says so")]
+    public async Task NoDestinationSendsNothing()
+    {
+        AnalyticsManager manager = NewManager(NewStore(), hasDestination: false);
+
+        await manager.Start();
+
+        Assert.Empty(provider.Calls);
+        Assert.Equal(AnalyticsConnection.NoDestination, manager.Connection);
+    }
+
+    // MARK: - Failure is retried, not lost
+
+    [Fact(DisplayName = "A first launch with no network is sent on the next launch, still as a first launch")]
+    public async Task FailedFirstLaunchIsRetried()
+    {
+        provider.Accepts = false;
+        await NewManager(NewStore()).Start();
+        Assert.Null(Relaunched().Settings.Privacy.IdentifiedMajorVersion);
+
+        provider.Accepts = true;
+        await NewManager(Relaunched()).Start();
+
+        Assert.Equal(2, provider.Calls.Count);
+        Assert.Equal("first_launch", Reason(provider.Calls[1]));
+        Assert.Equal(provider.Calls[0].DistinctId, provider.Calls[1].DistinctId);
+    }
+
+    [Fact(DisplayName = "An accepted identify is remembered, and only an accepted one")]
+    public async Task OnlyAcceptedIsRecorded()
+    {
+        SettingsStore store = NewStore("Recorded");
+        await NewManager(store, "3.2.1").Start();
+
+        PrivacySettings privacy = store.Settings.Privacy;
+        Assert.Equal("Recorded", privacy.IdentifiedName);
+        Assert.Equal(3, privacy.IdentifiedMajorVersion);
+        Assert.False(privacy.FirstIdentifyPending);
+    }
+
+    // MARK: - Consent
+
+    [Fact(DisplayName = "Switched off, nothing is sent, and the launch is still counted")]
+    public async Task DisabledSendsNothing()
+    {
+        SettingsStore store = NewStore();
+        store.Update(settings => settings with { Privacy = settings.Privacy.Forgotten() });
+
+        await NewManager(store).Start();
+
+        Assert.Empty(provider.Calls);
+        Assert.Equal(1, store.Settings.Milestones.LaunchCount);
+    }
+
+    [Fact(DisplayName = "Switching off forgets the identifier and what was sent under it")]
+    public async Task TurningOffForgets()
     {
         SettingsStore store = NewStore();
         AnalyticsManager manager = NewManager(store);
-        manager.Start();
-        manager.SetEnabled(false);
-        int afterOff = provider.Captured.Count;
+        await manager.Start();
 
-        manager.Track(Events.CharmSelected("hamsa"));
-        manager.Track(Events.AppQuit);
+        await manager.SetEnabled(false);
 
-        Assert.Equal(afterOff, provider.Captured.Count);
+        PrivacySettings privacy = store.Settings.Privacy;
+        Assert.False(privacy.AnalyticsEnabled);
+        Assert.Null(privacy.AnonymousId);
+        Assert.Null(privacy.IdentifiedName);
+        Assert.Null(privacy.IdentifiedMajorVersion);
     }
+
+    [Fact(DisplayName = "Switching back on is a new person with a new identifier")]
+    public async Task TurningBackOnIsANewPerson()
+    {
+        SettingsStore store = NewStore();
+        AnalyticsManager manager = NewManager(store);
+        await manager.Start();
+        await manager.SetEnabled(false);
+
+        await manager.SetEnabled(true);
+
+        Assert.Equal(2, provider.Calls.Count);
+        Assert.Equal("first_launch", Reason(provider.Calls[1]));
+        Assert.NotEqual(provider.Calls[0].DistinctId, provider.Calls[1].DistinctId);
+    }
+
+    [Fact(DisplayName = "A rename while switched off is not sent")]
+    public async Task RenameWhileOffIsNotSent()
+    {
+        SettingsStore store = NewStore();
+        AnalyticsManager manager = NewManager(store);
+        await manager.Start();
+        await manager.SetEnabled(false);
+
+        store.Update(settings => settings with { DisplayName = "Hidden" });
+        await manager.Sync();
+
+        Assert.Single(provider.Calls);
+    }
+
+    // MARK: - What the payload carries
+
+    [Fact(DisplayName = "The name is set under the keys PostHog displays people by")]
+    public async Task NameIsSetWhereItIsRead()
+    {
+        await NewManager(NewStore("Shown Name")).Start();
+
+        IReadOnlyDictionary<string, AnalyticsValue> person = provider.Calls[0].PersonProperties;
+        Assert.Equal("Shown Name", Text(person, "name"));
+        Assert.Equal("Shown Name", Text(person, "username"));
+        Assert.Equal("Shown Name", Text(person, "user_name"));
+    }
+
+    [Fact(DisplayName = "The person carries the platform and the versions")]
+    public async Task PersonCarriesPlatformFacts()
+    {
+        await NewManager(NewStore(), "1.2.3").Start();
+
+        IReadOnlyDictionary<string, AnalyticsValue> person = provider.Calls[0].PersonProperties;
+        Assert.Equal("windows", Text(person, "platform"));
+        Assert.Equal("Windows", Text(person, "$os"));
+        Assert.Equal("1.2.3", Text(person, "app_version"));
+        Assert.Equal("7", Text(person, "build_number"));
+        Assert.Equal("10.0.26200", Text(person, "os_version"));
+        Assert.Contains(Text(person, "architecture"), new[] { "arm64", "x64", "x86" });
+    }
+
+    [Fact(DisplayName = "Geolocation is declined, not merely unmentioned")]
+    public async Task GeolocationIsDeclined()
+    {
+        await NewManager(NewStore()).Start();
+
+        IReadOnlyDictionary<string, AnalyticsValue> properties = provider.Calls[0].EventProperties;
+        Assert.Equal(AnalyticsValue.Of(true), properties["$geoip_disable"]);
+        Assert.Equal(AnalyticsValue.Null, properties["$ip"]);
+    }
+
+    [Fact(DisplayName = "Nothing on the identify is read off the machine")]
+    public async Task NothingIsTakenFromTheMachine()
+    {
+        // A name deliberately unlike any account or machine name, so a leak cannot pass by
+        // coincidence the way it once did.
+        await NewManager(NewStore("Zq Distinct Tester")).Start();
+
+        IdentifyCall call = provider.Calls[0];
+        IEnumerable<string> values = call.PersonProperties.Values
+            .Concat(call.EventProperties.Values)
+            .OfType<AnalyticsValue.Text>()
+            .Select(text => text.Value);
+
+        Assert.DoesNotContain(Environment.UserName, values);
+        Assert.DoesNotContain(Environment.MachineName, values);
+    }
+
+    [Fact(DisplayName = "Nothing describing the desktop or the rope is sent")]
+    public async Task NothingAboutUseIsSent()
+    {
+        await NewManager(NewStore()).Start();
+
+        IdentifyCall call = provider.Calls[0];
+        IEnumerable<string> keys = call.PersonProperties.Keys.Concat(call.EventProperties.Keys);
+        string[] forbidden = ["charm", "charm_count", "active_charm_ids", "rope_style", "display", "screen", "position"];
+
+        Assert.DoesNotContain(keys, key => forbidden.Any(word => key.Contains(word, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Theory(DisplayName = "Major versions are read the same way on both platforms")]
+    [InlineData("0.9.4", 0)]
+    [InlineData("1.0.0", 1)]
+    [InlineData("2.1.0+416b85d", 2)]
+    [InlineData("10.0.0-beta", 10)]
+    [InlineData("garbage", 0)]
+    public void MajorVersionParsing(string version, int expected) =>
+        Assert.Equal(expected, AnalyticsManager.MajorOf(version));
 
     [Fact(DisplayName = "The identifier is masked, and is not the identifier")]
-    public void IdentifierIsMasked()
+    public async Task IdentifierIsMasked()
     {
         SettingsStore store = NewStore();
         AnalyticsManager manager = NewManager(store);
-        Assert.Null(manager.MaskedIdentifier);
+        await manager.Start();
 
-        manager.Start();
-        string masked = Assert.IsType<string>(manager.MaskedIdentifier);
         string full = store.Settings.Privacy.AnonymousId!.Value.ToString("D");
-
-        Assert.Contains("••••", masked, StringComparison.Ordinal);
-        Assert.DoesNotContain(full, masked, StringComparison.Ordinal);
-        Assert.StartsWith(full[..8], masked, StringComparison.Ordinal);
-    }
-
-    /// <summary>
-    /// "Charms you make. They are reported as the word custom." — PRIVACY.md.
-    /// </summary>
-    [Fact(DisplayName = "A charm somebody made is reported as the word custom")]
-    public void CustomCharmsAreNotNamed()
-    {
-        Assert.Equal("nazar", Events.NameOf("nazar"));
-        Assert.Equal("custom", Events.NameOf("a-file-on-one-persons-disk"));
-
-        AnalyticsEvent selected = Events.CharmSelected("some-imported-thing");
-        Assert.Equal(AnalyticsValue.Of("custom"), selected.Properties["charm"]);
-    }
-
-    [Fact(DisplayName = "Every event carries what is on the rope, and nothing describing the desktop")]
-    public void EventsCarryTheRopeAndNotTheScreen()
-    {
-        SettingsStore store = NewStore();
-        store.UpdateOverlay(o => o with
-        {
-            CharmIds = ["nazar", "hamsa"],
-            RopeStyle = RopeStyle.GoldChain,
-            OffsetX = 123,
-            OffsetY = -45,
-            Anchor = OverlayAnchor.TopTrailing,
-            DisplayIndex = 2,
-        });
-
-        AnalyticsManager manager = NewManager(store);
-        manager.Start();
-        AnalyticsEvent sent = provider.Captured[^1];
-
-        Assert.Equal(AnalyticsValue.Of(2), sent.Properties["charm_count"]);
-        Assert.Equal(AnalyticsValue.Of("GoldChain"), sent.Properties["rope_style"]);
-        Assert.Equal(
-            AnalyticsValue.Of((IReadOnlyList<string>)["nazar", "hamsa"]),
-            sent.Properties["active_charm_ids"]);
-
-        // Where the charm sits, how large it is, which display it is on: never sent.
-        foreach (string forbidden in (string[])
-            ["offsetX", "offsetY", "offset_x", "offset_y", "anchor", "display", "displayIndex", "display_index"])
-        {
-            Assert.DoesNotContain(forbidden, sent.Properties.Keys, StringComparer.OrdinalIgnoreCase);
-        }
-    }
-
-    [Fact(DisplayName = "A setting change reports the setting's name, never its value")]
-    public void AppearanceReportsNamesNotValues()
-    {
-        AnalyticsEvent changed = Events.AppearanceChanged("charm_size");
-        Assert.Equal(AnalyticsValue.Of("charm_size"), changed.Properties["setting"]);
-        Assert.Single(changed.Properties);
-    }
-
-    [Fact(DisplayName = "A dropped file is a type and a bucket, never a name or a size")]
-    public void DroppedFilesAreNotDescribed()
-    {
-        AnalyticsEvent dropped = Events.AirdropFileDropped(".PNG", 5_000_000);
-
-        Assert.Equal(AnalyticsValue.Of("png"), dropped.Properties["fileType"]);
-        Assert.Equal(AnalyticsValue.Of("1-10MB"), dropped.Properties["fileSizeBucket"]);
-        Assert.Equal(2, dropped.Properties.Count);
-    }
-
-    [Theory(DisplayName = "File sizes become buckets")]
-    [InlineData(-1, "unknown")]
-    [InlineData(999_999, "<1MB")]
-    [InlineData(9_999_999, "1-10MB")]
-    [InlineData(99_999_999, "10-100MB")]
-    [InlineData(999_999_999, "100MB-1GB")]
-    [InlineData(1_000_000_000, ">1GB")]
-    public void SizeBuckets(long bytes, string expected) =>
-        Assert.Equal(expected, Events.FileSizeBucket(bytes));
-
-    [Fact(DisplayName = "With no destination configured the app still runs, and says so")]
-    public void NoDestinationIsAValidState()
-    {
-        SettingsStore store = NewStore();
-        AnalyticsManager manager = NewManager(store, hasDestination: false);
-        manager.Start();
-
-        Assert.Equal(AnalyticsConnection.NoDestination, manager.Connection);
-        Assert.Equal("none", manager.Endpoint);
-    }
-
-    [Fact(DisplayName = "Quitting says goodbye once and flushes")]
-    public void StopFlushes()
-    {
-        SettingsStore store = NewStore();
-        AnalyticsManager manager = NewManager(store);
-        manager.Start();
-        manager.Stop();
-
-        Assert.Equal("app_quit", provider.Captured[^1].Name);
-        Assert.Equal(1, provider.FlushCount);
-    }
-
-    /// <summary>
-    /// The names are the macOS build's names. Two platforms reporting the same act under
-    /// different names produce two datasets that cannot be added together.
-    /// </summary>
-    [Fact(DisplayName = "The vocabulary is exactly the macOS vocabulary")]
-    public void VocabularyMatchesMacOS()
-    {
-        string[] expected =
-        [
-            "airdrop_drag_entered", "airdrop_file_dropped", "airdrop_picker_opened",
-            "app_first_launch", "app_launch", "app_quit",
-            "appearance_changed", "charm_added", "charm_imported", "charm_removed",
-            "charm_reordered", "charm_saved", "charm_selected",
-            "coffee_copy_upi", "coffee_qr_viewed", "coffee_sheet_opened",
-            "collection_charm_selected", "collection_opened",
-            "follow_instagram_clicked", "follow_popup_dismissed", "follow_popup_follow_clicked",
-            "follow_popup_maybe_later", "follow_popup_shown",
-            "rope_count_changed", "rope_style_changed",
-        ];
-
-        string[] actual =
-        [
-            Events.AirdropDragEntered.Name,
-            Events.AirdropFileDropped(".png", 1).Name,
-            Events.AirdropPickerOpened.Name,
-            Events.AppFirstLaunch.Name,
-            Events.AppLaunch.Name,
-            Events.AppQuit.Name,
-            Events.AppearanceChanged("x").Name,
-            Events.CharmAdded("nazar").Name,
-            Events.CharmImported.Name,
-            Events.CharmRemoved("nazar").Name,
-            Events.CharmReordered(0, 1).Name,
-            Events.CharmSaved.Name,
-            Events.CharmSelected("nazar").Name,
-            Events.CoffeeCopyUpi("about").Name,
-            Events.CoffeeQrViewed("about").Name,
-            Events.CoffeeSheetOpened("about").Name,
-            Events.CollectionCharmSelected("Marvel", "Spider-Man").Name,
-            Events.CollectionOpened("Marvel").Name,
-            Events.FollowInstagramClicked.Name,
-            Events.FollowPopupDismissed.Name,
-            Events.FollowPopupFollowClicked.Name,
-            Events.FollowPopupMaybeLater.Name,
-            Events.FollowPopupShown.Name,
-            Events.RopeCountChanged(2).Name,
-            Events.RopeStyleChanged(RopeStyle.Thread).Name,
-        ];
-
-        Assert.Equal(expected, actual.Order().ToArray());
-    }
-
-    /// <summary>The identity properties, and the promise that nothing else joins them.</summary>
-    [Fact(DisplayName = "Every event carries the name, the platform and the architecture")]
-    public void IdentityTravelsWithEveryEvent()
-    {
-        var store = NewStore(new AppSettings
-        {
-            DisplayName = "Sharan",
-            Privacy = new PrivacySettings { AnalyticsEnabled = true },
-        });
-
-        AnalyticsManager manager = NewManager(store);
-        manager.Start();
-        manager.Track(Events.CharmSelected("nazar"));
-
-        AnalyticsEvent last = provider.Captured[^1];
-        Assert.Equal("Sharan", ((AnalyticsValue.Text)last.Properties["user_name"]).Value);
-
-        Assert.NotNull(provider.SuperProperties);
-        Assert.Equal("windows", ((AnalyticsValue.Text)provider.SuperProperties!["platform"]).Value);
-        Assert.True(provider.SuperProperties.ContainsKey("architecture"));
-        Assert.True(provider.SuperProperties.ContainsKey("os_version"));
-        Assert.True(provider.SuperProperties.ContainsKey("app_version"));
-
-        Assert.NotNull(provider.PersonProperties);
-        Assert.Equal("Sharan", ((AnalyticsValue.Text)provider.PersonProperties!["user_name"]).Value);
-    }
-
-    /// <summary>
-    /// Every blank user_name in the project came from here. The launch sequence counts
-    /// the launch and says hello before onboarding has run, so a first launch sent
-    /// $identify, app_first_launch and app_launch with an empty name, every time.
-    /// </summary>
-    [Fact(DisplayName = "Nothing at all is sent until the person has a name")]
-    public void NothingIsSentWhileNameless()
-    {
-        SettingsStore store = NewNamelessStore();
-        AnalyticsManager manager = NewManager(store);
-
-        manager.Start();
-        manager.Track(Events.AppQuit);
-        manager.Stop();
-
-        Assert.Empty(provider.Captured);
-        Assert.Equal(0, provider.StartCount);
-
-        // The launch still counts. The follow card is scheduled off that number and it
-        // has nothing to do with whether anything was sent.
-        Assert.Equal(1, store.Settings.Milestones.LaunchCount);
-    }
-
-    /// <summary>The hello is held for the name, not dropped.</summary>
-    [Fact(DisplayName = "Naming yourself releases the launch that was waiting")]
-    public void NamingReleasesTheHeldLaunch()
-    {
-        SettingsStore store = NewNamelessStore();
-        AnalyticsManager manager = NewManager(store);
-        manager.Start();
-        Assert.Empty(provider.Captured);
-
-        store.Update(settings => settings with { DisplayName = "Sharan" });
-        manager.Announce();
-
-        Assert.Equal(
-            ["$identify", "app_first_launch", "app_launch"],
-            provider.Captured.Select(e => e.Name));
-
-        foreach (AnalyticsEvent sent in provider.Captured)
-        {
-            if (sent.Properties.TryGetValue("user_name", out AnalyticsValue? name))
-            {
-                Assert.Equal("Sharan", ((AnalyticsValue.Text)name).Value);
-            }
-        }
-    }
-
-    /// <summary>Announcing twice is still one hello.</summary>
-    [Fact(DisplayName = "The held launch is released exactly once")]
-    public void AnnounceIsIdempotent()
-    {
-        SettingsStore store = NewNamelessStore();
-        AnalyticsManager manager = NewManager(store);
-        manager.Start();
-        store.Update(settings => settings with { DisplayName = "Sharan" });
-
-        manager.Announce();
-        manager.Announce();
-        manager.Announce();
-
-        Assert.Equal(3, provider.Captured.Count);
-        Assert.Equal(1, provider.StartCount);
-    }
-
-    /// <summary>A name of nothing but spaces is not a name.</summary>
-    [Fact(DisplayName = "Whitespace is not a name")]
-    public void WhitespaceIsNotAName()
-    {
-        SettingsStore store = NewNamelessStore();
-        store.Update(settings => settings with { DisplayName = "   " });
-        AnalyticsManager manager = NewManager(store);
-
-        manager.Start();
-
-        Assert.False(manager.HasName);
-        Assert.Empty(provider.Captured);
-    }
-
-    /// <summary>
-    /// The name has to be under a key PostHog will show people by.
-    /// </summary>
-    /// <remarks>
-    /// A person's display name is resolved from the first of <c>email</c>, <c>name</c> or
-    /// <c>username</c> that the person has. <c>user_name</c> is in none of those lists, so
-    /// for a whole beta every Windows person appeared as a bare identifier with the name
-    /// sitting one property away, unread. This is that bug, written down.
-    /// </remarks>
-    [Fact(DisplayName = "The name is set under the keys PostHog displays people by")]
-    public void NameIsSetWhereItIsRead()
-    {
-        SettingsStore store = NewStore();
-        store.Update(settings => settings with { DisplayName = "Sharan" });
-        NewManager(store).Start();
-
-        Assert.NotNull(provider.PersonProperties);
-        foreach (string key in (string[])["user_name", "name", "username"])
-        {
-            Assert.Equal("Sharan", ((AnalyticsValue.Text)provider.PersonProperties![key]).Value);
-        }
-    }
-
-    /// <summary>
-    /// PRIVACY.md lists IP-derived enrichment among the things Hangly never collects, and
-    /// declining it means sending the key as null rather than leaving it out.
-    /// </summary>
-    [Fact(DisplayName = "The sending address is withheld, not merely unmentioned")]
-    public void GeolocationIsDeclined()
-    {
-        SettingsStore store = NewStore();
-        NewManager(store).Start();
-
-        Assert.NotNull(provider.SuperProperties);
-        Assert.IsType<AnalyticsValue.Absent>(provider.SuperProperties!["$ip"]);
-    }
-
-    /// <summary>
-    /// The properties PostHog's own charts group by, so Windows shows up beside macOS in
-    /// a breakdown rather than being absent from it.
-    /// </summary>
-    [Fact(DisplayName = "Windows reports itself under PostHog's own platform keys")]
-    public void PlatformIsReportedTwice()
-    {
-        SettingsStore store = NewStore();
-        NewManager(store).Start();
-
-        Assert.NotNull(provider.SuperProperties);
-        Assert.Equal("windows", ((AnalyticsValue.Text)provider.SuperProperties!["platform"]).Value);
-        Assert.Equal("Windows", ((AnalyticsValue.Text)provider.SuperProperties!["$os"]).Value);
-        Assert.Equal("Desktop", ((AnalyticsValue.Text)provider.SuperProperties!["$device_type"]).Value);
-        Assert.True(provider.SuperProperties.ContainsKey("$app_version"));
-        Assert.True(provider.SuperProperties.ContainsKey("$lib"));
-    }
-
-    /// <summary>A corrected name reaches the project without a relaunch.</summary>
-    [Fact(DisplayName = "Renaming yourself renames you on the next event")]
-    public void RenamingTakesEffectImmediately()
-    {
-        var store = NewStore(new AppSettings
-        {
-            DisplayName = "Old",
-            Privacy = new PrivacySettings { AnalyticsEnabled = true },
-        });
-
-        AnalyticsManager manager = NewManager(store);
-        manager.Start();
-
-        store.Update(settings => settings with { DisplayName = "New" });
-        manager.Track(Events.CharmSelected("nazar"));
-
-        Assert.Equal("New", ((AnalyticsValue.Text)provider.Captured[^1].Properties["user_name"]).Value);
-        Assert.Equal("New", ((AnalyticsValue.Text)provider.PersonProperties!["user_name"]).Value);
-    }
-
-    /// <summary>The name is the only personal thing, and it is never taken from the machine.</summary>
-    [Fact(DisplayName = "No event carries anything read off the machine")]
-    public void NothingIsTakenFromTheMachine()
-    {
-        // A name that cannot coincide with this machine's own. Seeding it with something
-        // plausible made this pass or fail depending on whose account ran the suite --
-        // the first run failed because the tester's Windows account is also called
-        // Sharan, and a typed name that happens to match is not a leak.
-        var store = NewStore(new AppSettings
-        {
-            DisplayName = "Zephyr Quill",
-            Privacy = new PrivacySettings { AnalyticsEnabled = true },
-        });
-
-        AnalyticsManager manager = NewManager(store);
-        manager.Start();
-        manager.Track(Events.AirdropFileDropped(".png", 4096));
-        manager.Track(Events.CharmImported);
-
-        string[] forbidden =
-        [
-            Environment.UserName,
-            Environment.MachineName,
-            Environment.UserDomainName,
-        ];
-
-        foreach (AnalyticsEvent captured in provider.Captured)
-        {
-            foreach ((string key, AnalyticsValue value) in captured.Properties)
-            {
-                if (value is not AnalyticsValue.Text text)
-                {
-                    continue;
-                }
-
-                foreach (string secret in forbidden.Where(s => !string.IsNullOrEmpty(s)))
-                {
-                    Assert.False(
-                        text.Value.Contains(secret, StringComparison.OrdinalIgnoreCase),
-                        $"'{key}' carried something read off the machine");
-                }
-
-                // And no path separators, which is the shape a file path would have.
-                Assert.DoesNotContain(@":\", text.Value, StringComparison.Ordinal);
-            }
-        }
+        Assert.NotNull(manager.MaskedIdentifier);
+        Assert.NotEqual(full, manager.MaskedIdentifier);
+        Assert.StartsWith(full[..8], manager.MaskedIdentifier, StringComparison.Ordinal);
     }
 }

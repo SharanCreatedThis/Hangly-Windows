@@ -165,14 +165,15 @@ public static class Diagnostics
     /// adds anything to the charms the person actually has.
     /// </remarks>
     /// <summary>
-    /// Sends one real event and writes the payload and the response to the log.
+    /// Writes to the log exactly what the next identify would carry, and whether one is due.
     /// </summary>
     /// <remarks>
     /// Uses the settings the person actually has — their name, their installation
     /// identifier — because a payload built from invented values would not answer the
-    /// question being asked, which is what this copy of Hangly sends about this person.
-    /// It respects the analytics toggle: with sharing off it reports that and sends
-    /// nothing.
+    /// question being asked, which is what this copy of Hangly tells the project about this
+    /// person. <b>It sends nothing.</b> Sending would itself be a change to the person the
+    /// project holds, and a check that alters what it is checking is not a check. It does
+    /// not count a launch either.
     /// </remarks>
     public static void CheckAnalytics()
     {
@@ -181,28 +182,7 @@ public static class Diagnostics
             var store = new Core.Settings.SettingsStore(Core.Settings.SettingsStore.DefaultPath);
             Log($"analytics check: sharing is {(store.Settings.Privacy.AnalyticsEnabled ? "on" : "off")}");
             Log($"analytics check: name is '{store.Settings.DisplayName}'");
-
-            if (!store.Settings.Privacy.AnalyticsEnabled)
-            {
-                Log("analytics check: nothing sent, because sharing is off");
-                return;
-            }
-
-            if (!AppInfo.HasAnalyticsDestination)
-            {
-                Log("analytics check: no key in this build, so there is nowhere to send");
-                return;
-            }
-
-            // Refused rather than sent. CheckAsync goes straight to the provider and so
-            // walks around the name gate the manager enforces; without this it posted an
-            // event with an empty distinct_id and reported the 400 that came back as
-            // though the destination were at fault.
-            if (store.Settings.DisplayName.Trim().Length == 0)
-            {
-                Log("analytics check: nothing sent, because nobody has given a name yet");
-                return;
-            }
+            Log($"analytics check: {(AppInfo.HasAnalyticsDestination ? $"destination {AppInfo.AnalyticsHost}" : "no key in this build, so there is nowhere to send")}");
 
             using var provider = new Analytics.PostHogProvider(AppInfo.AnalyticsHost, AppInfo.AnalyticsKey);
             var manager = new Core.Analytics.AnalyticsManager(
@@ -214,14 +194,16 @@ public static class Diagnostics
                 AppInfo.BuildNumber,
                 AppInfo.WindowsVersion);
 
-            manager.Start();
+            Core.Analytics.IdentifyReason? due = manager.PendingReason();
+            Log(due is Core.Analytics.IdentifyReason reason
+                ? $"analytics check: an identify is due ({Core.Analytics.AnalyticsManager.NameOf(reason)})"
+                : "analytics check: nothing is due; nothing would be sent on the next launch");
 
-            (string payload, int status) = provider
-                .CheckAsync(Core.Analytics.Events.AppLaunch)
-                .GetAwaiter()
-                .GetResult();
-
-            Log($"analytics check: HTTP {status}");
+            string distinctId = store.Settings.Privacy.AnonymousId?.ToString("D") ?? "(minted on the first send)";
+            string payload = provider.Preview(
+                distinctId,
+                manager.PersonProperties(),
+                manager.EventProperties(due ?? Core.Analytics.IdentifyReason.FirstLaunch));
             Log($"analytics check payload: {payload}");
         }
         catch (Exception exception)

@@ -17,6 +17,13 @@ on:
 permissions:
   contents: write
 
+# The production analytics key, and the only place it exists. Every other build of this
+# repository has none and sends nothing. It is a PostHog project key — the publishable
+# kind that ships inside every copy — so it is stated here rather than held in a secret
+# that a build could fail to read without noticing; v0.9.1 shipped with no key that way.
+env:
+  HANGLY_ANALYTICS_KEY: phc_sCpDUENKdFpt5Db9Fvjh46yJw6ffkEhF6v2W2TbJBwiK
+
 jobs:
   package:
     name: Package (${{ matrix.rid }})
@@ -61,6 +68,7 @@ jobs:
           dotnet publish src/Hangly.App/Hangly.App.csproj `
             -c Release -r ${{ matrix.rid }} -p:Platform=${{ matrix.platform }} `
             -p:Version=${{ steps.version.outputs.version }} `
+            -p:HanglyAnalyticsKey=$env:HANGLY_ANALYTICS_KEY `
             -o publish
           if ($LASTEXITCODE -ne 0) { exit 1 }
 

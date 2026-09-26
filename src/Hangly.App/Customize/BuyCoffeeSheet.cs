@@ -6,7 +6,6 @@
 //
 
 using Hangly.App.Services;
-using Hangly.Core.Analytics;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -26,10 +25,8 @@ namespace Hangly.App.Customize;
 /// then nothing. The address is right there to copy, and the button goes to the page that
 /// works on a desktop.</para>
 ///
-/// <para>The three analytics events this fires — <c>coffee_sheet_opened</c>,
-/// <c>coffee_qr_viewed</c> and <c>coffee_copy_upi</c> — were defined when the analytics
-/// table was ported and have been listed in STATUS.md as "defined but never fired" since.
-/// They fire now, with the same names macOS uses.</para>
+/// <para>Nothing here is reported. Analytics records who uses Hangly, not what they
+/// click.</para>
 /// </remarks>
 internal static class BuyCoffeeSheet
 {
@@ -52,14 +49,8 @@ internal static class BuyCoffeeSheet
     }
 
     /// <summary>Shows the sheet over <paramref name="root"/>.</summary>
-    /// <param name="source">Which surface asked, which is all the events record.</param>
-    public static async Task ShowAsync(
-        FrameworkElement root,
-        AnalyticsManager analytics,
-        string source)
+    public static async Task ShowAsync(FrameworkElement root)
     {
-        analytics.Track(Events.CoffeeSheetOpened(source));
-
         var address = new TextBlock
         {
             Text = AppInfo.UpiId,
@@ -100,7 +91,6 @@ internal static class BuyCoffeeSheet
             // Said rather than animated away: the confirmation is the point, and a
             // toast that fades needs a timer this sheet would have to own and cancel.
             copied.Opacity = 1;
-            analytics.Track(Events.CoffeeCopyUpi(source));
         };
 
         var body = new StackPanel { Spacing = 10, MinWidth = 260 };
@@ -138,8 +128,6 @@ internal static class BuyCoffeeSheet
                     Source = new BitmapImage(new Uri(QrPath)),
                 },
             });
-
-            analytics.Track(Events.CoffeeQrViewed(source));
         }
         else
         {

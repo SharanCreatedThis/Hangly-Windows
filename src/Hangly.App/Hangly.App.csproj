@@ -77,17 +77,20 @@
       *project* key is the publishable kind that is meant to ship inside a client, so
       this is about keeping it swappable per configuration rather than keeping it secret.
 
-      The key is stated here rather than injected. It used to default to empty and be
-      passed in from a repository secret, and the secret did not exist: every v0.9.1
-      build went out with no key, so the provider was never constructed and not one
-      Windows event was ever sent. A write-only key that already ships inside a public
-      binary gains nothing from being held somewhere a build can silently fail to read.
-      It can still be overridden per publish, and an empty override is still supported.
+      There is no key here, deliberately. Only a release is allowed to tell the
+      production project anything, so the key is passed in by the release workflow and
+      every other build — Debug, a local Release, CI — has none, sends nothing, and says
+      "No destination configured" on its About page.
 
-          dotnet publish ... -p:HanglyAnalyticsKey=
+      It is written into release.yml as text rather than held in a repository secret:
+      v0.9.1 went out with no key because the secret it read did not exist, and a
+      publishable client key gains nothing from being hidden. release.yml also fails the
+      build if the published assembly does not contain it.
+
+          dotnet publish ... -p:HanglyAnalyticsKey=phc_...
     -->
     <HanglyAnalyticsHost Condition="'$(HanglyAnalyticsHost)' == ''">us.i.posthog.com</HanglyAnalyticsHost>
-    <HanglyAnalyticsKey Condition="'$(HanglyAnalyticsKey)' == ''">phc_sCpDUENKdFpt5Db9Fvjh46yJw6ffkEhF6v2W2TbJBwiK</HanglyAnalyticsKey>
+    <HanglyAnalyticsKey Condition="'$(HanglyAnalyticsKey)' == ''"></HanglyAnalyticsKey>
     <HanglyBuildNumber Condition="'$(HanglyBuildNumber)' == ''">5</HanglyBuildNumber>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 

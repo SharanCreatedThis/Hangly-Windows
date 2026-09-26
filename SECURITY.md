@@ -28,10 +28,10 @@ user. The places where something could still go wrong:
 - **The updater.** Hangly updates itself from its own GitHub releases over HTTPS and
   verifies each package against the SHA256 in the feed before applying it. Anything that
   would let a different package be applied is a vulnerability.
-- **Analytics.** Hangly sends a small, documented set of events when you leave sharing on.
-  Anything leaving the machine that [PRIVACY.md](PRIVACY.md) does not list is a bug, and if
-  it is personal information it is a vulnerability. There is a switch that shows exactly
-  what a real event contains: `Hangly.exe --check-analytics`.
+- **Analytics.** With sharing on, Hangly sends one documented `$identify` on a first
+  launch, a rename or a new major version, and nothing else. Anything leaving the machine
+  that [PRIVACY.md](PRIVACY.md) does not list is a bug, and if it is personal information
+  it is a vulnerability. `Hangly.exe --check-analytics` prints exactly what would be sent.
 
 ## What is not a vulnerability
 
