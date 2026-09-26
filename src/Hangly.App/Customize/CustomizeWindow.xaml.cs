@@ -244,8 +244,8 @@ public sealed partial class CustomizeWindow : Window
     {
         RebuildTiles();
 
-        // Anything cached for a charm that is gone -- a deleted import, or one of the
-        // eleven the seasonal cut removed -- goes with it.
+        // Anything cached for a charm that is gone -- a deleted import, or a charm an
+        // earlier build had -- goes with it.
         CharmThumbnails.Prune([.. environment.Charms.All.Select(entry => entry.Id)]);
 
         slotTiles.CollectionChanged += OnSlotsReordered;

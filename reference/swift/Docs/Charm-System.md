@@ -163,8 +163,7 @@ without a single drawing call having to be told twice which it is. It is part of
 for the rope, once for a card.
 
 Closing Customize runs `ArtworkMemory.reclaim()`, which drops every `.interface`
-bitmap, every imported bitmap that is not on the rope, every weathered copy whose
-source has gone, and Create's workspace if the charm in it was already saved. The
+bitmap, every imported bitmap that is not on the rope, and Create's workspace if the charm in it was already saved. The
 measured regions — where a charm's beads end and its body begins — are kept: they
 are rectangles, the rope reads them on every step, and each costs a rasterisation to
 work out again.

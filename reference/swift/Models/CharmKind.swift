@@ -30,19 +30,6 @@ enum CharmKind: String, CaseIterable, Codable, Sendable, Identifiable {
     case himmeli
     case dreamCatcher
 
-    // The seasonal packs.
-    case snowflake
-    case bell
-    case candyCane
-    case pumpkin
-    case ghost
-    case bat
-    case diya
-    case lotus
-    case lantern
-    case firework
-    case luckyCoin
-
     // The Marvel collection.
     case spiderMan
     case captainAmericaShield
@@ -140,17 +127,6 @@ extension CharmKind {
         case .scarab: "Scarab"
         case .himmeli: "Himmeli"
         case .dreamCatcher: "Dream Catcher"
-        case .snowflake: "Snowflake"
-        case .bell: "Bell"
-        case .candyCane: "Candy Cane"
-        case .pumpkin: "Pumpkin"
-        case .ghost: "Ghost"
-        case .bat: "Bat"
-        case .diya: "Diya"
-        case .lotus: "Lotus"
-        case .lantern: "Lantern"
-        case .firework: "Firework"
-        case .luckyCoin: "Lucky Coin"
         case .spiderMan: "Spider-Man"
         case .captainAmericaShield: "Captain America Shield"
         case .ironManHelmet: "Iron Man Helmet"
@@ -227,17 +203,6 @@ extension CharmKind {
         case .scarab: "ant.fill"
         case .himmeli: "pyramid.fill"
         case .dreamCatcher: "circle.hexagongrid.fill"
-        case .snowflake: "snowflake"
-        case .bell: "bell.and.waves.left.and.right.fill"
-        case .candyCane: "figure.walk.motion"
-        case .pumpkin: "carrot.fill"
-        case .ghost: "figure.stand"
-        case .bat: "bolt.horizontal.fill"
-        case .diya: "flame.fill"
-        case .lotus: "camera.macro"
-        case .lantern: "lightbulb.fill"
-        case .firework: "sparkles"
-        case .luckyCoin: "centsign.circle.fill"
         case .spiderMan: "figure.climbing"
         case .captainAmericaShield: "shield.fill"
         case .ironManHelmet: "faceid"
