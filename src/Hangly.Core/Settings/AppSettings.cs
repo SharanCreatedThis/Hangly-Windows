@@ -114,6 +114,9 @@ public sealed record OverlaySettings
     /// <summary>What the chosen display was called, for a menu to name it while it is away.</summary>
     public string? DisplayName { get; init; }
 
+    /// <summary>Appearance → Motion: follow Windows' animation effects, or choose.</summary>
+    public MotionPreference Motion { get; init; } = MotionPreference.FollowSystem;
+
     /// <summary>The charms on the cord, from the anchor down.</summary>
     /// <remarks>
     /// Ids from <c>CharmCatalog</c>, which are the macOS <c>CharmKind</c> raw values, so
@@ -184,6 +187,7 @@ public sealed record OverlaySettings
         && DisplayIndex == other.DisplayIndex
         && string.Equals(DisplayId, other.DisplayId, StringComparison.Ordinal)
         && string.Equals(DisplayName, other.DisplayName, StringComparison.Ordinal)
+        && Motion == other.Motion
         && CharmCount == other.CharmCount
         && CharmIds.SequenceEqual(other.CharmIds, StringComparer.Ordinal)
         && Slots.SequenceEqual(other.Slots);
@@ -203,6 +207,7 @@ public sealed record OverlaySettings
         hash.Add(DisplayIndex);
         hash.Add(DisplayId, StringComparer.Ordinal);
         hash.Add(DisplayName, StringComparer.Ordinal);
+        hash.Add(Motion);
         foreach (string id in CharmIds)
         {
             hash.Add(id, StringComparer.Ordinal);
@@ -232,6 +237,7 @@ public sealed record OverlaySettings
         DisplayIndex = Math.Max(0, DisplayIndex),
         DisplayId = string.IsNullOrWhiteSpace(DisplayId) ? null : DisplayId,
         DisplayName = DisplayId is null ? null : DisplayName,
+        Motion = Enum.IsDefined(Motion) ? Motion : MotionPreference.FollowSystem,
         HorizontalPosition = HorizontalPosition is double at ? Math.Clamp(at, 0, 1) : null,
         CharmIds = ClampedCharmIds(),
         Slots = [.. Slots.Take(CharmStack.MaximumCount).Select(place => place.Clamped())],

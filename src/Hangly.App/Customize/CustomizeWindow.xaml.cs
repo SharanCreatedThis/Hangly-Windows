@@ -618,6 +618,7 @@ public sealed partial class CustomizeWindow : Window
             UpdateSliderLabels();
 
             ShowToggle.IsOn = overlay.IsEnabled;
+            MotionChoice.SelectedIndex = (int)overlay.Motion;
             LoginToggle.IsOn = store.Settings.LaunchAtLogin;
             NameBox.MaxLength = AppSettings.DisplayNameLimit;
             NameBox.Text = store.Settings.DisplayName;
@@ -932,6 +933,9 @@ public sealed partial class CustomizeWindow : Window
     /// Library off the tray menu got About again, and reasonably called it a bug.
     /// </remarks>
     public void ShowLibrary() => ShowSection("charms");
+
+    /// <summary>Opens a section by its tag: charms, create, appearance or about.</summary>
+    public void ShowSectionNamed(string tag) => ShowSection(tag);
 
     /// <summary>Selects the navigation item carrying <paramref name="tag"/>.</summary>
     /// <remarks>
@@ -1382,6 +1386,15 @@ public sealed partial class CustomizeWindow : Window
         if (!isLoading)
         {
             store.UpdateOverlay(overlay => overlay with { Opacity = OpacitySlider.Value });
+        }
+    }
+
+    private void OnMotionChanged(object sender, SelectionChangedEventArgs args)
+    {
+        if (!isLoading && MotionChoice.SelectedIndex is >= 0 and <= 2)
+        {
+            var motion = (Hangly.Core.Models.MotionPreference)MotionChoice.SelectedIndex;
+            store.UpdateOverlay(overlay => overlay with { Motion = motion });
         }
     }
 

@@ -298,6 +298,25 @@ public sealed class AppEnvironment : IDisposable
         // Last, and on its own thread, so nothing above waits on a network call.
         CheckForUpdateQuietly();
         StartAuditCycle();
+        OpenAuditPage();
+    }
+
+    /// <summary>
+    /// For screenshots and memory audits only: with <c>HANGLY_AUDIT_OPEN</c> set to a
+    /// Customize section — charms, create, appearance, about — opens it at launch, so a
+    /// page can be captured without anybody driving the tray. Inert when unset. The macOS
+    /// build's equivalent is its <c>com.hangly.audit.*</c> notifications.
+    /// </summary>
+    private void OpenAuditPage()
+    {
+        if (Environment.GetEnvironmentVariable("HANGLY_AUDIT_OPEN") is not { Length: > 0 } section)
+        {
+            return;
+        }
+
+        OpenCustomize();
+        customize?.ShowSectionNamed(section);
+        Diagnostics.Log($"audit: opened {section}");
     }
 
     /// <summary>
