@@ -20,12 +20,11 @@ namespace Hangly.App.Overlay;
 /// <para>The clock does not own the wait. Whoever is pacing the loop calls
 /// <see cref="Advance"/>; this class only decides what that frame is worth.</para>
 ///
-/// <para><b>Throttling.</b> Windows gives no equivalent of <c>preferredFrameRateRange</c>,
-/// so the idle rate is implemented by skipping ticks rather than by asking for fewer:
-/// once the rope has settled the handler still runs at the display rate but only passes
-/// one tick in four downstream. The clock keeps running rather than stopping, because
-/// the same tick is what polls the cursor for a grab — thirty per second keeps that
-/// responsive at a fraction of the cost.</para>
+/// <para><b>Idling.</b> Once the rope has settled, the frame loop stops waiting on the
+/// compositor and waits on its message queue with a timeout instead, so ticks arrive about
+/// thirty times a second — enough to notice a grab. The clock used to do this itself, by
+/// passing one compositor frame in four downstream, which still woke the thread at the
+/// display's full rate to do nothing on three of them.</para>
 ///
 /// <para>The delta is measured with <see cref="System.Diagnostics.Stopwatch"/> because
 /// the solver needs a number it can trust on every frame, and nothing the compositor
@@ -35,20 +34,8 @@ public sealed class SimulationClock
 {
     private readonly System.Diagnostics.Stopwatch stopwatch = new();
 
-    /// <summary>Full display rate, used while the rope is moving.</summary>
-    private const int ActiveDivisor = 1;
-
-    /// <summary>
-    /// Idle divisor: one tick in four, which is 30 per second on a 120 Hz display and 15
-    /// on a 60 Hz one. Both are comfortably above what noticing a cursor needs.
-    /// </summary>
-    private const int IdleDivisor = 4;
-
     private bool isRunning;
     private double lastTimestamp;
-    private int divisor = ActiveDivisor;
-    private int skipped;
-    private double carried;
 
     /// <summary>Called once per tick with the time since the previous delivered tick.</summary>
     public event Action<double>? Tick;
@@ -70,9 +57,6 @@ public sealed class SimulationClock
 
         stopwatch.Restart();
         lastTimestamp = 0;
-        skipped = 0;
-        carried = 0;
-        divisor = ActiveDivisor;
         isRunning = true;
     }
 
@@ -88,9 +72,6 @@ public sealed class SimulationClock
         FramesPerSecond = 0;
         LastDelta = 0;
     }
-
-    /// <summary>Switches between the full display rate and the idle rate.</summary>
-    public void SetThrottled(bool throttled) => divisor = throttled ? IdleDivisor : ActiveDivisor;
 
     /// <summary>Accounts for one compositor frame, and delivers a tick if it is due.</summary>
     public void Advance()
@@ -111,20 +92,7 @@ public sealed class SimulationClock
         }
 
         UpdateFrameRate(delta);
-
-        // Skipped frames are accumulated rather than dropped, so throttling changes how
-        // often the solver is asked to advance and never how far it advances. A dropped
-        // interval would make a settled rope wake up slower than a moving one.
-        carried += delta;
-        skipped += 1;
-        if (skipped < divisor)
-        {
-            return;
-        }
-
-        skipped = 0;
-        LastDelta = carried;
-        carried = 0;
+        LastDelta = delta;
         Tick?.Invoke(LastDelta);
     }
 

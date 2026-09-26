@@ -43,6 +43,11 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 - Artwork the rope no longer draws is let go: the in-between sizes a charm grows through
   as it appears, and everything belonging to a charm taken off the rope.
 - A rare race between the tray menu changing charms and the overlay drawing them.
+- **Less CPU while the charm swings.** Frames now go straight from the GPU to the screen
+  instead of being copied back through system memory first, and once the charm is still
+  Hangly checks the mouse thirty times a second instead of at the display's full rate.
+- **Memory no longer grows as you change charms.** Forty charm changes used to take Hangly
+  from 123 MB to 317 MB, and none of it came back; it now stays between 55 and 75 MB.
 
 - The About page no longer says analytics never sends your name. It did, and now it says so.
 - The analytics details no longer draw your name on top of another row.

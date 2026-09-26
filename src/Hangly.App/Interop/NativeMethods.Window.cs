@@ -50,6 +50,16 @@ internal static partial class NativeMethods
     internal static extern uint DragQueryFile(IntPtr drop, uint index, char[]? buffer, uint length);
 
     internal const uint WsPopup = 0x80000000;
+
+    /// <summary>No redirection surface: the window's pixels come from DirectComposition.</summary>
+    internal const uint WsExNoRedirectionBitmap = 0x00200000;
+
+    internal const uint LwaAlpha = 0x00000002;
+    internal const uint SwpNozorder = 0x0004;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool SetLayeredWindowAttributes(IntPtr hwnd, uint crKey, byte bAlpha, uint dwFlags);
     internal const uint WsVisible = 0x10000000;
 
     internal const int SwHide = 0;
@@ -266,4 +276,19 @@ internal static partial class NativeMethods
     /// </remarks>
     [DllImport("dwmapi.dll")]
     internal static extern int DwmFlush();
+
+    /// <summary>
+    /// Waits for a message to arrive or for <paramref name="milliseconds"/>, whichever is
+    /// first. How the overlay idles once the rope has settled: see <c>OverlayWindow</c>.
+    /// </summary>
+    [DllImport("user32.dll")]
+    internal static extern uint MsgWaitForMultipleObjectsEx(
+        uint nCount,
+        IntPtr pHandles,
+        uint dwMilliseconds,
+        uint dwWakeMask,
+        uint dwFlags);
+
+    internal const uint QsAllInput = 0x04FF;
+    internal const uint MwmoInputAvailable = 0x0004;
 }

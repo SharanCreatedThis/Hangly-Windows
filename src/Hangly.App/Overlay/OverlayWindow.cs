@@ -222,9 +222,21 @@ public sealed class OverlayWindow : IDisposable
             {
                 PumpMessages();
 
-                // Paces the loop to the compositor, which is what CompositionTarget.Rendering
-                // did while there was still a XAML tree to hang it on.
-                NativeMethods.DwmFlush();
+                // Moving: paced to the compositor, which is what CompositionTarget.Rendering
+                // did while there was still a XAML tree to hang it on. Settled: nothing is
+                // drawn, so there is nothing to pace to; the loop sleeps until a message
+                // arrives or the idle interval passes, and polls the cursor at that rate.
+                // Waiting on the compositor here woke the thread at the display's full rate
+                // to do nothing on three frames in four.
+                if (isIdle)
+                {
+                    NativeMethods.MsgWaitForMultipleObjectsEx(
+                        0, IntPtr.Zero, IdleWaitMs, NativeMethods.QsAllInput, NativeMethods.MwmoInputAvailable);
+                }
+                else
+                {
+                    NativeMethods.DwmFlush();
+                }
 
                 // Taken rather than read, so a second change arriving between the read and
                 // the clear is not the one that gets dropped.
@@ -466,10 +478,10 @@ public sealed class OverlayWindow : IDisposable
         // the clock keeps running because the same tick is what notices the cursor
         // arriving over the charm. A layered window keeps the last frame it was given, so
         // not presenting leaves the settled rope on screen rather than blanking it.
-        clock.SetThrottled(rope.IsSleeping && !rope.IsDragging);
+        isIdle = rope.IsSleeping && !rope.IsDragging;
         if (!rope.IsSleeping || rope.IsDragging)
         {
-            Draw();
+            Draw(onlyIfMoved: true);
         }
     }
 
@@ -503,10 +515,56 @@ public sealed class OverlayWindow : IDisposable
         lastSide = side;
     }
 
-    private void Draw() => surface.Present(
-        session => renderer.Draw(session, rope.Snapshot(), rope.Style),
-        new NativeMethods.Point { X = (int)Math.Round(frame.Left), Y = (int)Math.Round(frame.Top) },
-        settings.Opacity);
+    private void Draw(bool onlyIfMoved = false)
+    {
+        RopeSnapshot snapshot = rope.Snapshot();
+
+        // A frame the eye cannot tell from the last one shown is not presented. Only the
+        // frame loop's own ticks may skip; a settings change, a nudge or a refit always
+        // draws, because what changed there is not the rope's position.
+        if (onlyIfMoved && lastShown is not null
+            && RopeBounds.LargestMove(lastShown, snapshot) * scale < InvisibleMovePixels)
+        {
+            return;
+        }
+
+        lastShown = snapshot;
+
+        // What this frame paints and what the last one did: the only pixels that can have
+        // changed. Everything else on the canvas is transparent in both.
+        double radius = snapshot.Charms.Count > 0 ? snapshot.Charms[^1].Radius : 10;
+        Hangly.Core.Geometry.Rect? painted = RopeBounds.Of(snapshot, 2 * RopeStyleAppearanceTable.WidthFor(rope.Style, radius));
+        Hangly.Core.Geometry.Rect? changed = RopeBounds.Union(lastPainted, painted);
+        lastPainted = painted;
+
+        surface.Present(
+            session => renderer.Draw(session, snapshot, rope.Style),
+            new NativeMethods.Point { X = (int)Math.Round(frame.Left), Y = (int)Math.Round(frame.Top) },
+            settings.Opacity,
+            changed);
+    }
+
+    /// <summary>The last frame presented, to compare the next against.</summary>
+    private RopeSnapshot? lastShown;
+
+    /// <summary>
+    /// A quarter of a device pixel: movement below this cannot change what anti-aliased
+    /// edges look like enough to see, and is never allowed to add up past it.
+    /// </summary>
+    private const double InvisibleMovePixels = 0.25;
+
+    /// <summary>What the last frame painted, in canvas points.</summary>
+    private Hangly.Core.Geometry.Rect? lastPainted;
+
+    /// <summary>Whether the rope is settled and nobody is holding it.</summary>
+    private bool isIdle;
+
+    /// <summary>
+    /// How long the settled loop waits between looks at the cursor: thirty a second, the
+    /// rate the old one-tick-in-four throttle delivered on a 120 Hz display. A message —
+    /// a settings change, a nudge, a display change — ends the wait at once.
+    /// </summary>
+    private const uint IdleWaitMs = 33;
 
     private void PollPointer()
     {

@@ -289,6 +289,41 @@ public sealed class AppEnvironment : IDisposable
 
         // Last, and on its own thread, so nothing above waits on a network call.
         CheckForUpdateQuietly();
+        StartAuditCycle();
+    }
+
+    /// <summary>
+    /// For the memory audit only: with <c>HANGLY_AUDIT_CYCLE</c> set to a number of seconds,
+    /// hangs a different set of one to three charms that often, forty times, walking the
+    /// whole catalogue, then stops — so memory can be read across dozens of charm changes
+    /// without anybody driving the tray. Inert when the variable is not set, which is always
+    /// outside a measurement. The macOS build's equivalent is its audit notifications.
+    /// </summary>
+    private void StartAuditCycle()
+    {
+        if (!int.TryParse(Environment.GetEnvironmentVariable("HANGLY_AUDIT_CYCLE"), out int seconds) || seconds <= 0)
+        {
+            return;
+        }
+
+        IReadOnlyList<CharmCatalogEntry> all = CharmCatalog.All;
+        Microsoft.UI.Dispatching.DispatcherQueueTimer timer =
+            Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().CreateTimer();
+        timer.Interval = TimeSpan.FromSeconds(seconds);
+        int step = 0;
+        timer.Tick += (_, _) =>
+        {
+            int count = (step % 3) + 1;
+            List<string> ids = [.. Enumerable.Range(0, count).Select(offset => all[((step * 3) + offset) % all.Count].Id)];
+            store.UpdateOverlay(overlay => overlay.WithStack(CharmStackState.Of(ids)));
+            Diagnostics.Log($"audit cycle {step + 1}/40: {string.Join(", ", ids)}");
+            if (++step >= 40)
+            {
+                timer.Stop();
+            }
+        };
+        timer.Start();
+        Diagnostics.Log($"audit cycle: every {seconds} s");
     }
 
     /// <summary>Hangs one charm, alone, from the tray's favourites list.</summary>
