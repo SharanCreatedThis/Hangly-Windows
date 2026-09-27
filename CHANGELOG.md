@@ -10,6 +10,10 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Added**
 
+- **Keyboard shortcuts in Customize**, the same set as Hangly for Mac (Ctrl where the Mac
+  has ⌘): Ctrl+1 to Ctrl+4 for Library, Create, Appearance and About; Ctrl+F to search the
+  Library; Ctrl+D to favourite what is selected; Alt+Up and Alt+Down to move the selected
+  charm on the rope; Ctrl+Shift+O to show or hide the charm; Ctrl+W to close.
 - **A rope shelf you can see.** Library → Ropes shows each rope as a card with its cord
   drawn by the same renderer the charm hangs from, so you choose by the look — twist,
   braid, chain, glow. Star the ones you like and **Favourites** shows only those. The pane
