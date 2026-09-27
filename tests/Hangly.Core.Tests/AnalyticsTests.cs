@@ -58,7 +58,10 @@ public class AnalyticsTests : IDisposable
             retryInterval, dayWatchInterval, () => now);
 
     /// <summary>Waits, up to a limit, for something asynchronous to become true.</summary>
-    private static async Task<bool> Eventually(Func<bool> condition, int milliseconds = 3000)
+    // Ten seconds, not three: it returns the moment the condition holds, so the limit costs
+    // nothing when things work and only decides how long a loaded CI runner is given. Three
+    // failed a retry that had not come round yet on GitHub's runners (27 Sep 2026).
+    private static async Task<bool> Eventually(Func<bool> condition, int milliseconds = 10_000)
     {
         var clock = System.Diagnostics.Stopwatch.StartNew();
         while (clock.ElapsedMilliseconds < milliseconds)
