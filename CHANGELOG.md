@@ -10,6 +10,15 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Added**
 
+- **A rope shelf you can see.** Library → Ropes shows each rope as a card with its cord
+  drawn by the same renderer the charm hangs from, so you choose by the look — twist,
+  braid, chain, glow. Star the ones you like and **Favourites** shows only those. The pane
+  beside it shows the rope in use, large. The same shelf as Hangly for Mac.
+- **A collection brings its cord.** Put a Marvel, DC, BTS or other collection charm on a
+  rope you have never changed, and it arrives on the cord it was drawn for — Spider Thread,
+  Midnight Cord, Silver Cord and so on. A rope you chose yourself is never changed. The
+  same rule as Hangly for Mac.
+- **Tags** under the charm in the Library pane, on one line.
 - **Choose how far down the charm hangs.** Customize → Appearance → Where it hangs now has a
   small picture of your screen: drag the charm on it and the real one follows. A Vertical
   position slider sets the same thing from the keyboard, and Reset position puts it back.

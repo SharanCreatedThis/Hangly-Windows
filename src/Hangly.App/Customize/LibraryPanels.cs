@@ -50,6 +50,25 @@ public sealed class CharmDetail : INotifyPropertyChanged
 
     public IReadOnlyList<string> Tags { get; private set; } = [];
 
+    /// <summary>Up to four tags on one line — the macOS tag cloud, as much of it as the pane can hold without scrolling.</summary>
+    public string TagLine { get; private set; } = string.Empty;
+
+    public Visibility TagVisibility => TagLine.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>Points the panel at a rope: its cord, large — the same look the charm gets.</summary>
+    public void ShowRope(string name, ImageSource? swatch)
+    {
+        HasCharm = swatch is not null;
+        DisplayName = name;
+        Tags = [];
+        TagLine = string.Empty;
+        Image = swatch;
+        foreach (string property in new[] { nameof(DisplayName), nameof(Tags), nameof(TagLine), nameof(TagVisibility), nameof(Image), nameof(HasCharm), nameof(PanelVisibility), nameof(PlaceholderVisibility) })
+        {
+            Notify(property);
+        }
+    }
+
     public ImageSource? Image { get; private set; }
 
     /// <summary>Whether there is a charm to describe at all.</summary>
@@ -114,7 +133,10 @@ public sealed class CharmDetail : INotifyPropertyChanged
         Category = entry is null ? string.Empty : CharmCatalog.CollectionNameOf(entry);
         Description = entry?.Description ?? string.Empty;
         Tags = entry?.Tags ?? [];
+        TagLine = string.Join("  ·  ", Tags.Take(4));
         Image = image;
+        Notify(nameof(TagLine));
+        Notify(nameof(TagVisibility));
 
         Notify(nameof(DisplayName));
         Notify(nameof(Region));
@@ -200,10 +222,30 @@ public sealed class SlotTile
     public Microsoft.UI.Xaml.Media.ImageSource? Image { get; }
 }
 
-/// <summary>One rope in the Library's rope list.</summary>
+/// <summary>One rope on the Library's rope shelf: a card with the cord drawn on it.</summary>
 /// <remarks>
-/// A name and a sentence, and no picture. The five ropes differ in how they move rather
-/// than in how they are drawn — each is a different set of solver values — so a thumbnail
-/// of a cord would show five near-identical lines and tell somebody nothing.
+/// The macOS <c>RopeCard</c>. The nine ropes are drawn differently — a twist, a braid,
+/// links, a lit filament — so the card shows the cord itself (<see cref="RopeSwatches"/>),
+/// with its name, a star, and a mark when it is the rope in use. Clicking the card hangs
+/// the charm on it; the star keeps it among the favourites.
 /// </remarks>
-public sealed record RopeChoiceItem(string Name, string Description);
+public sealed class RopeChoiceItem(Hangly.Core.Models.RopeStyle style, string? swatch, bool isFavourite, bool isOnRope)
+{
+    public Hangly.Core.Models.RopeStyle Style { get; } = style;
+
+    public string Name { get; } = Hangly.Core.Models.RopeStyleTable.DisplayNameOf(style);
+
+    public string Description { get; } = Hangly.Core.Models.RopeStyleTable.SummaryOf(style);
+
+    public ImageSource? Swatch { get; } = swatch is null ? null : new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(swatch));
+
+    public bool IsFavourite { get; } = isFavourite;
+
+    public string FavouriteGlyph => IsFavourite ? "\uE735" : "\uE734";
+
+    public string FavouriteLabel => IsFavourite ? $"Remove {Name} from favourites" : $"Add {Name} to favourites";
+
+    public Visibility OnRopeVisibility { get; } = isOnRope ? Visibility.Visible : Visibility.Collapsed;
+
+    public string AutomationName => isOnRope ? $"{Name}, on the rope" : Name;
+}

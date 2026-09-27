@@ -374,6 +374,15 @@ public sealed record LibrarySettings
     /// <summary>Charms recently hung, newest first.</summary>
     public IReadOnlyList<string> RecentCharmIds { get; init; } = [];
 
+    /// <summary>Ropes the user has starred, in the order they starred them. The macOS <c>favoriteRopes</c>.</summary>
+    public IReadOnlyList<Models.RopeStyle> FavouriteRopes { get; init; } = [];
+
+    /// <summary>The same settings with this rope starred, or unstarred if it already was.</summary>
+    public LibrarySettings WithFavouriteRopeToggled(Models.RopeStyle style) =>
+        FavouriteRopes.Contains(style)
+            ? this with { FavouriteRopes = [.. FavouriteRopes.Where(existing => existing != style)] }
+            : this with { FavouriteRopes = [.. FavouriteRopes, style] };
+
     /// <summary>How many recents are kept. Enough to be useful, few enough to scan.</summary>
     public const int RecentLimit = 12;
 
@@ -403,7 +412,8 @@ public sealed record LibrarySettings
     public bool Equals(LibrarySettings? other) =>
         other is not null
         && FavouriteCharmIds.SequenceEqual(other.FavouriteCharmIds, StringComparer.Ordinal)
-        && RecentCharmIds.SequenceEqual(other.RecentCharmIds, StringComparer.Ordinal);
+        && RecentCharmIds.SequenceEqual(other.RecentCharmIds, StringComparer.Ordinal)
+        && FavouriteRopes.SequenceEqual(other.FavouriteRopes);
 
     public override int GetHashCode()
     {
@@ -416,6 +426,11 @@ public sealed record LibrarySettings
         foreach (string id in RecentCharmIds)
         {
             hash.Add(id, StringComparer.Ordinal);
+        }
+
+        foreach (Models.RopeStyle style in FavouriteRopes)
+        {
+            hash.Add(style);
         }
 
         return hash.ToHashCode();
@@ -431,6 +446,7 @@ public sealed record LibrarySettings
     {
         FavouriteCharmIds = [.. FavouriteCharmIds.Where(Models.CharmId.IsWellFormed).Distinct(StringComparer.Ordinal)],
         RecentCharmIds = [.. RecentCharmIds.Where(Models.CharmId.IsWellFormed).Distinct(StringComparer.Ordinal).Take(RecentLimit)],
+        FavouriteRopes = [.. FavouriteRopes.Where(Enum.IsDefined).Distinct()],
     };
 }
 

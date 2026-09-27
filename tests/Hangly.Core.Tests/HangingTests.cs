@@ -63,4 +63,43 @@ public class HangingTests
         Assert.Equal(1, once.Milestones.CharmsHung);
         Assert.Equal(1, again.Milestones.CharmsHung);
     }
+
+    [Fact]
+    public void ACollectionCharmBringsItsCordOnlyOverTheShippedRope()
+    {
+        string dc = CharmCatalog.All.First(entry => entry.CategoryId == "dc").Id;
+        AppSettings shipped = Rope("nazar") with { Overlay = Rope("nazar").Overlay with { RopeStyle = RopeStyleTable.FirstRun } };
+        AppSettings chosen = shipped with { Overlay = shipped.Overlay with { RopeStyle = RopeStyle.Leather } };
+
+        Assert.Equal(RopeStyle.MidnightCord, Hanging.Hang(shipped, 0, dc).Overlay.RopeStyle);
+        Assert.Equal(RopeStyle.Leather, Hanging.Hang(chosen, 0, dc).Overlay.RopeStyle);
+
+        // A charm from no collection, and the tray's "that one alone", leave the rope alone.
+        Assert.Equal(RopeStyleTable.FirstRun, Hanging.Hang(shipped, 0, "daruma").Overlay.RopeStyle);
+        Assert.Equal(RopeStyleTable.FirstRun, Hanging.HangAlone(shipped, dc).Overlay.RopeStyle);
+    }
+
+    [Fact]
+    public void EveryCollectionHasTheMacCord()
+    {
+        Assert.All(CharmCatalog.Collections, collection => Assert.NotNull(CollectionRopes.For(collection.Id)));
+        Assert.Equal(RopeStyle.SpiderThread, CollectionRopes.For("marvel"));
+        Assert.Equal(RopeStyle.Neon, CollectionRopes.For("strangerThings"));
+    }
+
+    [Fact]
+    public void FavouriteRopesToggleAndSurviveARoundTrip()
+    {
+        LibrarySettings starred = new LibrarySettings().WithFavouriteRopeToggled(RopeStyle.Neon).WithFavouriteRopeToggled(RopeStyle.Leather);
+        LibrarySettings unstarred = starred.WithFavouriteRopeToggled(RopeStyle.Neon);
+
+        Assert.Equal([RopeStyle.Neon, RopeStyle.Leather], starred.FavouriteRopes);
+        Assert.Equal([RopeStyle.Leather], unstarred.FavouriteRopes);
+
+        var settings = new AppSettings { Library = starred };
+        string json = System.Text.Json.JsonSerializer.Serialize(settings, AppSettings.JsonOptions);
+        Assert.Contains("\"favouriteRopes\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"Neon\"", json, StringComparison.Ordinal);
+        Assert.Equal(starred, System.Text.Json.JsonSerializer.Deserialize<AppSettings>(json, AppSettings.JsonOptions)!.Library);
+    }
 }
