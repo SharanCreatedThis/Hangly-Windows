@@ -61,6 +61,19 @@ it opens nothing: just the charm.
 
 To remove it: **Settings → Apps → Installed apps → Hangly → Uninstall.**
 
+## Keyboard
+
+In Customize — the same shortcuts as Hangly for Mac, with Ctrl where the Mac has ⌘:
+
+| | |
+|---|---|
+| Library · Create · Appearance · About | Ctrl+1 · Ctrl+2 · Ctrl+3 · Ctrl+4 |
+| Search the Library | Ctrl+F |
+| Favourite the selected charm or rope | Ctrl+D |
+| Move the selected charm up / down the rope | Alt+Up / Alt+Down |
+| Show or hide the charm | Ctrl+Shift+O |
+| Close the window | Ctrl+W |
+
 ## Building from source
 
 You need the [.NET 9 SDK](https://dotnet.microsoft.com/download) and Windows 10 1809 or

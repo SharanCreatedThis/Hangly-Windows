@@ -105,6 +105,7 @@ public sealed partial class CustomizeWindow : Window
         BuildAnchorChoices();
         BuildAbout();
         BuildStudio();
+        BuildShortcuts();
         Load();
 
         store.Changed += OnStoreChanged;
@@ -743,6 +744,66 @@ public sealed partial class CustomizeWindow : Window
         CordSummary.Text = places.Count == 1
             ? "One charm hangs on the cord."
             : $"{places.Count} charms hang on the cord, from the top down.";
+    }
+
+    /// <summary>The shared shortcut table (<see cref="Hangly.Core.Lifecycle.HanglyShortcut"/>), bound to this window.</summary>
+    /// <remarks>
+    /// On the navigation view, which is the root of the window, so they work wherever the
+    /// keyboard is — except that a text box keeps its own Ctrl+D and Ctrl+F. Alt+Up and
+    /// Alt+Down live on the Move up / Move down buttons, so their tooltips name them.
+    /// Decision B1: nothing global.
+    /// </remarks>
+    private void BuildShortcuts()
+    {
+        void Bind(Windows.System.VirtualKey key, Windows.System.VirtualKeyModifiers modifiers, Action action, UIElement? on = null)
+        {
+            var accelerator = new KeyboardAccelerator { Key = key, Modifiers = modifiers };
+            accelerator.Invoked += (_, args) =>
+            {
+                args.Handled = true;
+                action();
+            };
+            (on ?? Nav).KeyboardAccelerators.Add(accelerator);
+        }
+
+        const Windows.System.VirtualKeyModifiers Ctrl = Windows.System.VirtualKeyModifiers.Control;
+        Bind(Windows.System.VirtualKey.Number1, Ctrl, () => ShowSection("charms"));
+        Bind(Windows.System.VirtualKey.Number2, Ctrl, () => ShowSection("create"));
+        Bind(Windows.System.VirtualKey.Number3, Ctrl, () => ShowSection("appearance"));
+        Bind(Windows.System.VirtualKey.Number4, Ctrl, () => ShowSection("about"));
+        Bind(Windows.System.VirtualKey.O, Ctrl | Windows.System.VirtualKeyModifiers.Shift,
+            () => store.UpdateOverlay(overlay => overlay with { IsEnabled = !overlay.IsEnabled }));
+        Bind(Windows.System.VirtualKey.F, Ctrl, () =>
+        {
+            ShowSection("charms");
+            SearchBox.Focus(FocusState.Keyboard);
+        });
+        Bind(Windows.System.VirtualKey.D, Ctrl, FavouriteSelection);
+        Bind(Windows.System.VirtualKey.W, Ctrl, () => AppWindow.Hide());
+        Bind(Windows.System.VirtualKey.Up, Windows.System.VirtualKeyModifiers.Menu, () => MoveSlot(-1), MoveUpButton);
+        Bind(Windows.System.VirtualKey.Down, Windows.System.VirtualKeyModifiers.Menu, () => MoveSlot(1), MoveDownButton);
+    }
+
+    /// <summary>Ctrl+D: the charm or rope the Library is showing, starred or unstarred.</summary>
+    private void FavouriteSelection()
+    {
+        if (CharmsPage.Visibility != Visibility.Visible)
+        {
+            return;
+        }
+
+        if (IsShowingRopes)
+        {
+            RopeStyle style = Overlay.RopeStyle;
+            store.Update(settings => settings with { Library = settings.Library.WithFavouriteRopeToggled(style) });
+            return;
+        }
+
+        if (selectedCharmId is string id)
+        {
+            store.Update(settings => settings with { Library = settings.Library.WithFavouriteToggled(id) });
+            MarkFavourites();
+        }
     }
 
     private void OnMoveSlotUp(object sender, RoutedEventArgs args) => MoveSlot(-1);
