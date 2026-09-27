@@ -364,6 +364,15 @@
                                     Source="{x:Bind Detail.Image, Mode=OneWay}"
                                     Stretch="Uniform" />
                             </Border>
+                            <!-- The macOS tag cloud, as one line so the pane still never scrolls. -->
+                            <TextBlock
+                                Margin="2,8,2,0"
+                                AutomationProperties.AutomationId="DetailTags"
+                                Opacity="0.65"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{x:Bind Detail.TagLine, Mode=OneWay}"
+                                TextTrimming="CharacterEllipsis"
+                                Visibility="{x:Bind Detail.TagVisibility, Mode=OneWay}" />
                     </Grid>
                     </StackPanel>
                   </ScrollViewer>
@@ -577,34 +586,93 @@
                         </ScrollViewer>
 
                         <!--
-                            Ropes. Five of them, each a different set of solver values
-                            rather than a different picture, which is why the description
-                            talks about how it moves and not what it looks like.
+                            Ropes: the macOS rope shelf. Each card draws its cord with the
+                            overlay's own renderer (RopeSwatches), because the nine ropes
+                            look different — a twist, a braid, links, a lit filament — and
+                            the texture is what is being chosen between. Click a card to
+                            hang the charm on it; the star keeps it in Favourites.
                         -->
                         <ScrollViewer x:Name="RopesScroller" Visibility="Collapsed">
-                            <muxc:ListView
-                                x:Name="RopeList"
-                                AutomationProperties.AutomationId="RopeList"
-                                AutomationProperties.Name="Rope styles"
-                                IsItemClickEnabled="True"
-                                ItemClick="OnRopeListClicked"
-                                SelectionMode="Single">
-                                <muxc:ListView.ItemTemplate>
-                                    <DataTemplate x:DataType="local:RopeChoiceItem">
-                                        <StackPanel Margin="0,6,0,6" Spacing="2">
-                                            <TextBlock
-                                                Style="{StaticResource BodyStrongTextBlockStyle}"
-                                                Text="{x:Bind Name, Mode=OneTime}" />
-                                            <TextBlock
-                                                MaxWidth="520"
-                                                Opacity="0.7"
-                                                Style="{StaticResource CaptionTextBlockStyle}"
-                                                Text="{x:Bind Description, Mode=OneTime}"
-                                                TextWrapping="Wrap" />
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </muxc:ListView.ItemTemplate>
-                            </muxc:ListView>
+                            <StackPanel Spacing="10">
+                                <muxc:SelectorBar
+                                    x:Name="RopeFilter"
+                                    AutomationProperties.AutomationId="RopeFilter"
+                                    AutomationProperties.Name="Show all ropes or only favourites"
+                                    SelectionChanged="OnRopeFilterChanged">
+                                    <muxc:SelectorBarItem Text="All ropes" IsSelected="True" />
+                                    <muxc:SelectorBarItem x:Name="RopeFavouritesFilter" Text="Favourites" />
+                                </muxc:SelectorBar>
+                                <TextBlock
+                                    x:Name="RopeFavouritesEmpty"
+                                    Margin="4,8,0,0"
+                                    Opacity="0.7"
+                                    Style="{StaticResource BodyTextBlockStyle}"
+                                    Text="No favourite ropes yet. Star a rope with the button on its card and it will be waiting here."
+                                    TextWrapping="Wrap"
+                                    Visibility="Collapsed" />
+                                <muxc:GridView
+                                    x:Name="RopeList"
+                                    AutomationProperties.AutomationId="RopeList"
+                                    AutomationProperties.Name="Rope styles"
+                                    IsItemClickEnabled="True"
+                                    ItemClick="OnRopeListClicked"
+                                    SelectionMode="Single">
+                                    <muxc:GridView.ItemTemplate>
+                                        <DataTemplate x:DataType="local:RopeChoiceItem">
+                                            <Grid
+                                                Width="150"
+                                                Height="196"
+                                                Padding="10,12,10,10"
+                                                AutomationProperties.Name="{x:Bind AutomationName}"
+                                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                ToolTipService.ToolTip="{x:Bind Description}">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="*" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <Image
+                                                    Width="56"
+                                                    Height="128"
+                                                    HorizontalAlignment="Center"
+                                                    Source="{x:Bind Swatch}"
+                                                    Stretch="Uniform" />
+                                                <Border
+                                                    Width="18"
+                                                    Height="18"
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Top"
+                                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                                    CornerRadius="9"
+                                                    ToolTipService.ToolTip="On the rope"
+                                                    Visibility="{x:Bind OnRopeVisibility}">
+                                                    <FontIcon FontSize="10" Foreground="White" Glyph="&#xE73E;" />
+                                                </Border>
+                                                <Button
+                                                    Padding="5"
+                                                    HorizontalAlignment="Right"
+                                                    VerticalAlignment="Top"
+                                                    AutomationProperties.Name="{x:Bind FavouriteLabel}"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Click="OnRopeFavouriteClicked"
+                                                    Tag="{x:Bind Style}"
+                                                    ToolTipService.ToolTip="{x:Bind FavouriteLabel}">
+                                                    <FontIcon FontSize="13" Glyph="{x:Bind FavouriteGlyph}" />
+                                                </Button>
+                                                <TextBlock
+                                                    Grid.Row="1"
+                                                    HorizontalAlignment="Center"
+                                                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                                                    Text="{x:Bind Name}"
+                                                    TextTrimming="CharacterEllipsis" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </muxc:GridView.ItemTemplate>
+                                </muxc:GridView>
+                            </StackPanel>
                         </ScrollViewer>
 
                         <!-- Empty states. Which one depends on why there is nothing. -->

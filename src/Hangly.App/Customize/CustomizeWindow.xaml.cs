@@ -518,16 +518,42 @@ public sealed partial class CustomizeWindow : Window
         return slash < 0 ? "Classics & Collection" : entry.FileName[..slash];
     }
 
-    private void BuildRopeChoices()
-    {
-        foreach (RopeStyle style in RopeStyleTable.All)
-        {
-            RopeList.Items.Add(new RopeChoiceItem(
-                RopeStyleTable.DisplayNameOf(style),
-                RopeStyleTable.SummaryOf(style)));
-        }
+    private void BuildRopeChoices() => BrowseMode.SelectedIndex = 0;
 
-        BrowseMode.SelectedIndex = 0;
+    /// <summary>Fills the rope shelf from the settings: every rope, or only the starred ones.</summary>
+    private void RefreshRopes()
+    {
+        OverlaySettings overlay = Overlay;
+        IReadOnlyList<RopeStyle> favourites = store.Settings.Library.FavouriteRopes;
+        bool onlyFavourites = RopeFilter.SelectedItem == RopeFavouritesFilter;
+        List<RopeChoiceItem> items = [.. RopeStyleTable.All
+            .Where(style => !onlyFavourites || favourites.Contains(style))
+            .Select(style => new RopeChoiceItem(style, RopeSwatches.PathFor(style), favourites.Contains(style), style == overlay.RopeStyle))];
+
+        RopeList.ItemsSource = items;
+        RopeList.SelectedItem = items.FirstOrDefault(item => item.Style == overlay.RopeStyle);
+        RopeFavouritesEmpty.Visibility = onlyFavourites && items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        // The pane shows the rope in use, large, as it shows the charm in charm mode.
+        Detail.ShowRope(RopeStyleTable.DisplayNameOf(overlay.RopeStyle), items.FirstOrDefault(item => item.Style == overlay.RopeStyle)?.Swatch
+            ?? (RopeSwatches.PathFor(overlay.RopeStyle) is string path ? new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(path)) : null));
+    }
+
+    private void OnRopeFilterChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
+    {
+        if (IsShowingRopes)
+        {
+            RefreshRopes();
+        }
+    }
+
+    /// <summary>The star on a rope card. A Library write, like starring a charm.</summary>
+    private void OnRopeFavouriteClicked(object sender, RoutedEventArgs args)
+    {
+        if ((sender as FrameworkElement)?.Tag is RopeStyle style)
+        {
+            store.Update(settings => settings with { Library = settings.Library.WithFavouriteRopeToggled(style) });
+        }
     }
 
     /// <summary>
@@ -571,10 +597,11 @@ public sealed partial class CustomizeWindow : Window
         {
             ResultsScroller.Visibility = Visibility.Collapsed;
             EmptyState.Visibility = Visibility.Collapsed;
-            RopeList.SelectedIndex = RopeStyleTable.All.ToList().IndexOf(Overlay.RopeStyle);
+            RefreshRopes();
             return;
         }
 
+        ShowSelectedSlotInDetail();
         ShowResults();
     }
 
@@ -582,20 +609,12 @@ public sealed partial class CustomizeWindow : Window
     /// from Appearance and goes through the same one write path.</summary>
     private void OnRopeListClicked(object sender, ItemClickEventArgs args)
     {
-        int index = RopeList.Items.IndexOf(args.ClickedItem);
-        if (index < 0 || index >= RopeStyleTable.All.Count)
+        if (args.ClickedItem is not RopeChoiceItem item || item.Style == Overlay.RopeStyle)
         {
             return;
         }
 
-        RopeStyle style = RopeStyleTable.All[index];
-        if (style == Overlay.RopeStyle)
-        {
-            return;
-        }
-
-        store.UpdateOverlay(overlay => overlay with { RopeStyle = style });
-        RopeList.SelectedIndex = index;
+        store.UpdateOverlay(overlay => overlay with { RopeStyle = item.Style });
     }
 
     private void BuildAnchorChoices()
@@ -614,7 +633,7 @@ public sealed partial class CustomizeWindow : Window
             CountChoice.SelectedIndex = overlay.CharmIds.Count - 1;
             if (IsShowingRopes)
             {
-                RopeList.SelectedIndex = RopeStyleTable.All.ToList().IndexOf(overlay.RopeStyle);
+                RefreshRopes();
             }
             PositionSlider.Value = Math.Round(overlay.Position * 100);
             ShowPositionLabel();

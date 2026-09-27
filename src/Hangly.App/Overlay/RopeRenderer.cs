@@ -86,6 +86,20 @@ public sealed class RopeRenderer
         artwork.EndFrame();
     }
 
+    /// <summary>A straight length of cord in <paramref name="style"/>, for the Library's rope cards.</summary>
+    /// <remarks>
+    /// The macOS <c>RopeSwatch</c>: drawn by the rope renderer itself rather than pictured,
+    /// so a card can never show a cord the overlay does not draw. Sized against a charm
+    /// larger than anything that hangs — at true proportions every style is a hairline, and
+    /// on a card the texture is the whole thing being chosen between.
+    /// </remarks>
+    public static void DrawSwatch(CanvasDrawingSession session, RopeStyle style, Vec2 top, Vec2 bottom, double charmRadius = 86)
+    {
+        session.Antialiasing = CanvasAntialiasing.Antialiased;
+        RopeAppearance appearance = RopeStyleAppearanceTable.AppearanceOf(style);
+        DrawCord(session, [top, bottom], appearance, RopeStyleAppearanceTable.WidthFor(style, charmRadius), charmRadius, head: false, shadow: false);
+    }
+
     /// <summary>
     /// The cord, in the gaps the charms leave. A charm hides the cord it is drawn over,
     /// so a string of three needs four visible pieces of cord rather than one line with
@@ -97,7 +111,8 @@ public sealed class RopeRenderer
         RopeAppearance appearance,
         double width,
         double charmRadius,
-        bool head)
+        bool head,
+        bool shadow = true)
     {
         using CanvasPathBuilder builder = BuildSpline(session, run, head);
         using var path = CanvasGeometry.CreatePath(builder);
@@ -117,7 +132,11 @@ public sealed class RopeRenderer
         // A shadow under the cord, falling the same way and the same distance as the
         // charm's. A cord with no shadow over a charm that has one reads as two objects
         // lit by different suns.
-        DrawCordShadow(session, path, width, charmRadius);
+        // A shadow gives the cord depth over a desktop; on a card it reads as a smudge.
+        if (shadow)
+        {
+            DrawCordShadow(session, path, width, charmRadius);
+        }
 
         DrawCylinder(session, path, appearance, width);
 

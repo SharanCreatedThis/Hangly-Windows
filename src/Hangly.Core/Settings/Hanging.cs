@@ -32,9 +32,18 @@ public static class Hanging
         CharmStackState stack = settings.Overlay.Stack;
         int place = Math.Clamp(slot, 0, stack.Count - 1);
         bool changes = stack.Places[place].Id != id;
+        OverlaySettings overlay = settings.Overlay.WithStack(stack.WithCharm(place, id));
+
+        // A charm from a collection brings its collection's cord, but only over the rope
+        // Hangly shipped with (CollectionRopes; decision B4, the macOS rule).
+        if (changes)
+        {
+            overlay = overlay with { RopeStyle = CollectionRopes.Adopting(id, overlay.RopeStyle) };
+        }
+
         return Counted(settings with
         {
-            Overlay = settings.Overlay.WithStack(stack.WithCharm(place, id)),
+            Overlay = overlay,
             Library = settings.Library.WithRecent(id),
         }, changes);
     }
