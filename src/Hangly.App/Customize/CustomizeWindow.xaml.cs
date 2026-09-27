@@ -10,6 +10,7 @@ using Hangly.App.Services;
 using Hangly.App.Import;
 using Hangly.Core.Analytics;
 using Hangly.Core.Import;
+using Hangly.Core.Lifecycle;
 using Hangly.Core.Models;
 using Hangly.Core.Settings;
 using Hangly.Core.Studio;
@@ -482,17 +483,22 @@ public sealed partial class CustomizeWindow : Window
 
     private void OnFavouriteClicked(object sender, RoutedEventArgs args)
     {
-        if (sender is not Button { Tag: string id })
+        if (sender is Button { Tag: string id })
         {
-            return;
+            ToggleFavourite(id);
         }
+    }
 
+    /// <summary>Stars a charm, or unstars it: the tile's star and Ctrl+D both come here.</summary>
+    private void ToggleFavourite(string id)
+    {
         store.Update(settings => settings with
         {
             Library = settings.Library.WithFavouriteToggled(id),
         });
 
         MarkFavourites();
+        RefreshDetailState();
 
         // Starring while looking at the favourites is a removal, and the tile should go.
         if (filter is CharmFilter.Favourite)
@@ -749,13 +755,18 @@ public sealed partial class CustomizeWindow : Window
     /// <summary>The shared shortcut table (<see cref="Hangly.Core.Lifecycle.HanglyShortcut"/>), bound to this window.</summary>
     /// <remarks>
     /// On the navigation view, which is the root of the window, so they work wherever the
-    /// keyboard is — except that a text box keeps its own Ctrl+D and Ctrl+F. Alt+Up and
-    /// Alt+Down live on the Move up / Move down buttons, so their tooltips name them.
-    /// Decision B1: nothing global.
+    /// keyboard is — except that a text box keeps its own Ctrl+D and Ctrl+F. Decision B1:
+    /// nothing global.
+    ///
+    /// <para>Alt+Up and Alt+Down are not accelerators. A list with focus — the navigation
+    /// on the left, the cord's places — takes Alt+Down as Down and moves its own focus before
+    /// an accelerator is looked for, so the move only worked from some places in the window.
+    /// They are caught on the way down instead (<see cref="OnMoveKeys"/>), and the buttons'
+    /// tooltips name them.</para>
     /// </remarks>
     private void BuildShortcuts()
     {
-        void Bind(Windows.System.VirtualKey key, Windows.System.VirtualKeyModifiers modifiers, Action action, UIElement? on = null)
+        void Bind(Windows.System.VirtualKey key, Windows.System.VirtualKeyModifiers modifiers, Action action)
         {
             var accelerator = new KeyboardAccelerator { Key = key, Modifiers = modifiers };
             accelerator.Invoked += (_, args) =>
@@ -763,7 +774,7 @@ public sealed partial class CustomizeWindow : Window
                 args.Handled = true;
                 action();
             };
-            (on ?? Nav).KeyboardAccelerators.Add(accelerator);
+            Nav.KeyboardAccelerators.Add(accelerator);
         }
 
         const Windows.System.VirtualKeyModifiers Ctrl = Windows.System.VirtualKeyModifiers.Control;
@@ -780,8 +791,42 @@ public sealed partial class CustomizeWindow : Window
         });
         Bind(Windows.System.VirtualKey.D, Ctrl, FavouriteSelection);
         Bind(Windows.System.VirtualKey.W, Ctrl, () => AppWindow.Hide());
-        Bind(Windows.System.VirtualKey.Up, Windows.System.VirtualKeyModifiers.Menu, () => MoveSlot(-1), MoveUpButton);
-        Bind(Windows.System.VirtualKey.Down, Windows.System.VirtualKeyModifiers.Menu, () => MoveSlot(1), MoveDownButton);
+
+        Nav.AddHandler(UIElement.PreviewKeyDownEvent, new KeyEventHandler(OnMoveKeys), handledEventsToo: true);
+        ToolTipService.SetToolTip(MoveUpButton, $"Move up ({HanglyShortcuts.WindowsKeysOf(HanglyShortcut.MoveUp)})");
+        ToolTipService.SetToolTip(MoveDownButton, $"Move down ({HanglyShortcuts.WindowsKeysOf(HanglyShortcut.MoveDown)})");
+    }
+
+    /// <summary>Alt+Up / Alt+Down: the chosen place up or down the cord, from anywhere on the Library page.</summary>
+    private void OnMoveKeys(object sender, KeyRoutedEventArgs args)
+    {
+        if (args.Key is not (Windows.System.VirtualKey.Up or Windows.System.VirtualKey.Down)
+            || !IsDown(Windows.System.VirtualKey.Menu)
+            || IsDown(Windows.System.VirtualKey.Control)
+            || IsDown(Windows.System.VirtualKey.Shift)
+            || CharmsPage.Visibility != Visibility.Visible)
+        {
+            return;
+        }
+
+        // A text box keeps Alt+Down: in the search box it opens the suggestions.
+        if (FocusManager.GetFocusedElement(Content.XamlRoot) is TextBox)
+        {
+            return;
+        }
+
+        Button button = args.Key == Windows.System.VirtualKey.Up ? MoveUpButton : MoveDownButton;
+        if (!button.IsEnabled)
+        {
+            return;
+        }
+
+        args.Handled = true;
+        MoveSlot(args.Key == Windows.System.VirtualKey.Up ? -1 : 1);
+
+        static bool IsDown(Windows.System.VirtualKey key) =>
+            Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(key)
+                .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
     }
 
     /// <summary>Ctrl+D: the charm or rope the Library is showing, starred or unstarred.</summary>
@@ -799,10 +844,11 @@ public sealed partial class CustomizeWindow : Window
             return;
         }
 
-        if (selectedCharmId is string id)
+        // The charm the pane shows, which is not always one that was clicked: opening the
+        // Library, or choosing a place on the cord, shows that place's charm.
+        if (detailed is not null)
         {
-            store.Update(settings => settings with { Library = settings.Library.WithFavouriteToggled(id) });
-            MarkFavourites();
+            ToggleFavourite(detailed.Id);
         }
     }
 
