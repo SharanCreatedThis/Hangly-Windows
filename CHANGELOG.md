@@ -10,6 +10,11 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Added**
 
+- **Glow: Off, Soft or Strong**, in Appearance under Size and reach. Soft is the faint
+  halo in the charm's own colour that every charm has always had, so nothing changes
+  unless you choose. Strong carries more colour a little further — best on a dark desktop
+  — and Off has none. Imported charms glow in their own colour too. The same three
+  choices as Hangly for Mac.
 - **Keyboard shortcuts in Customize**, the same set as Hangly for Mac (Ctrl where the Mac
   has ⌘): Ctrl+1 to Ctrl+4 for Library, Create, Appearance and About; Ctrl+F to search the
   Library; Ctrl+D to favourite what is selected; Alt+Up and Alt+Down to move the selected

@@ -120,6 +120,9 @@ public sealed record OverlaySettings
     /// <summary>Appearance → Motion: follow Windows' animation effects, or choose.</summary>
     public MotionPreference Motion { get; init; } = MotionPreference.FollowSystem;
 
+    /// <summary>Appearance → Glow. Soft is the halo every charm has always had.</summary>
+    public GlowLevel Glow { get; init; } = GlowLevel.Soft;
+
     /// <summary>The charms on the cord, from the anchor down.</summary>
     /// <remarks>
     /// Ids from <c>CharmCatalog</c>, which are the macOS <c>CharmKind</c> raw values, so
@@ -191,6 +194,7 @@ public sealed record OverlaySettings
         && string.Equals(DisplayId, other.DisplayId, StringComparison.Ordinal)
         && string.Equals(DisplayName, other.DisplayName, StringComparison.Ordinal)
         && Motion == other.Motion
+        && Glow == other.Glow
         && HidesDuringFullscreenVideo == other.HidesDuringFullscreenVideo
         && CharmCount == other.CharmCount
         && CharmIds.SequenceEqual(other.CharmIds, StringComparer.Ordinal)
@@ -212,6 +216,7 @@ public sealed record OverlaySettings
         hash.Add(DisplayId, StringComparer.Ordinal);
         hash.Add(DisplayName, StringComparer.Ordinal);
         hash.Add(Motion);
+        hash.Add(Glow);
         hash.Add(HidesDuringFullscreenVideo);
         foreach (string id in CharmIds)
         {
@@ -243,6 +248,7 @@ public sealed record OverlaySettings
         DisplayId = string.IsNullOrWhiteSpace(DisplayId) ? null : DisplayId,
         DisplayName = DisplayId is null ? null : DisplayName,
         Motion = Enum.IsDefined(Motion) ? Motion : MotionPreference.FollowSystem,
+        Glow = Enum.IsDefined(Glow) ? Glow : GlowLevel.Soft,
         HorizontalPosition = HorizontalPosition is double at ? Math.Clamp(at, 0, 1) : null,
         CharmIds = ClampedCharmIds(),
         Slots = [.. Slots.Take(CharmStack.MaximumCount).Select(place => place.Clamped())],
