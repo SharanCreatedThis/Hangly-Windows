@@ -214,8 +214,17 @@ public sealed class WelcomeWindow : Window
             Text = "Hangly lives next to the clock, and Windows usually tucks new icons "
                 + "away behind the ˄ arrow down there. Click the arrow to find it, and drag "
                 + "it out onto the taskbar if you would like it to stay put. Right-click it "
-                + "any time to change your charm, or to quit. Or just open Hangly again from "
-                + "the Start menu: it takes you straight to your Library.",
+                + "any time to change your charm, or to quit.",
+            Opacity = 0.7,
+            TextWrapping = TextWrapping.Wrap,
+            Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
+        });
+
+        // The way back that needs no tray icon: opening Hangly again opens the Library
+        // (LaunchIntent, RelaunchSignal). The same words as the macOS card.
+        panel.Children.Add(new TextBlock
+        {
+            Text = Hangly.Core.Lifecycle.HelpText.OpenAgain,
             Opacity = 0.7,
             TextWrapping = TextWrapping.Wrap,
             Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],

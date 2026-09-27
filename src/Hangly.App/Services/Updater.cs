@@ -236,7 +236,9 @@ public sealed class Updater
             await manager.DownloadUpdatesAsync(pending).ConfigureAwait(false);
 
             Diagnostics.Log($"applying update {pending.TargetFullRelease.Version}");
-            manager.ApplyUpdatesAndRestart(pending);
+            // Restarted quietly: the update is the only thing that changed, so no window
+            // should open because of it (Core.Lifecycle.LaunchIntent).
+            manager.ApplyUpdatesAndRestart(pending, [Core.Lifecycle.LaunchIntent.UpdatedArgument]);
             return "Restarting…";
         }
         catch (Exception exception)

@@ -954,6 +954,14 @@
                                 Style="{StaticResource CaptionTextBlockStyle}"
                                 Text="What Hangly is, where it lives, and how to get back to it."
                                 TextWrapping="Wrap" />
+                            <TextBlock
+                                x:Name="OpenAgainHint"
+                                AutomationProperties.AutomationId="OpenAgainHint"
+                                MaxWidth="560"
+                                Opacity="0.7"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="Open Hangly again anytime to return to your Library."
+                                TextWrapping="Wrap" />
                         </StackPanel>
 
                         <!-- Updates. A check is a GET for a static file, so this says

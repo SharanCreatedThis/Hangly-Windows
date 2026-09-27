@@ -203,6 +203,29 @@ public sealed class AppEnvironment : IDisposable
         OpenLibrary();
     }
 
+    /// <summary>Whether this launch came from a sign-in entry written before <c>--login</c>.</summary>
+    private bool legacyLoginEntry;
+
+    /// <summary>Where this launch lands, once onboarding and the tray are settled. See LaunchIntent.</summary>
+    /// <remarks>
+    /// Called after <see cref="ShowWelcomeIfNeeded"/>: a first launch has already put the
+    /// welcome card up and this does nothing more. A returning person who opened Hangly
+    /// gets the Library; a sign-in or update start gets nothing but the charm.
+    /// </remarks>
+    public void OpenForLaunch(IReadOnlyCollection<string> arguments)
+    {
+        Hangly.Core.Lifecycle.LaunchDestination destination = Hangly.Core.Lifecycle.LaunchIntent.Decide(
+            arguments,
+            Onboarding.WelcomeWindow.IsNeeded(store.Settings),
+            TimeSpan.FromMilliseconds(Environment.TickCount64),
+            legacyLoginEntry);
+        Diagnostics.Log($"launch: {destination}{(arguments.Count > 0 ? " (" + string.Join(' ', arguments) + ")" : string.Empty)}");
+        if (destination == Hangly.Core.Lifecycle.LaunchDestination.Library)
+        {
+            OpenLibrary();
+        }
+    }
+
     /// <summary>The welcome card most recently shown, which hides rather than closes.</summary>
     private Onboarding.WelcomeWindow? activeWelcome;
 
@@ -275,6 +298,10 @@ public sealed class AppEnvironment : IDisposable
         //
         // Default on because Hangly is a desktop ornament: an ornament that has to be
         // started by hand every morning is one that gets started once.
+        // Read before the repair below rewrites it: an old-style entry is the one case where a
+        // sign-in launch cannot say so, and LaunchIntent needs to know it was there.
+        legacyLoginEntry = launchAtLogin.HasLegacyEntry;
+
         if (Onboarding.WelcomeWindow.IsNeeded(store.Settings) && !launchAtLogin.IsEnabled)
         {
             launchAtLogin.SetEnabled(true);
