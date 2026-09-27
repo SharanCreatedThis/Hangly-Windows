@@ -10,6 +10,11 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Added**
 
+- **Always on Top or On the Desktop**, in Appearance under Behaviour. Always on Top is how
+  Hangly has always hung, and stays the default. On the Desktop hangs the charm over your
+  wallpaper and icons and behind every window: it shows, and you can push it, wherever the
+  desktop does, and it comes back after Show desktop. The same two choices as Hangly for
+  Mac.
 - **Glow: Off, Soft or Strong**, in Appearance under Size and reach. Soft is the faint
   halo in the charm's own colour that every charm has always had, so nothing changes
   unless you choose. Strong carries more colour a little further — best on a dark desktop

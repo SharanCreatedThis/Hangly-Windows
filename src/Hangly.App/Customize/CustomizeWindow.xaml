@@ -832,6 +832,24 @@
                                 x:Name="ShowToggle"
                                 Header="Show Hangly"
                                 Toggled="OnShowToggled" />
+                            <!-- Window: the same two choices, in the same order, as macOS. -->
+                            <TextBlock Text="Window" />
+                            <muxc:RadioButtons
+                                x:Name="WindowModeChoice"
+                                AutomationProperties.AutomationId="WindowModeChoice"
+                                AutomationProperties.Name="Window"
+                                MaxColumns="2"
+                                SelectionChanged="OnWindowModeChanged">
+                                <x:String>Always on Top</x:String>
+                                <x:String>On the Desktop</x:String>
+                            </muxc:RadioButtons>
+                            <TextBlock
+                                MaxWidth="560"
+                                HorizontalAlignment="Left"
+                                Opacity="0.7"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="On the Desktop hangs the charm over your wallpaper and behind your windows; it shows, and can be pushed, wherever the desktop does."
+                                TextWrapping="Wrap" />
                             <ToggleSwitch
                                 x:Name="LoginToggle"
                                 Header="Launch at login"

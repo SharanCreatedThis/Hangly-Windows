@@ -418,7 +418,7 @@ public sealed class OverlayWindow : IDisposable
         WatchFullscreen();
         if (!isHiddenForFullscreen)
         {
-            surface.RaiseToTop();
+            surface.HoldPlace();
         }
     }
 
@@ -475,6 +475,14 @@ public sealed class OverlayWindow : IDisposable
     {
         settings = updated;
         renderer.Glow = updated.Glow;
+        bool onDesktop = updated.WindowMode == WindowMode.Desktop;
+        if (surface.OnDesktop != onDesktop)
+        {
+            surface.OnDesktop = onDesktop;
+            lastCover = null;
+            surface.HoldPlace();
+        }
+
         rope.SetStyle(updated.RopeStyle);
         ApplyMotion();
         WatchFullscreen();
@@ -704,6 +712,34 @@ public sealed class OverlayWindow : IDisposable
     /// </summary>
     private const uint IdleWaitMs = 33;
 
+    /// <summary>The last answer to "does a window cover the charm here", and when (TickCount64) it was asked.</summary>
+    private (long At, bool Covered)? lastCover;
+
+    /// <summary>Whether the overlay is on the desktop and another window is in front of it at the cursor.</summary>
+    /// <remarks>
+    /// Asked only once the cursor is over the charm, and remembered for a quarter of a
+    /// second: this runs on every frame, and asking the window manager each time while
+    /// somebody's pointer rests on the charm is the busy overlay the click-through guard
+    /// exists to prevent. An Always on Top install never asks.
+    /// </remarks>
+    private bool IsCoveredOnDesktop(NativeMethods.Point cursor)
+    {
+        if (!surface.OnDesktop)
+        {
+            return false;
+        }
+
+        long now = Environment.TickCount64;
+        if (lastCover is (long at, bool covered) && now - at < 250)
+        {
+            return covered;
+        }
+
+        bool isCovered = DesktopLayer.IsCovered(surface.Handle, cursor.X, cursor.Y);
+        lastCover = (now, isCovered);
+        return isCovered;
+    }
+
     private void PollPointer()
     {
         if (!NativeMethods.GetCursorPos(out NativeMethods.Point cursor))
@@ -721,6 +757,13 @@ public sealed class OverlayWindow : IDisposable
         // Which place, not just whether: a drop has to land on the charm it was aimed at.
         // This is polled anyway for click-through, so the drop target costs no extra work.
         hoveredCharm = rope.CharmIndexAt(location);
+
+        // On the desktop, a charm behind somebody's window is not under the cursor,
+        // whatever the geometry says — and a drag already under way is not interrupted.
+        if (hoveredCharm is not null && !rope.IsDragging && IsCoveredOnDesktop(cursor))
+        {
+            hoveredCharm = null;
+        }
         bool overCharm = hoveredCharm is not null;
 
         // The cursor may only pass through when it is not over the charm — and never
@@ -798,7 +841,7 @@ public sealed class OverlayWindow : IDisposable
             ? style | NativeMethods.WsExTransparent
             : style & ~NativeMethods.WsExTransparent;
         NativeMethods.SetExtendedStyle(surface.Handle, style);
-        surface.RaiseToTop();
+        surface.HoldPlace();
     }
 
     public void Dispose()

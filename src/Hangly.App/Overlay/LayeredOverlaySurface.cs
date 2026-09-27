@@ -490,8 +490,31 @@ internal sealed class LayeredOverlaySurface : IDisposable
     /// </remarks>
     public void Show()
     {
+        // On the desktop the window is put in place before it appears, so it never shows
+        // for a frame above somebody's windows on the way down.
+        if (OnDesktop)
+        {
+            DesktopLayer.HoldAboveDesktop(handle);
+        }
+
         NativeMethods.ShowWindow(handle, NativeMethods.SwShowna);
-        RaiseToTop(NativeMethods.SwpShowwindow);
+        HoldPlace(NativeMethods.SwpShowwindow);
+    }
+
+    /// <summary>Appearance → Window: On the Desktop rather than Always on Top. Set from the frame loop.</summary>
+    public bool OnDesktop { get; set; }
+
+    /// <summary>Puts the window back where its mode says: the top of the topmost band, or just above the desktop.</summary>
+    public void HoldPlace(uint extraFlags = 0)
+    {
+        if (OnDesktop)
+        {
+            DesktopLayer.HoldAboveDesktop(handle, extraFlags);
+        }
+        else
+        {
+            RaiseToTop(extraFlags);
+        }
     }
 
     /// <summary>Takes the window off the screen without destroying anything.</summary>
