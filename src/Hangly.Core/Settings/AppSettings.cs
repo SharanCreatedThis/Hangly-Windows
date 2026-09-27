@@ -126,6 +126,9 @@ public sealed record OverlaySettings
     /// <summary>Appearance → Behaviour → Window. Always on Top is what Hangly has always done.</summary>
     public WindowMode WindowMode { get; init; } = WindowMode.OnTop;
 
+    /// <summary>Appearance → Motion → Interaction. Normal is what Hangly has always done.</summary>
+    public InteractionMode Interaction { get; init; } = InteractionMode.Normal;
+
     /// <summary>The charms on the cord, from the anchor down.</summary>
     /// <remarks>
     /// Ids from <c>CharmCatalog</c>, which are the macOS <c>CharmKind</c> raw values, so
@@ -199,6 +202,7 @@ public sealed record OverlaySettings
         && Motion == other.Motion
         && Glow == other.Glow
         && WindowMode == other.WindowMode
+        && Interaction == other.Interaction
         && HidesDuringFullscreenVideo == other.HidesDuringFullscreenVideo
         && CharmCount == other.CharmCount
         && CharmIds.SequenceEqual(other.CharmIds, StringComparer.Ordinal)
@@ -222,6 +226,7 @@ public sealed record OverlaySettings
         hash.Add(Motion);
         hash.Add(Glow);
         hash.Add(WindowMode);
+        hash.Add(Interaction);
         hash.Add(HidesDuringFullscreenVideo);
         foreach (string id in CharmIds)
         {
@@ -255,6 +260,7 @@ public sealed record OverlaySettings
         Motion = Enum.IsDefined(Motion) ? Motion : MotionPreference.FollowSystem,
         Glow = Enum.IsDefined(Glow) ? Glow : GlowLevel.Soft,
         WindowMode = Enum.IsDefined(WindowMode) ? WindowMode : WindowMode.OnTop,
+        Interaction = Enum.IsDefined(Interaction) ? Interaction : InteractionMode.Normal,
         HorizontalPosition = HorizontalPosition is double at ? Math.Clamp(at, 0, 1) : null,
         CharmIds = ClampedCharmIds(),
         Slots = [.. Slots.Take(CharmStack.MaximumCount).Select(place => place.Clamped())],

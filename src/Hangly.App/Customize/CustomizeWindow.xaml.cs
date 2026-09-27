@@ -657,6 +657,7 @@ public sealed partial class CustomizeWindow : Window
             MotionChoice.SelectedIndex = (int)overlay.Motion;
             GlowChoice.SelectedIndex = (int)overlay.Glow;
             WindowModeChoice.SelectedIndex = (int)overlay.WindowMode;
+            InteractionChoice.SelectedIndex = (int)overlay.Interaction;
             FullscreenToggle.IsOn = overlay.HidesDuringFullscreenVideo;
             SoundToggle.IsOn = store.Settings.SoundEffectsEnabled;
             VolumeSlider.Value = Math.Round(store.Settings.SoundVolume * 100);
@@ -1546,6 +1547,15 @@ public sealed partial class CustomizeWindow : Window
         if (!isLoading)
         {
             store.Update(settings => settings with { SoundVolume = VolumeSlider.Value / 100 });
+        }
+    }
+
+    private void OnInteractionChanged(object sender, SelectionChangedEventArgs args)
+    {
+        if (!isLoading && InteractionChoice.SelectedIndex is 0 or 1)
+        {
+            var mode = (Hangly.Core.Models.InteractionMode)InteractionChoice.SelectedIndex;
+            store.UpdateOverlay(overlay => overlay with { Interaction = mode });
         }
     }
 

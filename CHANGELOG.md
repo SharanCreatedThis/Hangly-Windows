@@ -10,6 +10,10 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Added**
 
+- **Reactive charms**, in Appearance under Motion → Interaction. The charm drifts away from
+  a pointer moving quickly towards it and swings back on its own; reach for it slowly and
+  it lets you take hold, as before. Normal, the default, is the charm as it always was.
+  Off while motion is reduced. The same choice as Hangly for Mac.
 - **Always on Top or On the Desktop**, in Appearance under Behaviour. Always on Top is how
   Hangly has always hung, and stays the default. On the Desktop hangs the charm over your
   wallpaper and icons and behind every window: it shows, and you can push it, wherever the

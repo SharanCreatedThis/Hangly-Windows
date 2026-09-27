@@ -712,6 +712,44 @@ public sealed class OverlayWindow : IDisposable
     /// </summary>
     private const uint IdleWaitMs = 33;
 
+    /// <summary>Where the pointer was at the previous poll, and when (Stopwatch ticks), for Reactive's approach speed.</summary>
+    private (Vec2 Location, long At)? lastPoll;
+
+    /// <summary>Interaction → Reactive: charms drift away from a pointer moving towards them.</summary>
+    /// <remarks>
+    /// Rides the poll that already runs for click-through, awake or settled, so it adds no
+    /// wake-up of its own: a pointer far from the charm costs one distance check per charm.
+    /// The speed is measured between polls — at the settled 33 ms cadence as much as at
+    /// 120 Hz — and a gap longer than a tenth of a second is not a speed at all.
+    /// </remarks>
+    private void Repel(NativeMethods.Point cursor, Vec2 location, bool isButtonDown)
+    {
+        long now = System.Diagnostics.Stopwatch.GetTimestamp();
+        (Vec2 Location, long At)? previous = lastPoll;
+        lastPoll = (location, now);
+
+        if (settings.Interaction != InteractionMode.Reactive || isButtonDown || rope.IsDragging
+            || previous is not (Vec2 before, long at))
+        {
+            return;
+        }
+
+        double seconds = (now - at) / (double)System.Diagnostics.Stopwatch.Frequency;
+        if (seconds <= 0 || seconds > 0.1)
+        {
+            return;
+        }
+
+        // On the desktop, a charm behind somebody's window does not feel the pointer.
+        bool insideFrame = cursor.X >= frame.Left && cursor.X < frame.Right && cursor.Y >= frame.Top && cursor.Y < frame.Bottom;
+        if (!insideFrame || IsCoveredOnDesktop(cursor))
+        {
+            return;
+        }
+
+        rope.Repel(location, (location - before) / seconds);
+    }
+
     /// <summary>The last answer to "does a window cover the charm here", and when (TickCount64) it was asked.</summary>
     private (long At, bool Covered)? lastCover;
 
@@ -770,6 +808,8 @@ public sealed class OverlayWindow : IDisposable
         // mid-drag, or letting go while moving fast would drop the charm the instant the
         // pointer outran it.
         SetClickThrough(!overCharm && !rope.IsDragging);
+
+        Repel(cursor, location, isButtonDown);
 
         if (isButtonDown && !wasButtonDown && overCharm)
         {
