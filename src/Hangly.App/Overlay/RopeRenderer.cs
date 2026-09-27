@@ -53,6 +53,30 @@ public sealed class RopeRenderer
 
     private IReadOnlyList<CharmDescriptor> charms = [];
 
+    /// <summary>Appearance → Glow. Set from the frame loop.</summary>
+    /// <remarks>Changing it lets go of every cached glow brush: they are built for one level.</remarks>
+    public GlowLevel Glow
+    {
+        get => glow;
+        set
+        {
+            if (value == glow)
+            {
+                return;
+            }
+
+            glow = value;
+            foreach (CanvasRadialGradientBrush stale in glows.Values)
+            {
+                stale.Dispose();
+            }
+
+            glows.Clear();
+        }
+    }
+
+    private GlowLevel glow = GlowLevel.Soft;
+
     public void Draw(CanvasDrawingSession session, RopeSnapshot snapshot, RopeStyle style)
     {
         if (snapshot.Points.Count < 2)
@@ -730,12 +754,12 @@ public sealed class RopeRenderer
         CharmDescriptor? descriptor,
         CharmPlacement placement)
     {
-        if (descriptor is null || placement.Radius <= 0)
+        if (descriptor is null || placement.Radius <= 0 || GlowTable.StrengthOf(glow) is not GlowStrength strength)
         {
             return;
         }
 
-        CanvasRadialGradientBrush brush = GlowFor(session, descriptor);
+        CanvasRadialGradientBrush brush = GlowFor(session, descriptor, strength);
         var reach = (float)(placement.Radius * RopeConfiguration.Layout.CharmHaloExtent);
 
         brush.Center = ToVector(placement.Center);
@@ -756,7 +780,7 @@ public sealed class RopeRenderer
     /// belong to it, and one that outlived its device would fail on the next frame rather
     /// than be rebuilt.</para>
     /// </remarks>
-    private CanvasRadialGradientBrush GlowFor(CanvasDrawingSession session, CharmDescriptor descriptor)
+    private CanvasRadialGradientBrush GlowFor(CanvasDrawingSession session, CharmDescriptor descriptor, GlowStrength strength)
     {
         if (!ReferenceEquals(glowDevice, session.Device))
         {
@@ -780,13 +804,26 @@ public sealed class RopeRenderer
         // where macOS was back to the colour of the window. The stops keep the ramp as it
         // was up to the charm's own edge and then bring it down, so the glow dies about a
         // third of a radius past the artwork, which is where macOS's dies.
+        //
+        // A stronger level keeps that shape and draws it wider and deeper: every stop
+        // past the charm's edge moves out in proportion to how much further this level
+        // reaches than Soft — a factor of exactly one at Soft, so Soft is the gradient
+        // above to the bit — and every alpha is multiplied by the level's intensity.
         CharmColor tint = descriptor.Palette.Primary;
+        double widen = (strength.Reach - 1) / (GlowTable.StrengthOf(GlowLevel.Soft)!.Value.Reach - 1);
+        double opacity = GlowOpacity * strength.Intensity;
+        float Out(float softPosition)
+        {
+            double extent = RopeConfiguration.Layout.CharmHaloExtent;
+            return (float)Math.Min(1, (1 + (((softPosition * extent) - 1) * widen)) / extent);
+        }
+
         CanvasGradientStop[] stops =
         [
-            new() { Position = 0, Color = ToColor(tint, GlowOpacity) },
-            new() { Position = CharmEdge, Color = ToColor(tint, GlowOpacity * 0.41) },
-            new() { Position = 0.70f, Color = ToColor(tint, GlowOpacity * 0.17) },
-            new() { Position = 0.79f, Color = ToColor(tint, 0) },
+            new() { Position = 0, Color = ToColor(tint, Math.Min(1, opacity)) },
+            new() { Position = CharmEdge, Color = ToColor(tint, Math.Min(1, opacity * 0.41)) },
+            new() { Position = Out(0.70f), Color = ToColor(tint, Math.Min(1, opacity * 0.17)) },
+            new() { Position = Out(0.79f), Color = ToColor(tint, 0) },
             new() { Position = 1, Color = ToColor(tint, 0) },
         ];
 

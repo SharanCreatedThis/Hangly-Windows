@@ -745,6 +745,25 @@
                             <Slider x:Name="LengthSlider" ValueChanged="OnLengthChanged" />
                             <TextBlock x:Name="OpacityLabel" Text="Opacity" />
                             <Slider x:Name="OpacitySlider" ValueChanged="OnOpacityChanged" />
+                            <!-- Glow: the same three choices, in the same order, as macOS. -->
+                            <TextBlock Text="Glow" />
+                            <muxc:RadioButtons
+                                x:Name="GlowChoice"
+                                AutomationProperties.AutomationId="GlowChoice"
+                                AutomationProperties.Name="Glow"
+                                MaxColumns="3"
+                                SelectionChanged="OnGlowChanged">
+                                <x:String>Off</x:String>
+                                <x:String>Soft</x:String>
+                                <x:String>Strong</x:String>
+                            </muxc:RadioButtons>
+                            <TextBlock
+                                MaxWidth="560"
+                                HorizontalAlignment="Left"
+                                Opacity="0.7"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="The charm's own colour, soft behind it. Strong shows best on a dark desktop."
+                                TextWrapping="Wrap" />
                         </StackPanel>
 
                         <!--

@@ -474,6 +474,7 @@ public sealed class OverlayWindow : IDisposable
     private void ApplyOnLoop(OverlaySettings updated)
     {
         settings = updated;
+        renderer.Glow = updated.Glow;
         rope.SetStyle(updated.RopeStyle);
         ApplyMotion();
         WatchFullscreen();
