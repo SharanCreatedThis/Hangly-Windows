@@ -94,6 +94,23 @@ public static class WindowPlacement
         }
     }
 
+    /// <summary>Puts <paramref name="window"/> in front and gives it the keyboard.</summary>
+    /// <remarks>
+    /// <c>Window.Activate</c> activates within the app, which is enough when the app is
+    /// already in front. When it is not — Hangly opened again from the Start menu, so the
+    /// request arrives from another process — the window has to ask Windows directly.
+    /// <c>SetForegroundWindow</c> only succeeds when this process has been given the right,
+    /// and the copy that was just launched hands it over with
+    /// <c>AllowSetForegroundWindow</c> before it leaves (see <c>SingleInstance</c>), so
+    /// this cannot steal focus from something the person is using.
+    /// </remarks>
+    public static void BringToFront(Window window)
+    {
+        Restore(window);
+        window.Activate();
+        NativeMethods.SetForegroundWindow(WinRT.Interop.WindowNative.GetWindowHandle(window));
+    }
+
     /// <summary>Fixes a card at the size it was given.</summary>
     /// <remarks>
     /// The welcome and follow cards are laid out for one size and have nothing to do with

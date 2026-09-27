@@ -89,15 +89,15 @@ internal static class Program
         // have already done their work and returned.
         if (!SingleInstance.Claim())
         {
-            // Nothing is shown and nothing is signalled. The copy that is running already
-            // has a charm on screen and a tray icon in the notification area, and poking
-            // it — raising a window, flashing the taskbar — would be answering a question
-            // nobody asked. The log is where this is explained if anybody wonders.
-            // Appended to the running copy's log rather than replacing it. One line is
-            // worth leaving — "I clicked it and nothing happened" is a question somebody
-            // will ask — and a write that fails because the other process is mid-write is
-            // swallowed, as every other log write is.
-            Diagnostics.Log("another copy of Hangly is already running; this one is exiting");
+            // Opening Hangly again is how people look for it — from the Start menu, a
+            // shortcut, the .exe — usually to change their charm. The running copy is
+            // told, and opens its Library in front; this copy leaves. It used to leave
+            // silently, which read as a click that did nothing. The line is appended to
+            // the running copy's log, as before.
+            bool told = SingleInstance.TellRunningCopy();
+            Diagnostics.Log(told
+                ? "Hangly is already running; asked it to open the Library"
+                : "Hangly is already running but did not answer; this copy is exiting");
             return;
         }
 

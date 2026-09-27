@@ -174,6 +174,38 @@ public sealed class AppEnvironment : IDisposable
     /// <summary>How often a running Hangly checks again.</summary>
     private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromHours(24);
 
+    /// <summary>
+    /// Hangly was opened again while running: the Library, in front — or the welcome card,
+    /// while it is still up, because it may be asking for a name. The macOS rule.
+    /// </summary>
+    /// <remarks>
+    /// Listened for from launch; the signal arrives on the thread pool and is carried to
+    /// the XAML thread, which owns every window here. Opening the Library reuses the one
+    /// Customize window, so relaunching repeatedly never makes a second.
+    /// </remarks>
+    public void ListenForRelaunch()
+    {
+        Microsoft.UI.Dispatching.DispatcherQueue queue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+        xamlQueue ??= queue;
+        Services.SingleInstance.ListenForRelaunch(() => queue.TryEnqueue(OnRelaunched));
+    }
+
+    private void OnRelaunched()
+    {
+        if (activeWelcome is { } welcome && welcome.AppWindow.IsVisible)
+        {
+            Diagnostics.Log("relaunched while the welcome card is up; bringing it forward");
+            Interop.WindowPlacement.BringToFront(welcome);
+            return;
+        }
+
+        Diagnostics.Log("relaunched; opening the Library");
+        OpenLibrary();
+    }
+
+    /// <summary>The welcome card most recently shown, which hides rather than closes.</summary>
+    private Onboarding.WelcomeWindow? activeWelcome;
+
     public void ShowWelcomeIfNeeded()
     {
         if (!Onboarding.WelcomeWindow.IsNeeded(store.Settings))
@@ -186,6 +218,7 @@ public sealed class AppEnvironment : IDisposable
         // the same card for somebody who already has a name, and closing that one must
         // not take the app with it.
         var welcome = new Onboarding.WelcomeWindow(store, analytics, OpenLibrary, Quit);
+        activeWelcome = welcome;
 
         // Hidden rather than closed when it is dismissed, so the app is still running
         // afterwards. See ProcessLifetime.
@@ -203,6 +236,7 @@ public sealed class AppEnvironment : IDisposable
     public void ShowWelcomeAgain()
     {
         var welcome = new Onboarding.WelcomeWindow(store, analytics, OpenLibrary);
+        activeWelcome = welcome;
         Onboarding.ProcessLifetime.KeepAlive(welcome);
         welcome.SkipToWelcome();
         welcome.Activate();
@@ -598,9 +632,9 @@ public sealed class AppEnvironment : IDisposable
             // Show does not lift a minimised window out of the taskbar — it stays
             // minimised and Activate raises nothing, so picking Library off the tray menu
             // appeared to do nothing at all once the window had been minimised once.
-            Interop.WindowPlacement.Restore(customize);
-
-            customize.Activate();
+            // BringToFront restores, activates, and takes the foreground when this was
+            // asked for from outside — Hangly opened again.
+            Interop.WindowPlacement.BringToFront(customize);
         }
         catch (Exception exception)
         {
