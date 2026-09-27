@@ -10,6 +10,10 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Added**
 
+- **Open Hangly again to get to your Library.** Starting Hangly while it is already
+  running — from the Start menu, a desktop shortcut or the .exe — now brings its Library to
+  the front, instead of appearing to do nothing. Still only one Hangly, and only one
+  Library window; while the welcome card is up, it comes forward instead.
 - **Creator Studio.** Drop a picture on the charm and it opens in the Studio with the
   background removed and the subject found for you — people, pets, products, anything that
   stands out. Choose how the background goes (Automatic, Detected subject, Flat background

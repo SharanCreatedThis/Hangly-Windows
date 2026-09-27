@@ -48,6 +48,7 @@ public partial class App : Application
             environment.Bootstrap();
             Diagnostics.Log("Bootstrap returned");
             environment.ShowWelcomeIfNeeded();
+            environment.ListenForRelaunch();
         }
         catch (Exception exception)
         {

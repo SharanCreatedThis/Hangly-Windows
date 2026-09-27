@@ -53,6 +53,10 @@ not been code-signed, and Hangly is not signed yet. Signing is in progress throu
 It installs for you only, needs no administrator, and lives in
 `%LOCALAPPDATA%\Hangly`. It updates itself from this repository's releases.
 
+Once it is running, Hangly lives in the notification area next to the clock. To change
+your charm, **open Hangly again** — from the Start menu, a shortcut or the .exe — and your
+Library opens. Nothing is started twice.
+
 To remove it: **Settings → Apps → Installed apps → Hangly → Uninstall.**
 
 ## Building from source

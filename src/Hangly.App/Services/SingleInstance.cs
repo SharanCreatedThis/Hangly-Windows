@@ -48,6 +48,9 @@ public static class SingleInstance
     /// <summary>Held for the life of the process. See the note on the type.</summary>
     private static Mutex? held;
 
+    /// <summary>What a second copy sets on its way out; see <see cref="Core.Lifecycle.RelaunchSignal"/>.</summary>
+    private static Core.Lifecycle.RelaunchSignal? relaunch;
+
     /// <summary>
     /// Claims the right to be the running copy. False means another copy has it.
     /// </summary>
@@ -67,6 +70,7 @@ public static class SingleInstance
             held = new Mutex(initiallyOwned: true, Name, out bool createdNew);
             if (createdNew)
             {
+                CreateRelaunchSignal();
                 return true;
             }
 
@@ -79,6 +83,7 @@ public static class SingleInstance
         catch (AbandonedMutexException)
         {
             // Inherited from a process that died. It is ours now.
+            CreateRelaunchSignal();
             return true;
         }
         catch (Exception exception)
@@ -90,4 +95,44 @@ public static class SingleInstance
             return true;
         }
     }
+
+    /// <summary>
+    /// For the running copy: calls <paramref name="openLibrary"/> each time Hangly is
+    /// opened again. It arrives on a thread-pool thread; the caller marshals.
+    /// </summary>
+    public static void ListenForRelaunch(Action openLibrary) => relaunch?.Listen(openLibrary);
+
+    /// <summary>
+    /// For the copy that was turned away: asks the running one to open its Library, and
+    /// lets it take the foreground to do so.
+    /// </summary>
+    /// <remarks>
+    /// Windows only lets a process bring a window forward if it was given the right, and
+    /// the process the person just launched is the one that has it. Passing it on to any
+    /// process (<c>ASFW_ANY</c>) is the documented way to hand it over; it lapses with the
+    /// next input, so it grants nothing lasting.
+    /// </remarks>
+    public static bool TellRunningCopy()
+    {
+        AllowSetForegroundWindow(AsfwAny);
+        return Core.Lifecycle.RelaunchSignal.Send(TimeSpan.FromSeconds(3));
+    }
+
+    private static void CreateRelaunchSignal()
+    {
+        try
+        {
+            relaunch = Core.Lifecycle.RelaunchSignal.Create();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or WaitHandleCannotBeOpenedException)
+        {
+            // Relaunching will do nothing visible, as before; the app itself is fine.
+            Diagnostics.Log($"relaunch signal unavailable: {exception.GetType().Name}");
+        }
+    }
+
+    private const int AsfwAny = -1;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool AllowSetForegroundWindow(int processId);
 }
