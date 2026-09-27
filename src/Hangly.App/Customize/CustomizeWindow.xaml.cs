@@ -108,6 +108,7 @@ public sealed partial class CustomizeWindow : Window
         Load();
 
         store.Changed += OnStoreChanged;
+        PositionPicker.Moved += OnPickerMoved;
         analytics.Changed += OnAnalyticsChanged;
         Closed += (_, _) =>
         {
@@ -223,7 +224,11 @@ public sealed partial class CustomizeWindow : Window
     private void ConfigureSliders()
     {
         foreach ((Slider slider, double low, double high) in ((Slider, double, double)[])
-            [(SizeSlider, 0.5, 2.0), (LengthSlider, 0.5, 2.0), (OpacitySlider, 0.2, 1.0)])
+            [(SizeSlider, 0.5, 2.0), (LengthSlider, 0.5, 2.0), (OpacitySlider, 0.2, 1.0),
+
+            // From the top of the screen down to the macOS maximum. Below zero is macOS
+            // tucking the knot under its menu bar, which has no meaning here (PositionPicker).
+            (VerticalSlider, 0, Hangly.Core.Models.PositionPicker.MaximumOffsetY)])
         {
             slider.Maximum = high;
             slider.Minimum = low;
@@ -613,6 +618,9 @@ public sealed partial class CustomizeWindow : Window
             }
             PositionSlider.Value = Math.Round(overlay.Position * 100);
             ShowPositionLabel();
+            VerticalSlider.Value = Math.Clamp(overlay.OffsetY, VerticalSlider.Minimum, VerticalSlider.Maximum);
+            ShowVerticalLabel();
+            ShowPositionPicker();
 
             SizeSlider.Value = overlay.CharmSize;
             LengthSlider.Value = overlay.RopeLength;
@@ -1293,10 +1301,72 @@ public sealed partial class CustomizeWindow : Window
         }
 
         store.UpdateOverlay(overlay => overlay with { HorizontalPosition = at });
+        ShowPositionPicker();
     }
 
     private void ShowPositionLabel() =>
         PositionLabel.Text = $"Horizontal position \u2014 {(int)Math.Round(PositionSlider.Value)}%";
+
+    private void ShowVerticalLabel() =>
+        VerticalLabel.Text = $"Vertical position \u2014 {(int)Math.Round(VerticalSlider.Value)} pt from the top";
+
+    /// <summary>Points the miniature at the chosen display, with the bottom charm on it.</summary>
+    private void ShowPositionPicker()
+    {
+        OverlaySettings overlay = Overlay;
+        Services.DisplayInfo display = Services.DisplayObserver.Chosen(overlay.DisplayId, overlay.DisplayIndex);
+        double scale = display.Scale > 0 ? display.Scale : 1;
+        string? thumbnail = overlay.Stack.Places.LastOrDefault() is { } bottom
+            ? CharmThumbnails.PathFor(environment.Charms.Find(bottom.Id))
+            : null;
+
+        // Sized against the shipped charm, so the miniature grows as the charm does.
+        PositionPicker.Show(
+            overlay.Position,
+            overlay.OffsetY,
+            display.WorkArea.Width / scale,
+            display.WorkArea.Height / scale,
+            overlay.RopeLength,
+            overlay.CharmSize / new OverlaySettings().CharmSize,
+            thumbnail);
+    }
+
+    private void OnPickerMoved(double position, double offsetY)
+    {
+        isLoading = true;
+        try
+        {
+            PositionSlider.Value = Math.Round(position * 100);
+            VerticalSlider.Value = Math.Clamp(offsetY, VerticalSlider.Minimum, VerticalSlider.Maximum);
+            ShowPositionLabel();
+            ShowVerticalLabel();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+
+        store.UpdateOverlay(overlay => overlay with { HorizontalPosition = position, OffsetY = offsetY });
+    }
+
+    private void OnVerticalChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        ShowVerticalLabel();
+        if (isLoading || Math.Abs(Overlay.OffsetY - args.NewValue) < 0.5)
+        {
+            return;
+        }
+
+        store.UpdateOverlay(overlay => overlay with { OffsetY = Math.Round(args.NewValue) });
+        ShowPositionPicker();
+    }
+
+    /// <summary>Back to where a new install hangs it.</summary>
+    private void OnResetPosition(object sender, RoutedEventArgs args)
+    {
+        OverlaySettings fresh = AppSettings.Defaults.Overlay;
+        store.UpdateOverlay(overlay => overlay with { HorizontalPosition = fresh.HorizontalPosition, OffsetY = fresh.OffsetY });
+    }
 
     private void OnSizeChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs args)
     {

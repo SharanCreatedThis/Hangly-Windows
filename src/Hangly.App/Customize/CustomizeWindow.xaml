@@ -686,6 +686,8 @@
                         -->
                         <StackPanel Spacing="6">
                             <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Where it hangs" />
+                            <!-- Drag the charm on a picture of the screen, as on macOS (B3). -->
+                            <local:DesktopPicker x:Name="PositionPicker" AutomationProperties.AutomationId="PositionPicker" Margin="0,4,0,8" />
                             <TextBlock x:Name="PositionLabel" Text="Horizontal position" />
                             <Slider
                                 x:Name="PositionSlider"
@@ -709,6 +711,32 @@
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     Text="Right" />
                             </Grid>
+                            <TextBlock x:Name="VerticalLabel" Margin="0,6,0,0" Text="Vertical position" />
+                            <Slider
+                                x:Name="VerticalSlider"
+                                AutomationProperties.AutomationId="VerticalSlider"
+                                AutomationProperties.Name="How far below the top of the screen the charm hangs"
+                                LargeChange="40"
+                                SmallChange="4"
+                                StepFrequency="1"
+                                ValueChanged="OnVerticalChanged" />
+                            <Grid>
+                                <TextBlock
+                                    HorizontalAlignment="Left"
+                                    Opacity="0.6"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="Top" />
+                                <TextBlock
+                                    HorizontalAlignment="Right"
+                                    Opacity="0.6"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="Lower" />
+                            </Grid>
+                            <Button
+                                x:Name="ResetPositionButton"
+                                AutomationProperties.AutomationId="ResetPositionButton"
+                                Click="OnResetPosition"
+                                Content="Reset position" />
                         </StackPanel>
 
                         <StackPanel Spacing="8">
