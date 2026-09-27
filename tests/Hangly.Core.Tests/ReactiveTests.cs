@@ -1,4 +1,3 @@
-using Hangly.Core.Audio;
 using Hangly.Core.Geometry;
 using Hangly.Core.Models;
 using Hangly.Core.Physics;
@@ -44,13 +43,12 @@ public sealed class ReactiveTests
     }
 
     [Fact]
-    public void AFastApproachPushesAwayFromThePointerNeverFasterThanTheCapAndNeverLoudEnoughToKnock()
+    public void AFastApproachPushesAwayFromThePointerNeverFasterThanTheCap()
     {
         Vec2 push = ReactiveTable.Push(Charm, Radius, Grab, Charm - new Vec2(60, 0), new Vec2(5000, 0))!.Value;
         Assert.True(push.X > 0);
         Assert.Equal(0, push.Y, 9);
         Assert.True(push.Magnitude <= ReactiveTable.MaximumPush);
-        Assert.True(ReactiveTable.MaximumPush < SoundPolicy.CollisionThreshold);
 
         // Stronger closer in.
         double near = ReactiveTable.Push(Charm, Radius, Grab, Charm - new Vec2(55, 0), new Vec2(800, 0))!.Value.Magnitude;
@@ -95,7 +93,7 @@ public sealed class ReactiveTests
         }
 
         output.WriteLine($"moved {furthest:0.0} pt, fastest {fastest:0} pt/s, asleep after {ticks / 120.0:0.0} s, {rope.Points[charm.Node].Position.DistanceTo(rest):0.00} pt from rest");
-        Assert.True(furthest > 5, $"moved {furthest:0.0} pt");
+        Assert.True(furthest > 25, $"moved {furthest:0.0} pt");
         Assert.True(fastest <= ReactiveTable.MaximumPush + 1, $"fastest {fastest:0} pt/s");
         Assert.True(rope.IsSleeping);
         // Back where it hung, to within what the sleep rule leaves after any small swing:

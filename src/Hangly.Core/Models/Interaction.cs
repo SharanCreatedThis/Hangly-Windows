@@ -28,24 +28,26 @@ public enum InteractionMode
 /// reach for the charm deliberately and take hold of it; inside the grab radius the push
 /// is zero for the same reason.
 ///
-/// <para><b>Gentle by construction.</b> The push is a target speed for the charm's own node,
+/// <para><b>Lively, but never a jump.</b> The push is a target speed for the charm's own node,
 /// fed through the solver's impulse — gravity, damping and the stretch ceiling do the rest,
-/// so nothing can jump. It is capped at <see cref="MaximumPush"/>, below the 300 pt/s at
-/// which two charms knocking together make a sound, so a passing pointer is silent.</para>
+/// so nothing can teleport. The first numbers moved the charm about fifteen points and read
+/// as too timid; these reach further, answer slower pointers and push harder, so a pass
+/// sends the charm swinging clear. At the cap, stacked charms can knock audibly, as they do
+/// when flicked.</para>
 /// </remarks>
 public static class ReactiveTable
 {
     /// <summary>How far the charm notices the pointer, in charm radii from its centre.</summary>
-    public const double Reach = 2.5;
+    public const double Reach = 3.5;
 
     /// <summary>Approach speed, in points per second, below which nothing happens.</summary>
-    public const double ApproachThreshold = 250;
+    public const double ApproachThreshold = 150;
 
     /// <summary>Push speed per point per second of approach above the threshold.</summary>
-    public const double Gain = 0.35;
+    public const double Gain = 0.6;
 
     /// <summary>The fastest a push sends the charm, in points per second.</summary>
-    public const double MaximumPush = 220;
+    public const double MaximumPush = 450;
 
     public static string TitleOf(InteractionMode mode) => mode == InteractionMode.Reactive ? "Reactive" : "Normal";
 

@@ -30,8 +30,14 @@ public enum RopePhysics
 /// </remarks>
 public static class ElasticTable
 {
-    /// <summary>The furthest a link can stretch, as a multiple of its length. Decision C6(a).</summary>
-    public const double Ceiling = 1.2;
+    /// <summary>The furthest a link can stretch, as a multiple of its length.</summary>
+    /// <remarks>
+    /// 1.5, for a rubber-band cord (asked for after C6(a)'s 1.2 read as too stiff). Swept at
+    /// the same compliance: 1.2 held a strong pull at 1.17 and rebounded to 1.11; 1.5 holds it
+    /// at 1.47, rebounds to 1.24 and bounces five to eight times at up to 700 pt/s; 1.6
+    /// stretches further but bounces less. The canvas grows with it, in Elastic only.
+    /// </remarks>
+    public const double Ceiling = 1.5;
 
     /// <summary>XPBD compliance of a link in its elastic range: the inverse of its stiffness.</summary>
     public const double Compliance = 1e-4;

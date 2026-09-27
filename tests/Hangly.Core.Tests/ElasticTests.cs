@@ -139,7 +139,8 @@ public sealed class ElasticTests
         Assert.NotEmpty(pull.Peaks);
         Assert.All(pull.Peaks, peak => Assert.True(peak <= pull.Peaks[0] + 1e-9));
         Assert.True(pull.Peaks[0] < pull.Held);
-        Assert.True(pull.Peaks.Count(peak => peak > 1.05) <= 3);
+        // A rubber band bounces a handful of times, not forever.
+        Assert.True(pull.Peaks.Count(peak => peak > 1.05) <= 8);
     }
 
     [Fact]
