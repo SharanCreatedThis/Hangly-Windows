@@ -119,7 +119,9 @@ public sealed class WelcomeWindow : Window
 
         Content = body;
 
-        Interop.WindowPlacement.SizeAndCentre(this, 560, 480);
+        // Tall enough for the welcome step's last line — the creator's credit — under the
+        // "Open Hangly again" hint; at 480 the credit was cut off at the bottom edge.
+        Interop.WindowPlacement.SizeAndCentre(this, 560, 560);
         Interop.WindowIcon.Apply(this);
         Interop.WindowPlacement.FixSize(this);
 

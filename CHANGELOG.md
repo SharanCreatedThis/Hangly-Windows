@@ -85,6 +85,9 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Fixed**
 
+- **The welcome card's last line is no longer cut off.** The credit and the coffee button
+  at its foot had been pushed below the window's edge.
+
 - **The rope follows the clock while Hangly runs.** Morning, afternoon and night used to be
   decided once, at launch, so a PC left on overnight kept the morning's rope all day. It now
   changes at 05:00, 12:00 and 18:00, and after the clock is changed or the PC wakes — with
