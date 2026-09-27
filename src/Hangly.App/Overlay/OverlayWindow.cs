@@ -70,7 +70,6 @@ public sealed class OverlayWindow : IDisposable
     /// <summary>Which place the cursor is over, or null. Read by the drop target.</summary>
     private int? hoveredCharm;
     private long lastScaleCheck;
-    private int lastSide;
     private IReadOnlyList<CharmDescriptor>? pendingCharms;
 
     /// <summary>How often the overlay reclaims the top of the z-order, in milliseconds.</summary>
@@ -260,6 +259,18 @@ public sealed class OverlayWindow : IDisposable
                 if (Interlocked.Exchange(ref pending, null) is OverlaySettings updated)
                 {
                     ApplyOnLoop(updated);
+                }
+
+                if (Interlocked.Exchange(ref pendingTimeProfile, 0) is int profile and > 0)
+                {
+                    // Not woken for: noon arriving is not something anybody asked to see,
+                    // so a sleeping rope takes the new numbers the next time it moves.
+                    rope.SetTimeProfile((RopeTimeProfile)(profile - 1));
+                }
+
+                if (LayeredOverlaySurface.TakeClockChanged())
+                {
+                    ClockChanged?.Invoke();
                 }
 
                 if (Interlocked.Exchange(ref isNudged, 0) == 1)
@@ -600,35 +611,46 @@ public sealed class OverlayWindow : IDisposable
         }
     }
 
-    /// <summary>One swing is one crossing of the vertical, which is what a pendulum does.</summary>
+    /// <summary>One swing is one crossing of the vertical; the rule is <see cref="SwingCounter"/>.</summary>
+    /// <remarks>
+    /// The last node, not a snapshot: Snapshot() allocates, and this runs on every tick.
+    /// Against the anchor rather than the canvas centre, so it stays right if they part.
+    /// Asks for the count to be saved at most every five minutes, and only while swings are
+    /// happening — a still rope never asks.
+    /// </remarks>
     private void CountSwings()
     {
-        // The last node, not a snapshot. Snapshot() allocates the points, the charms and
-        // the beads every time it is called, and this runs on every tick of a 120 Hz
-        // loop — which is the allocation-per-frame that the layered surface was carefully
-        // built to avoid. The lowest charm hangs on the last node, so its position is
-        // already here for nothing.
-        // Against the anchor rather than the canvas centre: they are the same point
-        // today, and the day they stop being the same this still counts swings.
-        double offset = rope.CharmOffsetFromAnchor;
-
-        // A dead band, so a charm resting a hair off centre does not tick over forever
-        // on floating-point noise. A fiftieth of the rope is well inside the smallest
-        // swing anyone can see and well outside that noise.
-        double band = rope.Configuration.TotalLength / 50;
-        int side = offset > band ? 1 : offset < -band ? -1 : 0;
-        if (side == 0)
+        if (!swingCounter.Observe(rope.CharmOffsetFromAnchor, rope.Configuration.TotalLength))
         {
             return;
         }
 
-        if (lastSide != 0 && side != lastSide)
+        Interlocked.Increment(ref swings);
+        long now = Environment.TickCount64;
+        if (now - lastSwingBank >= SwingBankInterval)
         {
-            Interlocked.Increment(ref swings);
+            lastSwingBank = now;
+            SwingsToBank?.Invoke();
         }
-
-        lastSide = side;
     }
+
+    private SwingCounter swingCounter;
+    private long lastSwingBank = Environment.TickCount64;
+
+    /// <summary>How often, at most, counted swings are saved while the charm is swinging.</summary>
+    private const long SwingBankInterval = 5 * 60 * 1000;
+
+    /// <summary>The time of day for the rope, taken by the frame loop, which owns the solver.</summary>
+    public void SetTimeProfile(RopeTimeProfile profile) => Interlocked.Exchange(ref pendingTimeProfile, (int)profile + 1);
+
+    /// <summary>Zero, or the profile plus one, waiting for the frame loop.</summary>
+    private int pendingTimeProfile;
+
+    /// <summary>Raised on the frame loop's thread when the clock jumped: changed, or woken from sleep.</summary>
+    public event Action? ClockChanged;
+
+    /// <summary>Raised on the frame loop's thread when swings are due to be saved. See CountSwings.</summary>
+    public event Action? SwingsToBank;
 
     private void Draw(bool onlyIfMoved = false)
     {

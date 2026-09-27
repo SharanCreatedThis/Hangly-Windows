@@ -1059,13 +1059,12 @@ public sealed partial class CustomizeWindow : Window
 
         string id = CharmId.ForCustom(entry.Id);
         int slot = studioSlot ?? selectedSlot;
-        store.Update(settings => settings with
+        // Hung through Hanging like every other way onto the rope. Saved without hanging,
+        // it is in the Library but has not been hung, so it is not "Recently hung" yet.
+        if (hang)
         {
-            Overlay = hang
-                ? settings.Overlay.WithStack(settings.Overlay.Stack.WithCharm(slot, id))
-                : settings.Overlay,
-            Library = settings.Library.WithRecent(id),
-        });
+            store.Update(settings => Hanging.Hang(settings, slot, id));
+        }
 
         return entry.Name;
     }
@@ -1096,26 +1095,14 @@ public sealed partial class CustomizeWindow : Window
 
     /// <summary>The four numbers the About page keeps.</summary>
     /// <remarks>
-    /// macOS's <c>AppMilestones</c> carries <c>charms</c>, <c>launches</c> and
-    /// <c>secretsFound</c>; the fourth, swings, is named only by the statistics label
-    /// "Swings survived: ". The counting rule for it is this build's own — see
-    /// OverlayWindow — because macOS's is not in the repository.
+    /// The shared statistics model, the same four on macOS in the same order: Launches,
+    /// Charms hung (every hang that changed a place, through <c>Hanging</c>), Swings
+    /// survived (<c>SwingCounter</c>: crossings of the vertical) and Secrets found.
     /// </remarks>
     private void ShowMilestones()
     {
-        // Swings live in the overlay until someone looks, then they are banked. Taking
-        // them zeroes the overlay's counter, so this cannot count the same swing twice.
-        long swung = environment.Overlay?.TakeSwings() ?? 0;
-        if (swung > 0)
-        {
-            store.Update(settings => settings with
-            {
-                Milestones = settings.Milestones with
-                {
-                    SwingsSurvived = settings.Milestones.SwingsSurvived + swung,
-                },
-            });
-        }
+        // Up to the moment: whatever the overlay has counted since it last saved.
+        environment.BankSwings();
 
         MilestoneSettings milestones = store.Settings.Milestones;
         StatLaunches.Text = milestones.LaunchCount.ToString("N0", CultureInfo.CurrentCulture);
@@ -1244,24 +1231,8 @@ public sealed partial class CustomizeWindow : Window
         UpdateDeleteButton(tile.Id);
         ShowDetail(tile.Entry);
 
-        store.Update(settings =>
-        {
-            // Writing a charm into a place leaves that place's size alone: the size
-            // describes the composition, and changing your mind about which charm is in
-            // the middle is not a decision to make the middle large again.
-            // The rope and the recents change together, in one write, so the file is
-            // written once for one act rather than twice.
-            return settings with
-            {
-                Overlay = settings.Overlay.WithStack(
-                    settings.Overlay.Stack.WithCharm(selectedSlot, tile.Id)),
-                Library = settings.Library.WithRecent(tile.Id),
-                Milestones = settings.Milestones with
-                {
-                    CharmsHung = settings.Milestones.CharmsHung + 1,
-                },
-            };
-        });
+        // One act, one write: the rope, Recent and "Charms hung" together (Hanging).
+        store.Update(settings => Hanging.Hang(settings, selectedSlot, tile.Id));
     }
 
     /// <summary>Points the detail panel at a charm, and remembers which one.</summary>
@@ -1484,20 +1455,9 @@ public sealed partial class CustomizeWindow : Window
         // just became relevant is the one that would be off the edge.
         chips.LastOrDefault()?.StartBringIntoView();
 
-        store.Update(settings =>
-        {
-            var ids = settings.Overlay.CharmIds.ToList();
-            if (selectedSlot >= 0 && selectedSlot < ids.Count)
-            {
-                ids[selectedSlot] = outcome.Entry.CharmId;
-            }
-
-            return settings with
-            {
-                Overlay = settings.Overlay with { CharmIds = ids },
-                Library = settings.Library.WithRecent(outcome.Entry.CharmId),
-            };
-        });
+        // Through Hanging like every other way onto the rope, which also keeps the place's
+        // size — writing the id list directly used to drop it.
+        store.Update(settings => Hanging.Hang(settings, selectedSlot, outcome.Entry.CharmId));
 
         ShowResults();
     }

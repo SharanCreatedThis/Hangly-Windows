@@ -588,8 +588,27 @@ internal sealed class LayeredOverlaySurface : IDisposable
     /// <summary>Takes the animation-effects notice, if one has arrived.</summary>
     public static bool TakeMotionChanged() => Interlocked.Exchange(ref motionChanged, 0) == 1;
 
+    /// <summary>Set when the clock jumps: the time or zone was changed, or the PC woke from sleep.</summary>
+    private static int clockChanged;
+
+    /// <summary>Takes the clock-change notice, if one has arrived.</summary>
+    public static bool TakeClockChanged() => Interlocked.Exchange(ref clockChanged, 0) == 1;
+
+    private const uint WmTimeChange = 0x001E;
+    private const uint WmPowerBroadcast = 0x0218;
+    private const long PbtResumeSuspend = 0x0007;
+    private const long PbtResumeAutomatic = 0x0012;
+
     private static IntPtr OnMessage(IntPtr hWnd, uint message, IntPtr wParam, IntPtr lParam)
     {
+        if (message == WmTimeChange
+            || (message == WmPowerBroadcast && wParam.ToInt64() is PbtResumeSuspend or PbtResumeAutomatic))
+        {
+            // A timer set for "noon" is not to be trusted across a sleep or a changed clock;
+            // the time of day is read again and the timer re-armed (AppEnvironment).
+            Interlocked.Exchange(ref clockChanged, 1);
+        }
+
         if (message == NativeMethods.WmDpiChanged)
         {
             Services.Diagnostics.Log($"WM_DPICHANGED received, wParam 0x{wParam.ToInt64():X}");

@@ -49,6 +49,7 @@ public partial class App : Application
             Diagnostics.Log("Bootstrap returned");
             environment.ShowWelcomeIfNeeded();
             environment.OpenForLaunch(Environment.GetCommandLineArgs().Skip(1).ToArray());
+            environment.FollowTheClock();
             environment.ListenForRelaunch();
         }
         catch (Exception exception)

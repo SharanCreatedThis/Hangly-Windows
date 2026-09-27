@@ -427,6 +427,66 @@ public sealed class AppEnvironment : IDisposable
         Diagnostics.Log($"audit cycle: every {seconds} s");
     }
 
+    /// <summary>
+    /// Puts the rope on the time of day it is now, and sets one timer for the next change.
+    /// </summary>
+    /// <remarks>
+    /// The time of day used to be read once, at launch, so a PC left on overnight kept the
+    /// morning's rope all day. Now a single one-shot timer is armed for the next boundary —
+    /// 05:00, 12:00 or 18:00, three wakeups a day — and re-armed each time it fires, and
+    /// again when the clock jumps (changed, or woken from sleep), because a timer set for
+    /// noon is not to be trusted across either. Nothing polls. The same rule as the macOS
+    /// <c>AmbientCoordinator</c>, which reads the clock on its frame loop instead.
+    /// </remarks>
+    public void FollowTheClock()
+    {
+        DateTimeOffset now = DateTimeOffset.Now;
+        Hangly.Core.Models.RopeTimeProfile profile = Hangly.Core.Models.RopeTimeProfileTable.ForDate(now);
+        if (overlay is { } running)
+        {
+            running.SetTimeProfile(profile);
+        }
+        else
+        {
+            // No frame loop to hand it to; the rope is not being stepped, so it is safe here.
+            rope.SetTimeProfile(profile);
+        }
+
+        timeOfDayTimer ??= Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().CreateTimer();
+        timeOfDayTimer.Stop();
+        timeOfDayTimer.IsRepeating = false;
+        TimeSpan wait = Hangly.Core.Models.RopeTimeProfileTable.NextBoundary(now) - now;
+        timeOfDayTimer.Interval = wait + TimeSpan.FromSeconds(1);
+        timeOfDayTimer.Tick -= OnTimeOfDayTick;
+        timeOfDayTimer.Tick += OnTimeOfDayTick;
+        timeOfDayTimer.Start();
+        Diagnostics.Log($"time of day: {profile}; next change in {wait:hh\\:mm\\:ss}");
+    }
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? timeOfDayTimer;
+
+    private void OnTimeOfDayTick(Microsoft.UI.Dispatching.DispatcherQueueTimer sender, object args) => FollowTheClock();
+
+    /// <summary>Saves the swings the overlay has counted into "Swings survived".</summary>
+    /// <remarks>
+    /// The overlay counts on its frame loop and hands the count over here: when About is
+    /// read, every five minutes at most while the charm is swinging, when the charm is
+    /// hidden, and at quit. It used to hand over only when About was opened, so the swings
+    /// of any session that ended without a look at About were lost. Taking the count zeroes
+    /// the overlay's, so nothing is saved twice.
+    /// </remarks>
+    public void BankSwings()
+    {
+        long swung = overlay?.TakeSwings() ?? 0;
+        if (swung > 0)
+        {
+            store.Update(settings => settings with
+            {
+                Milestones = settings.Milestones with { SwingsSurvived = settings.Milestones.SwingsSurvived + swung },
+            });
+        }
+    }
+
     /// <summary>Hangs one charm, alone, from the tray's favourites list.</summary>
     /// <remarks>
     /// Replaces the rope rather than adding to it. The menu has no way to say which place
@@ -435,7 +495,8 @@ public sealed class AppEnvironment : IDisposable
     /// </remarks>
     private void HangOnly(string id)
     {
-        store.UpdateOverlay(overlay => overlay.WithStack(CharmStackState.Of([id])));
+        // Counted and remembered like any other hang; it used to be neither.
+        store.Update(settings => Hanging.HangAlone(settings, id));
         Diagnostics.Log($"tray: hung '{id}' from favourites");
     }
 
@@ -602,6 +663,8 @@ public sealed class AppEnvironment : IDisposable
 
         xamlQueue ??= Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
         overlay.FileDropped += OnFileDroppedOnCharm;
+        overlay.SwingsToBank += () => xamlQueue?.TryEnqueue(BankSwings);
+        overlay.ClockChanged += () => xamlQueue?.TryEnqueue(FollowTheClock);
         Diagnostics.Log("overlay window constructed");
 
         // Returns as soon as the frame loop is running. The window itself is created on
@@ -701,6 +764,7 @@ public sealed class AppEnvironment : IDisposable
 
     private void HideOverlay()
     {
+        BankSwings();
         // Torn down completely rather than hidden, so a disabled overlay costs nothing
         // instead of lingering as an invisible window holding a swapchain.
         overlay?.Close();
@@ -879,6 +943,7 @@ public sealed class AppEnvironment : IDisposable
     /// </summary>
     private void Quit()
     {
+        BankSwings();
         Updates.ApplyOnExit();
         customize?.AllowClose();
         customize = null;
