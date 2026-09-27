@@ -23,8 +23,14 @@ public interface ILaunchAtLogin
 {
     bool IsEnabled { get; }
 
-    /// <summary>An entry exists but names some other copy of Hangly.</summary>
+    /// <summary>An entry exists but names some other copy of Hangly, or is in an older form.</summary>
     bool IsStale => false;
+
+    /// <summary>
+    /// The entry starts this copy but predates <see cref="Core.Lifecycle.LaunchIntent.LoginArgument"/>,
+    /// so a launch from it cannot say it is a sign-in. Read before the entry is repaired.
+    /// </summary>
+    bool HasLegacyEntry => false;
 
     void SetEnabled(bool enabled);
 }
@@ -44,7 +50,10 @@ public sealed class RegistryLaunchAtLogin : ILaunchAtLogin
     /// </remarks>
     public bool IsEnabled => Entry() is string entry && NamesThisCopy(entry);
 
-    public bool IsStale => Entry() is string entry && !NamesThisCopy(entry);
+    /// <summary>Another copy's entry, or this copy's in the form written before <c>--login</c>.</summary>
+    public bool IsStale => Entry() is string entry && (!NamesThisCopy(entry) || !Core.Lifecycle.LoginEntry.Parse(entry).MarksLogin);
+
+    public bool HasLegacyEntry => Entry() is string entry && NamesThisCopy(entry) && !Core.Lifecycle.LoginEntry.Parse(entry).MarksLogin;
 
     private static string? Entry()
     {
@@ -61,7 +70,7 @@ public sealed class RegistryLaunchAtLogin : ILaunchAtLogin
 
     private static bool NamesThisCopy(string entry) =>
         Environment.ProcessPath is string self
-        && string.Equals(entry.Trim().Trim('"'), self, StringComparison.OrdinalIgnoreCase);
+        && string.Equals(Core.Lifecycle.LoginEntry.Parse(entry).Executable, self, StringComparison.OrdinalIgnoreCase);
 
     public void SetEnabled(bool enabled)
     {
@@ -75,7 +84,9 @@ public sealed class RegistryLaunchAtLogin : ILaunchAtLogin
 
             if (enabled)
             {
-                key.SetValue(ValueName, $"\"{Environment.ProcessPath}\"");
+                // With --login, so a sign-in start stays quiet rather than opening the
+                // Library a person opens Hangly to reach (Core.Lifecycle.LaunchIntent).
+                key.SetValue(ValueName, Core.Lifecycle.LoginEntry.Format(Environment.ProcessPath!));
             }
             else
             {

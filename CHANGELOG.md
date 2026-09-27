@@ -10,10 +10,12 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Added**
 
-- **Open Hangly again to get to your Library.** Starting Hangly while it is already
-  running — from the Start menu, a desktop shortcut or the .exe — now brings its Library to
-  the front, instead of appearing to do nothing. Still only one Hangly, and only one
-  Library window; while the welcome card is up, it comes forward instead.
+- **Opening Hangly takes you to your Library.** After the first launch's welcome, starting
+  Hangly from the Start menu, a desktop shortcut or the .exe opens the Library in front —
+  whether Hangly was already running or not — instead of appearing to do nothing. Still
+  only one Hangly, and only one Library window, restored if it was minimised. A start at
+  sign-in or after an update opens nothing. The welcome card and About say so: "Open Hangly
+  again anytime to return to your Library." The tray menu is unchanged.
 - **Creator Studio.** Drop a picture on the charm and it opens in the Studio with the
   background removed and the subject found for you — people, pets, products, anything that
   stands out. Choose how the background goes (Automatic, Detected subject, Flat background
