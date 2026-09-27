@@ -658,6 +658,7 @@ public sealed partial class CustomizeWindow : Window
             GlowChoice.SelectedIndex = (int)overlay.Glow;
             WindowModeChoice.SelectedIndex = (int)overlay.WindowMode;
             InteractionChoice.SelectedIndex = (int)overlay.Interaction;
+            RopePhysicsChoice.SelectedIndex = (int)overlay.RopePhysics;
             StartupToggle.IsOn = overlay.StartupAnimation;
             Visibility offered = overlay.CharmIds.Any(Hangly.Core.Models.IntroTable.IsSpiderMan)
                 ? Visibility.Visible
@@ -1562,6 +1563,15 @@ public sealed partial class CustomizeWindow : Window
         {
             bool on = StartupToggle.IsOn;
             store.UpdateOverlay(overlay => overlay with { StartupAnimation = on });
+        }
+    }
+
+    private void OnRopePhysicsChanged(object sender, SelectionChangedEventArgs args)
+    {
+        if (!isLoading && RopePhysicsChoice.SelectedIndex is 0 or 1)
+        {
+            var physics = (Hangly.Core.Models.RopePhysics)RopePhysicsChoice.SelectedIndex;
+            store.UpdateOverlay(overlay => overlay with { RopePhysics = physics });
         }
     }
 

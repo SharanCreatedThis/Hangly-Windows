@@ -212,6 +212,7 @@ public sealed class OverlayWindow : IDisposable
             // Before the first step, so a rope that should appear hanging still never
             // takes one step of the launch swing.
             ApplyMotion();
+            rope.SetPhysics(settings.RopePhysics);
             rope.Start();
 
             // The Spider-Man entrance, once per launch: this loop is started again when
@@ -486,6 +487,7 @@ public sealed class OverlayWindow : IDisposable
     {
         settings = updated;
         renderer.Glow = updated.Glow;
+        rope.SetPhysics(updated.RopePhysics);
         bool onDesktop = updated.WindowMode == WindowMode.Desktop;
         if (surface.OnDesktop != onDesktop)
         {
@@ -544,7 +546,7 @@ public sealed class OverlayWindow : IDisposable
 
         // The canvas is measured in points and the desktop in pixels, so the size the
         // rope is fitted to is scaled up exactly once, here, and never again.
-        Size canvas = OverlayMetrics.CanvasSize(settings.CharmSize, settings.RopeLength);
+        Size canvas = OverlayMetrics.CanvasSize(settings.CharmSize, settings.RopeLength, settings.RopePhysics);
         var pixels = new Size(canvas.Width * scale, canvas.Height * scale);
 
         frame = ScreenPlacement.Frame(
@@ -560,7 +562,10 @@ public sealed class OverlayWindow : IDisposable
             (int)Math.Round(frame.Height),
             scale);
 
-        rope.Fit(CanvasSize, settings.CharmSize, settings.RopeLength);
+        // Fitted to the canvas an unstretched rope would have: an elastic rope's extra room is
+        // below it, to stretch into, and must not make the rope itself any longer.
+        double stretchRoom = OverlayMetrics.StretchRoom(settings.RopeLength, settings.RopePhysics);
+        rope.Fit(new Size(CanvasSize.Width, CanvasSize.Height - stretchRoom), settings.CharmSize, settings.RopeLength);
     }
 
     /// <summary>
@@ -949,17 +954,26 @@ public static class OverlayMetrics
     /// keep in step by hand. The height is untouched: it was already correct, because
     /// <c>TailFraction</c> is exactly the room the lowest charm and its halo hang in.</para>
     /// </remarks>
-    public static Size CanvasSize(double charmSize, double ropeLength)
+    /// <summary>The extra height, in points, an elastic rope needs below it to stretch into; zero for Standard.</summary>
+    public static double StretchRoom(double ropeLength, RopePhysics physics) =>
+        physics == RopePhysics.Elastic
+            ? BaseHeight * ElasticTable.CanvasAllowance(RopeConfiguration.Layout.LengthFraction, ropeLength)
+            : 0;
+
+    public static Size CanvasSize(double charmSize, double ropeLength, RopePhysics physics = RopePhysics.Standard)
     {
         Size room = RopeConfiguration.Layout.CanvasScale(charmSize, ropeLength);
-        double height = BaseHeight * room.Height;
+        double height = (BaseHeight * room.Height) + StretchRoom(ropeLength, physics);
 
         // How far the charm's centre can get from the anchor. `unit` in
         // RopeConfiguration.Fitted always works out to BaseHeight, because the canvas is
         // BaseHeight × room.Height and it divides by room.Height — so the rope's length in
         // points is this, with no fitting to do. The drag clamp is what bounds it.
         double rope = BaseHeight * RopeConfiguration.Layout.LengthFraction * ropeLength;
-        double swing = rope * RopeConfiguration.Default.MaximumReachRatio;
+        // An elastic rope can be pulled out to its stretch ceiling, so its drag circle is
+        // that much wider. Standard is unchanged.
+        double swing = rope * RopeConfiguration.Default.MaximumReachRatio
+            * (physics == RopePhysics.Elastic ? ElasticTable.Ceiling : 1);
 
         // What the lowest charm reaches past its own centre. CharmStackLayout caps its
         // radius at the headroom below the rope divided by the halo extent, and that

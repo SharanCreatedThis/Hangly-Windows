@@ -429,6 +429,7 @@ public sealed partial class RopeSimulation
         EnforceAnchor();
         Integrate(timeStep);
         DriveDraggedPoint(timeStep);
+        BeginElasticStep();
 
         // Relax until converged, or until the pass budget runs out. Written as a `while`
         // because the exit condition is the point: in the original a `for ... where`

@@ -132,6 +132,9 @@ public sealed record OverlaySettings
     /// <summary>Appearance → Motion → Spider-Man entrance. On by default; it only ever plays with a Spider-Man charm on the rope.</summary>
     public bool StartupAnimation { get; init; } = true;
 
+    /// <summary>Appearance → Motion → Rope. Standard is the cord as it has always been.</summary>
+    public RopePhysics RopePhysics { get; init; } = RopePhysics.Standard;
+
     /// <summary>The charms on the cord, from the anchor down.</summary>
     /// <remarks>
     /// Ids from <c>CharmCatalog</c>, which are the macOS <c>CharmKind</c> raw values, so
@@ -207,6 +210,7 @@ public sealed record OverlaySettings
         && WindowMode == other.WindowMode
         && Interaction == other.Interaction
         && StartupAnimation == other.StartupAnimation
+        && RopePhysics == other.RopePhysics
         && HidesDuringFullscreenVideo == other.HidesDuringFullscreenVideo
         && CharmCount == other.CharmCount
         && CharmIds.SequenceEqual(other.CharmIds, StringComparer.Ordinal)
@@ -232,6 +236,7 @@ public sealed record OverlaySettings
         hash.Add(WindowMode);
         hash.Add(Interaction);
         hash.Add(StartupAnimation);
+        hash.Add(RopePhysics);
         hash.Add(HidesDuringFullscreenVideo);
         foreach (string id in CharmIds)
         {
@@ -266,6 +271,7 @@ public sealed record OverlaySettings
         Glow = Enum.IsDefined(Glow) ? Glow : GlowLevel.Soft,
         WindowMode = Enum.IsDefined(WindowMode) ? WindowMode : WindowMode.OnTop,
         Interaction = Enum.IsDefined(Interaction) ? Interaction : InteractionMode.Normal,
+        RopePhysics = Enum.IsDefined(RopePhysics) ? RopePhysics : RopePhysics.Standard,
         HorizontalPosition = HorizontalPosition is double at ? Math.Clamp(at, 0, 1) : null,
         CharmIds = ClampedCharmIds(),
         Slots = [.. Slots.Take(CharmStack.MaximumCount).Select(place => place.Clamped())],

@@ -6,6 +6,7 @@
 //
 
 using Hangly.Core.Geometry;
+using Hangly.Core.Models;
 
 namespace Hangly.Core.Physics;
 
@@ -24,9 +25,13 @@ public sealed partial class RopeSimulation
     {
         double restLength = Configuration.SegmentLength * ReelFraction;
         double largestCorrection = 0;
+        bool elastic = Physics == RopePhysics.Elastic;
         for (int index = 0; index < Points.Length - 1; index++)
         {
-            largestCorrection = Math.Max(largestCorrection, SolveLink(index, index + 1, restLength));
+            double correction = elastic
+                ? SolveElasticLink(index, restLength, Configuration.FixedTimeStep)
+                : SolveLink(index, index + 1, restLength);
+            largestCorrection = Math.Max(largestCorrection, correction);
         }
 
         return largestCorrection;
@@ -160,7 +165,7 @@ public sealed partial class RopeSimulation
     /// </remarks>
     internal void EnforceMaximumStretch()
     {
-        double limit = Configuration.SegmentLength * ReelFraction * Configuration.MaxStretchRatio;
+        double limit = Configuration.SegmentLength * ReelFraction * StretchCeiling;
 
         for (int pass = 0; pass < Configuration.StretchPasses; pass++)
         {

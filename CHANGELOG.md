@@ -10,6 +10,10 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Added**
 
+- **An elastic rope**, in Appearance under Motion → Rope. Pull the charm and the cord
+  stretches; let go and it bounces back and settles, like a good bungee cord. It hangs
+  exactly as the Standard rope does at rest, and every rope style keeps its look. With
+  motion reduced it still stretches, and bounces less. The same choice as Hangly for Mac.
 - **The Spider-Man entrance.** With Spider-Man or Spider-Man Swinging on the rope, Hangly
   starts with a web blooming at the top of the screen and Spider-Man dropping in on his
   strand, a little past where he hangs and back — about a second and a half, then the rope

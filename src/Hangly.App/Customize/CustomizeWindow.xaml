@@ -917,6 +917,24 @@
                                 Style="{StaticResource CaptionTextBlockStyle}"
                                 Text="Reduced hangs the charm still until you move it, and lets a swing settle in seconds rather than a minute. It looks the same at rest. Follow system uses Animation effects in Windows Settings → Accessibility → Visual effects."
                                 TextWrapping="Wrap" />
+                            <!-- Rope: the same two choices, in the same order, as macOS. -->
+                            <TextBlock Margin="0,6,0,0" Text="Rope" />
+                            <muxc:RadioButtons
+                                x:Name="RopePhysicsChoice"
+                                AutomationProperties.AutomationId="RopePhysicsChoice"
+                                AutomationProperties.Name="Rope"
+                                MaxColumns="2"
+                                SelectionChanged="OnRopePhysicsChanged">
+                                <x:String>Standard</x:String>
+                                <x:String>Elastic</x:String>
+                            </muxc:RadioButtons>
+                            <TextBlock
+                                MaxWidth="560"
+                                HorizontalAlignment="Left"
+                                Opacity="0.7"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="Elastic lets the cord stretch when you pull the charm, then bounce back and settle. It hangs exactly the same at rest. With motion reduced it still stretches, and bounces less."
+                                TextWrapping="Wrap" />
                             <!-- Interaction: the same two choices, in the same order, as macOS. -->
                             <TextBlock Margin="0,6,0,0" Text="Interaction" />
                             <muxc:RadioButtons
