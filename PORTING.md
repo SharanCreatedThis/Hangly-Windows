@@ -277,14 +277,22 @@ truncated CSV.
 
 ### Custom charm import
 
-macOS imports **photographs** — PNG, JPEG, WebP, HEIC — and the hard part of
-`CharmImageProcessor` is deciding which pixels are the subject, using Vision's subject
-lifting with a flood fill behind it. Windows has no equivalent of that, and this build
-imports **SVG** instead, where the question does not arise: a vector drawing already says
-which pixels are ink.
+Both platforms now take the same files — PNG, JPEG, WebP, HEIC and SVG — through Creator
+Studio. The hard part of the macOS `CharmImageProcessor` is deciding which pixels are the
+subject, with Vision's subject lifting and a flood fill behind it. Windows has no Vision;
+it runs a local segmentation model instead (IS-Net through ONNX Runtime, `OnnxSegmenter`)
+behind an `ISubjectSegmenter` interface, and splits the model's mask into separate subjects
+by connected components where Vision returns instances directly. Everything else — the
+flood fill, the Automatic rule, fitting, the mass formula, the palette, the naming — is
+the macOS code ported line for line into `Hangly.Core.Studio` and tested there.
 
-So the two platforms accept different files. That is the deviation, and it is not a small
-one — a macOS user imports a photo of their cat, and a Windows user cannot yet.
+The one real difference is time. Vision answers in about 30 ms; the model takes seconds
+on a CPU (4.2 s a photo in the ARM64 VM). So the Windows Studio opens the picture at once
+with the flat-background result and swaps in the subject when it arrives, and Save waits
+for it. macOS never needs to.
+
+The Library's **Import SVG** still stores a drawing as a vector; everything through the
+Studio is stored as a 512-pixel PNG inside an SVG wrapper, which is what macOS stores.
 
 Everything after the input is reproduced rather than reinvented, because those parts are
 arithmetic rather than platform:

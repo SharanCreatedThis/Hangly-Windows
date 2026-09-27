@@ -10,6 +10,16 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Added**
 
+- **Creator Studio.** Drop a picture on the charm and it opens in the Studio with the
+  background removed and the subject found for you — people, pets, products, anything that
+  stands out. Choose how the background goes (Automatic, Detected subject, Flat background
+  or Keep original), pick one subject when there are several, set the size, weight and
+  fill, and look at it as a cut-out, as a charm, or hanging on a rope you can push. Save
+  puts it in your Library and, with **Use on rope**, on the charm you dropped it on. Opens
+  PNG, JPEG, WebP, HEIC and SVG, from a drop, **Create…** in the tray menu, Choose Image, or
+  Ctrl+V. The same Studio as Hangly for Mac. Everything happens on your PC: nothing is
+  uploaded, and it works offline. HEIC photos need Microsoft's free HEIF Image Extensions;
+  the Studio says so, with a link, if they are missing.
 - **Auto-hide during full-screen video**, in Customize → Appearance → Behaviour. Off by
   default. While a film, a video in your browser or a game is full screen on the display
   the charm hangs on, the charm steps out of the way, and it comes back when that stops.

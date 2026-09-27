@@ -39,8 +39,15 @@ yes.
 ## Third-party code
 
 Hangly depends on open-source packages, each under its own licence: Windows App SDK,
-Win2D, SkiaSharp, Svg.Skia and Velopack. Their licences travel with them and are not
+Win2D, SkiaSharp, Svg.Skia, Velopack and ONNX Runtime (MIT), with DirectML under
+Microsoft's redistributable DirectML licence. Their licences travel with them and are not
 affected by anything here.
+
+Creator Studio's subject model is **IS-Net** ("Highly Accurate Dichotomous Image
+Segmentation", Qin et al., ECCV 2022; `isnet-general-use`), © its authors, under the
+**Apache License 2.0**. It is not in this repository: the build downloads the published
+ONNX file (from the rembg project's releases), checks it against a pinned SHA-256, and
+ships it unmodified inside the app as `Models/subject.onnx`.
 
 ## `reference/swift/`
 

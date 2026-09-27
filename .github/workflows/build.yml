@@ -58,6 +58,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Creator Studio's model (170 MB) is fetched by the build and checked against the
+      # SHA-256 pinned in Hangly.App.csproj. Cached under that hash, so it is downloaded
+      # once rather than on every run, and a new pin is a new cache.
+      - uses: actions/cache@v6
+        with:
+          path: .models
+          key: subject-model-60920E99C45464F2BA57BEE2AD08C919A52BBF852739E96947FBB4358C0D964A
+
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '9.0.x'

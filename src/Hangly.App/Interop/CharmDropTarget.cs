@@ -72,6 +72,9 @@ internal sealed class CharmDropTarget : IDropTarget
     private readonly Action<string> onDrop;
     private readonly Func<bool> isOverCharm;
 
+    /// <summary>Whether the drag in progress carries a picture the Studio can open; judged on entry.</summary>
+    private bool carriesPicture;
+
     public CharmDropTarget(Action onEnter, Action<string> onDrop, Func<bool> isOverCharm)
     {
         this.onEnter = onEnter;
@@ -81,7 +84,10 @@ internal sealed class CharmDropTarget : IDropTarget
 
     public int DragEnter(IDataObject data, uint keyState, long point, ref uint effect)
     {
-        bool wanted = PathFrom(data) is not null && isOverCharm();
+        // Only pictures the Studio can open. Anything else is refused at the cursor rather
+        // than accepted and then quietly ignored.
+        carriesPicture = PathFrom(data) is string path && Studio.StudioImageLoader.Handles(path);
+        bool wanted = carriesPicture && isOverCharm();
         effect = wanted ? DropEffectCopy : DropEffectNone;
         if (wanted)
         {
@@ -95,7 +101,7 @@ internal sealed class CharmDropTarget : IDropTarget
     {
         // Re-judged on every move rather than remembered from the enter: the cursor can
         // wander off the charm and back without ever leaving the window.
-        effect = isOverCharm() ? DropEffectCopy : DropEffectNone;
+        effect = carriesPicture && isOverCharm() ? DropEffectCopy : DropEffectNone;
         return Ok;
     }
 
@@ -104,7 +110,7 @@ internal sealed class CharmDropTarget : IDropTarget
     public int Drop(IDataObject data, uint keyState, long point, ref uint effect)
     {
         effect = DropEffectNone;
-        if (PathFrom(data) is not string path || !isOverCharm())
+        if (PathFrom(data) is not string path || !Studio.StudioImageLoader.Handles(path) || !isOverCharm())
         {
             return Ok;
         }
