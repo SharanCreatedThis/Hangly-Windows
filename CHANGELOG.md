@@ -62,6 +62,9 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Changed**
 
+- **The welcome says what the Mac's says.** Its second step now tells you that dropping a
+  picture on the charm makes your own, and its words are shared with Hangly for Mac.
+
 - **Updates install themselves.** Hangly checks shortly after it starts and once a day
   while it runs, downloads a new version quietly, and installs it the next time Hangly
   starts or quits. Nothing asks and nothing is shown; **Restart to update** in the tray
@@ -81,6 +84,9 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
   the connection comes back.
 
 **Fixed**
+
+- **The welcome card's last line is no longer cut off.** The credit and the coffee button
+  at its foot had been pushed below the window's edge.
 
 - **The rope follows the clock while Hangly runs.** Morning, afternoon and night used to be
   decided once, at launch, so a PC left on overnight kept the morning's rope all day. It now

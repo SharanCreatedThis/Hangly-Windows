@@ -119,7 +119,9 @@ public sealed class WelcomeWindow : Window
 
         Content = body;
 
-        Interop.WindowPlacement.SizeAndCentre(this, 560, 480);
+        // Tall enough for the welcome step's last line — the creator's credit — under the
+        // "Open Hangly again" hint; at 480 the credit was cut off at the bottom edge.
+        Interop.WindowPlacement.SizeAndCentre(this, 560, 560);
         Interop.WindowIcon.Apply(this);
         Interop.WindowPlacement.FixSize(this);
 
@@ -172,17 +174,13 @@ public sealed class WelcomeWindow : Window
         var panel = new StackPanel { Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
-            Text = $"Welcome, {store.Settings.DisplayName}",
+            Text = Hangly.Core.Lifecycle.WelcomeText.Title(store.Settings.DisplayName),
             Style = (Style)Application.Current.Resources["TitleTextBlockStyle"],
         });
-        panel.Children.Add(Line("A tiny charm that hangs from your screen."));
+        panel.Children.Add(Line(Hangly.Core.Lifecycle.WelcomeText.Tagline));
 
-        foreach (string item in new[]
-        {
-            "Browse charms from around the world",
-            "Create your own charm from a picture",
-            "Change the rope, where it hangs and how big it is",
-        })
+        // The shared words (WelcomeText), the same as the macOS card.
+        foreach (string item in Hangly.Core.Lifecycle.WelcomeText.Things)
         {
             var row = new StackPanel
             {
@@ -235,7 +233,7 @@ public sealed class WelcomeWindow : Window
         // somebody who had just installed a charm catalogue to skip looking at it.
         var explore = new Button
         {
-            Content = "Explore Library",
+            Content = Hangly.Core.Lifecycle.WelcomeText.Explore,
             Style = (Style)Application.Current.Resources["AccentButtonStyle"],
         };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(explore, "WelcomeExplore");
@@ -246,7 +244,7 @@ public sealed class WelcomeWindow : Window
             ProcessLifetime.Dismiss(this);
         };
 
-        var begin = new Button { Content = "Start Using Hangly" };
+        var begin = new Button { Content = Hangly.Core.Lifecycle.WelcomeText.Start };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(begin, "WelcomeBegin");
         begin.Click += (_, _) =>
         {
