@@ -62,6 +62,9 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Changed**
 
+- **The welcome says what the Mac's says.** Its second step now tells you that dropping a
+  picture on the charm makes your own, and its words are shared with Hangly for Mac.
+
 - **Updates install themselves.** Hangly checks shortly after it starts and once a day
   while it runs, downloads a new version quietly, and installs it the next time Hangly
   starts or quits. Nothing asks and nothing is shown; **Restart to update** in the tray
