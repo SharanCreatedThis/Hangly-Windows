@@ -10,6 +10,10 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Added**
 
+- **Choose how far down the charm hangs.** Customize → Appearance → Where it hangs now has a
+  small picture of your screen: drag the charm on it and the real one follows. A Vertical
+  position slider sets the same thing from the keyboard, and Reset position puts it back.
+  The same picture, range and behaviour as Hangly for Mac.
 - **Opening Hangly takes you to your Library.** After the first launch's welcome, starting
   Hangly from the Start menu, a desktop shortcut or the .exe opens the Library in front —
   whether Hangly was already running or not — instead of appearing to do nothing. Still

@@ -238,7 +238,7 @@ public sealed record OverlaySettings
         CharmSize = Math.Clamp(CharmSize, 0.5, 2.0),
         RopeLength = Math.Clamp(RopeLength, 0.5, 2.0),
         OffsetX = Math.Clamp(OffsetX, -4000, 4000),
-        OffsetY = Math.Clamp(OffsetY, -2000, 2000),
+        OffsetY = Math.Clamp(OffsetY, Models.PositionPicker.MinimumOffsetY, Models.PositionPicker.MaximumOffsetY),
         DisplayIndex = Math.Max(0, DisplayIndex),
         DisplayId = string.IsNullOrWhiteSpace(DisplayId) ? null : DisplayId,
         DisplayName = DisplayId is null ? null : DisplayName,
