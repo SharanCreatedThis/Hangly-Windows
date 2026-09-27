@@ -69,6 +69,18 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Fixed**
 
+- **The rope follows the clock while Hangly runs.** Morning, afternoon and night used to be
+  decided once, at launch, so a PC left on overnight kept the morning's rope all day. It now
+  changes at 05:00, 12:00 and 18:00, and after the clock is changed or the PC wakes — with
+  one timer, not a clock being watched. The same as Hangly for Mac.
+- **Every way of hanging a charm counts.** Picking a favourite from the tray menu now counts
+  in "Charms hung" and appears in Recent, as the Library always did; choosing the charm a
+  place already has is not counted twice. Importing a drawing into a place keeps that
+  place's size.
+- **Swings are no longer lost.** "Swings survived" used to be saved only when About was
+  opened; it is now also saved as the charm swings (at most every five minutes), when the
+  charm is hidden, and when Hangly quits.
+
 - On a desk with displays at different scales, the charm is sized for the display it is
   moving to, rather than coming out the wrong size for a second.
 - Plugging a monitor in or out, or moving the taskbar, now moves the charm with it.

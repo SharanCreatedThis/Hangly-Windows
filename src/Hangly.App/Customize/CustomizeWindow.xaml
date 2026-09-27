@@ -1012,9 +1012,8 @@
                             </Border>
                         </StackPanel>
 
-                        <!-- Milestones. The macOS model AppMilestones carries exactly
-                             charms, launches and secretsFound; swings is the one counter
-                             named only by the statistics label. -->
+                        <!-- Milestones: the shared statistics model, the same four on macOS
+                             in the same order. Hanging counts charms; SwingCounter swings. -->
                         <StackPanel Spacing="8">
                             <TextBlock
                                 Style="{StaticResource BodyStrongTextBlockStyle}"

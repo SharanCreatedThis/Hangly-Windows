@@ -106,4 +106,25 @@ public static class RopeTimeProfileTable
     /// because the point is the time where the person is.
     /// </summary>
     public static RopeTimeProfile ForDate(DateTimeOffset date) => ForHour(date.ToLocalTime().Hour);
+
+    /// <summary>The hours at which the profile changes, in the order the day meets them.</summary>
+    public static IReadOnlyList<int> BoundaryHours { get; } = [5, 12, 18];
+
+    /// <summary>The next moment the profile changes, after <paramref name="now"/>, in <paramref name="zone"/>.</summary>
+    /// <remarks>
+    /// What lets a running Hangly follow the clock without reading it: one timer, set for
+    /// this moment, three times a day. Worked out in local wall-clock time and converted
+    /// back, so a daylight-saving change is honoured rather than drifting by an hour.
+    /// </remarks>
+    public static DateTimeOffset NextBoundary(DateTimeOffset now, TimeZoneInfo? zone = null)
+    {
+        zone ??= TimeZoneInfo.Local;
+        DateTime local = TimeZoneInfo.ConvertTime(now, zone).DateTime;
+        DateTime next = BoundaryHours
+            .Select(hour => local.Date.AddHours(hour))
+            .Where(candidate => candidate > local)
+            .DefaultIfEmpty(local.Date.AddDays(1).AddHours(BoundaryHours[0]))
+            .First();
+        return new DateTimeOffset(next, zone.GetUtcOffset(next));
+    }
 }
