@@ -10,6 +10,11 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Added**
 
+- **The Spider-Man entrance.** With Spider-Man or Spider-Man Swinging on the rope, Hangly
+  starts with a web blooming at the top of the screen and Spider-Man dropping in on his
+  strand, a little past where he hangs and back — about a second and a half, then the rope
+  is simply the rope. On by default; switch it off in Appearance under Motion (the switch
+  only appears with a Spider-Man charm on the rope). Skipped while motion is reduced.
 - **Reactive charms**, in Appearance under Motion → Interaction. The charm drifts away from
   a pointer moving quickly towards it and swings back on its own; reach for it slowly and
   it lets you take hold, as before. Normal, the default, is the charm as it always was.

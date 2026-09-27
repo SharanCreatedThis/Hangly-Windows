@@ -38,4 +38,5 @@ public sealed record RopeSnapshot(
     IReadOnlyList<CharmPlacement> Charms,
     IReadOnlyList<BeadPlacement> Beads,
     double MaximumStretch,
-    bool IsDragging);
+    bool IsDragging,
+    Models.WebBloom? Bloom = null);

@@ -935,6 +935,20 @@
                                 Style="{StaticResource CaptionTextBlockStyle}"
                                 Text="Reactive lets the charm drift away from a pointer moving quickly towards it. Reach for it slowly to take hold. Off while motion is reduced."
                                 TextWrapping="Wrap" />
+                            <!-- Only with a Spider-Man charm on the rope; the choice is kept either way. -->
+                            <ToggleSwitch
+                                x:Name="StartupToggle"
+                                AutomationProperties.AutomationId="StartupToggle"
+                                Header="Spider-Man entrance"
+                                Toggled="OnStartupToggled" />
+                            <TextBlock
+                                x:Name="StartupNote"
+                                MaxWidth="560"
+                                HorizontalAlignment="Left"
+                                Opacity="0.7"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="When Hangly starts, Spider-Man drops in on a strand of web. Skipped while motion is reduced."
+                                TextWrapping="Wrap" />
                         </StackPanel>
 
                         <Button x:Name="ResetButton" Click="OnReset" Content="Restore defaults" />

@@ -76,6 +76,9 @@ public sealed class OverlayWindow : IDisposable
     private const long TopmostIntervalMs = 1000;
 
     private OverlaySettings settings;
+
+    /// <summary>Whether this process has decided about the Spider-Man entrance; see IntroTable.</summary>
+    private static int introSpent;
     private bool isClickThrough = true;
     private bool wasButtonDown;
     private Vec2 lastCursor;
@@ -210,6 +213,14 @@ public sealed class OverlayWindow : IDisposable
             // takes one step of the launch swing.
             ApplyMotion();
             rope.Start();
+
+            // The Spider-Man entrance, once per launch: this loop is started again when
+            // the charm is switched off and on, and that is not a launch.
+            if (Interlocked.Exchange(ref introSpent, 1) == 0
+                && IntroTable.Plays(settings.StartupAnimation, settings.CharmIds, rope.Motion == RopeMotion.Reduced))
+            {
+                rope.BeginIntro();
+            }
 
             // Subscribed here rather than in the constructor so the handler is attached on
             // the thread that will raise it.

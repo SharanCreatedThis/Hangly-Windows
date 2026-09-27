@@ -207,6 +207,7 @@ public sealed partial class RopeSimulation
         int taken = 0;
         while (accumulator >= timeStep)
         {
+            AdvanceIntro(timeStep);
             Advance(timeStep);
             accumulator -= timeStep;
             taken += 1;
@@ -288,7 +289,9 @@ public sealed partial class RopeSimulation
     /// <summary>A settled rope is indistinguishable from a still image, so stop drawing one.</summary>
     private void UpdateSleepState()
     {
-        if (DragIndex is not null)
+        // Never asleep mid-entrance: a frame where the charm happens to be still is only
+        // the top of its bob.
+        if (DragIndex is not null || IntroElapsed is not null)
         {
             stillFrames = 0;
             return;

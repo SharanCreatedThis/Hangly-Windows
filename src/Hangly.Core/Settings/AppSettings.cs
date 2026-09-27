@@ -129,6 +129,9 @@ public sealed record OverlaySettings
     /// <summary>Appearance → Motion → Interaction. Normal is what Hangly has always done.</summary>
     public InteractionMode Interaction { get; init; } = InteractionMode.Normal;
 
+    /// <summary>Appearance → Motion → Spider-Man entrance. On by default; it only ever plays with a Spider-Man charm on the rope.</summary>
+    public bool StartupAnimation { get; init; } = true;
+
     /// <summary>The charms on the cord, from the anchor down.</summary>
     /// <remarks>
     /// Ids from <c>CharmCatalog</c>, which are the macOS <c>CharmKind</c> raw values, so
@@ -203,6 +206,7 @@ public sealed record OverlaySettings
         && Glow == other.Glow
         && WindowMode == other.WindowMode
         && Interaction == other.Interaction
+        && StartupAnimation == other.StartupAnimation
         && HidesDuringFullscreenVideo == other.HidesDuringFullscreenVideo
         && CharmCount == other.CharmCount
         && CharmIds.SequenceEqual(other.CharmIds, StringComparer.Ordinal)
@@ -227,6 +231,7 @@ public sealed record OverlaySettings
         hash.Add(Glow);
         hash.Add(WindowMode);
         hash.Add(Interaction);
+        hash.Add(StartupAnimation);
         hash.Add(HidesDuringFullscreenVideo);
         foreach (string id in CharmIds)
         {

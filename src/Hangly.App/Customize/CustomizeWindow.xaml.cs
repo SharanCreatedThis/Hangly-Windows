@@ -658,6 +658,12 @@ public sealed partial class CustomizeWindow : Window
             GlowChoice.SelectedIndex = (int)overlay.Glow;
             WindowModeChoice.SelectedIndex = (int)overlay.WindowMode;
             InteractionChoice.SelectedIndex = (int)overlay.Interaction;
+            StartupToggle.IsOn = overlay.StartupAnimation;
+            Visibility offered = overlay.CharmIds.Any(Hangly.Core.Models.IntroTable.IsSpiderMan)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            StartupToggle.Visibility = offered;
+            StartupNote.Visibility = offered;
             FullscreenToggle.IsOn = overlay.HidesDuringFullscreenVideo;
             SoundToggle.IsOn = store.Settings.SoundEffectsEnabled;
             VolumeSlider.Value = Math.Round(store.Settings.SoundVolume * 100);
@@ -1547,6 +1553,15 @@ public sealed partial class CustomizeWindow : Window
         if (!isLoading)
         {
             store.Update(settings => settings with { SoundVolume = VolumeSlider.Value / 100 });
+        }
+    }
+
+    private void OnStartupToggled(object sender, RoutedEventArgs args)
+    {
+        if (!isLoading)
+        {
+            bool on = StartupToggle.IsOn;
+            store.UpdateOverlay(overlay => overlay with { StartupAnimation = on });
         }
     }
 

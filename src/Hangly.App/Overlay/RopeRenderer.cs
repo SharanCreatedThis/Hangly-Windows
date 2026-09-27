@@ -86,6 +86,12 @@ public sealed class RopeRenderer
 
         session.Antialiasing = CanvasAntialiasing.Antialiased;
 
+        // The Spider-Man entrance's web, behind the rope it hangs from.
+        if (snapshot.Bloom is WebBloom bloom)
+        {
+            DrawWebBloom(session, bloom);
+        }
+
         // No DPI transform here, and that is the correction to an earlier mistake worth
         // recording: a CanvasControl's drawing session is already in DIPs, so scaling it
         // again by the window's DPI drew everything twice its size. On a 200% display the
@@ -693,6 +699,47 @@ public sealed class RopeRenderer
             (float)(bead.Size.Width * 0.18),
             (float)(bead.Size.Height * 0.16),
             ToColor(palette.Light, 0.75));
+    }
+
+    /// <summary>Strokes the entrance's web: silk-white threads over a faint dark underline, so it reads on a white window as well as a dark wallpaper.</summary>
+    /// <remarks>
+    /// Built from the bloom's fixed geometry each frame it is drawn — about forty short
+    /// strokes, for under a second and a half — into geometry that is disposed at once, so
+    /// when the entrance ends nothing is left holding memory. The same strokes, widths and
+    /// alphas as macOS's <c>WebBloomRenderer</c>.
+    /// </remarks>
+    private static void DrawWebBloom(CanvasDrawingSession session, WebBloom bloom)
+    {
+        if (bloom.Opacity <= 0.001 || bloom.Growth <= 0.001)
+        {
+            return;
+        }
+
+        using var spokes = new CanvasPathBuilder(session);
+        foreach (Vec2 end in bloom.SpokeEnds)
+        {
+            spokes.BeginFigure(ToVector(bloom.Anchor));
+            spokes.AddLine(ToVector(end));
+            spokes.EndFigure(CanvasFigureLoop.Open);
+        }
+
+        using var rings = new CanvasPathBuilder(session);
+        foreach (WebBloom.RingSegment segment in bloom.RingSegments)
+        {
+            rings.BeginFigure(ToVector(segment.Start));
+            rings.AddQuadraticBezier(ToVector(segment.Control), ToVector(segment.End));
+            rings.EndFigure(CanvasFigureLoop.Open);
+        }
+
+        using var spokePath = CanvasGeometry.CreatePath(spokes);
+        using var ringPath = CanvasGeometry.CreatePath(rings);
+        using var round = new CanvasStrokeStyle { StartCap = CanvasCapStyle.Round, EndCap = CanvasCapStyle.Round };
+        Color shadow = Color.FromArgb((byte)Math.Round(255 * 0.22 * bloom.Opacity), 0, 0, 0);
+        Color silk = Color.FromArgb((byte)Math.Round(255 * 0.92 * bloom.Opacity), 255, 255, 255);
+        session.DrawGeometry(spokePath, shadow, 2.2f, round);
+        session.DrawGeometry(ringPath, shadow, 2f, round);
+        session.DrawGeometry(spokePath, silk, 1.1f, round);
+        session.DrawGeometry(ringPath, silk, 0.9f, round);
     }
 
     private void DrawCharms(CanvasDrawingSession session, RopeSnapshot snapshot)
