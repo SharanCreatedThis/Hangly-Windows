@@ -10,6 +10,9 @@ namespace Hangly.Core.Tests;
 public sealed class StartupIntroTests
 {
     private const double Frame120 = 1.0 / 120.0;
+    private readonly Xunit.Abstractions.ITestOutputHelper output;
+
+    public StartupIntroTests(Xunit.Abstractions.ITestOutputHelper output) => this.output = output;
 
     [Fact]
     public void OnlyWithTheSettingOnASpiderManCharmAnywhereOnTheRopeAndMotionNotReduced()
@@ -37,10 +40,11 @@ public sealed class StartupIntroTests
     {
         Assert.InRange(IntroTable.Duration, 1, 1.5);
         Assert.True(IntroTable.Reel(0) < 0.05);
-        double previous = IntroTable.Reel(0.1);
-        for (int tick = 1; tick <= 85; tick++)
+        Assert.Equal(IntroTable.Reel(0), IntroTable.Reel(0.14));
+        double previous = IntroTable.Reel(0.15);
+        for (int tick = 1; tick <= 80; tick++)
         {
-            double reel = IntroTable.Reel(0.1 + (tick / 100.0));
+            double reel = IntroTable.Reel(0.15 + (tick / 100.0));
             Assert.True(reel >= previous);
             previous = reel;
         }
@@ -53,39 +57,58 @@ public sealed class StartupIntroTests
     }
 
     [Theory]
-    [InlineData(0.0)]
-    [InlineData(0.3)]
+    [InlineData(0.05)]
+    [InlineData(0.4)]
     [InlineData(1.0)]
-    public void EveryStrandEndsOnTheTopEdgeAndEveryRingEndsOnAStrand(double growth)
+    public void EveryThreadEndsOnTheTopEdgeOrOnAStrandNeverInTheAir(double growth)
     {
         var anchor = new Vec2(100, 4);
-        var hub = anchor + (new Vec2(0.2, 1) / new Vec2(0.2, 1).Magnitude * 36 * growth);
-        var web = new WebBloom(anchor, hub, 0, 60, growth);
-        IReadOnlyList<Vec2> ends = web.SpokeEnds;
-        Assert.Equal(8, ends.Count);
-        Assert.All(ends, end => Assert.Equal(0, end.Y));
-        Assert.Equal(WebBloom.Rings.Length * (ends.Count - 1), web.RingSegments.Count);
+        Vec2 lean = new Vec2(0.2, 1) / new Vec2(0.2, 1).Magnitude;
+        var web = new WebBloom(anchor, anchor + (lean * 33 * growth), 0, 60, growth);
+        IReadOnlyList<WebBloom.Thread> strands = web.Strands;
+        IReadOnlyList<WebBloom.Thread> threads = web.Threads;
+        Assert.Equal(WebPattern.Strands.Count, strands.Count);
+        Assert.Equal(strands.Count + WebPattern.Branches.Count + WebPattern.Links.Count, threads.Count);
 
-        foreach (WebBloom.RingSegment segment in web.RingSegments)
+        // Strands and branches end on the top edge.
+        foreach (WebBloom.Thread thread in threads.Take(strands.Count + WebPattern.Branches.Count))
         {
-            Assert.Contains(ends, end => OnStrand(segment.Start, web.Hub, end));
-            Assert.Contains(ends, end => OnStrand(segment.End, web.Hub, end));
-            Assert.True(segment.Control.Y >= Math.Min(segment.Start.Y, segment.End.Y), "sags down, never up");
+            Assert.Equal(0, thread.End.Y, 9);
         }
 
-        static bool OnStrand(Vec2 point, Vec2 from, Vec2 to)
+        // Branches start on a strand; links start and end on strands.
+        for (int index = 0; index < WebPattern.Branches.Count; index++)
         {
-            Vec2 strand = to - from;
-            double length = strand.Magnitude;
-            if (length < 1e-9)
-            {
-                return point.DistanceTo(from) < 1e-9;
-            }
-
-            double cross = Math.Abs((strand.X * (point.Y - from.Y)) - (strand.Y * (point.X - from.X))) / length;
-            double along = (((point.X - from.X) * strand.X) + ((point.Y - from.Y) * strand.Y)) / (length * length);
-            return cross < 1e-9 && along is >= 0 and <= 1;
+            WebPattern.Branch branch = WebPattern.Branches[index];
+            Assert.Equal(strands[branch.Strand].At(branch.From), threads[strands.Count + index].Start);
         }
+
+        for (int index = 0; index < WebPattern.Links.Count; index++)
+        {
+            WebPattern.Link link = WebPattern.Links[index];
+            WebBloom.Thread thread = threads[strands.Count + WebPattern.Branches.Count + index];
+            Assert.Equal(strands[link.From].At(link.FromT), thread.Start);
+            Assert.Equal(strands[link.To].At(link.ToT), thread.End);
+        }
+    }
+
+    [Fact]
+    public void TheWebIsUnevenLikeARealOneAndTheSameEveryTime()
+    {
+        double[] across = [.. WebPattern.Strands.Select(strand => strand.Across)];
+        double[] gaps = [.. across.Zip(across.Skip(1), (a, b) => b - a)];
+        Assert.True(gaps.Max() - gaps.Min() > 0.05, "strands unevenly spaced");
+        Assert.True(WebPattern.Strands.Select(strand => strand.Width).Distinct().Count() > 5, "strands of different weights");
+        Assert.Contains(WebPattern.Strands, strand => Math.Abs(strand.Bow) > 0.02);
+        Assert.True(Math.Abs(across[0] + across[^1]) > 0.02, "not a mirror image");
+        Assert.True(WebPattern.Links.Count < 4 * (WebPattern.Strands.Count - 1) + 4, "rings have gaps");
+
+        // Pinned, so both builds draw this exact web: the first strand's numbers.
+        WebPattern.Strand first = WebPattern.Strands[0];
+        output.WriteLine($"first strand {first.Across:R} {first.Bow:R} {first.Width:R}");
+        Assert.Equal(-1.044408702114597, first.Across, 12);
+        Assert.Equal(0.005039416439831257, first.Bow, 12);
+        Assert.Equal(0.9938175584189594, first.Width, 12);
     }
 
     private static RopeSimulation Rope(int charms)
@@ -135,7 +158,7 @@ public sealed class StartupIntroTests
         // The web stays: whole, attached, with no fade — until Spider-Man leaves the rope.
         WebBloom web = intro.Snapshot().Bloom!.Value;
         Assert.Equal(1, web.Growth);
-        Assert.All(web.SpokeEnds, end => Assert.Equal(0, end.Y));
+        Assert.All(web.Strands, strand => Assert.Equal(0, strand.End.Y, 9));
         Assert.True(web.Hub.Y > intro.Anchor.Y);
         for (int tick = 0; tick < 120 * 5; tick++)
         {

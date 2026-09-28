@@ -703,9 +703,8 @@ public sealed class RopeRenderer
 
     /// <summary>Strokes the entrance's web, from the top edge to the rope: silk-white threads over a faint dark underline, so it reads on a white window as well as a dark wallpaper.</summary>
     /// <remarks>
-    /// Built from the web's fixed geometry each frame it is drawn — about forty short strokes,
-    /// and only on frames that are drawn at all, so a settled rope costs nothing — into
-    /// geometry that is disposed at once. The same strokes, widths and
+    /// Drawn from the web's fixed pattern each frame that is drawn at all — a settled rope draws
+    /// none — as short straight lines, so nothing is allocated per frame and nothing is kept. The same strokes, widths and
     /// alphas as macOS's <c>WebBloomRenderer</c>.
     /// </remarks>
     private static void DrawWebBloom(CanvasDrawingSession session, WebBloom bloom)
@@ -715,31 +714,28 @@ public sealed class RopeRenderer
             return;
         }
 
-        using var spokes = new CanvasPathBuilder(session);
-        foreach (Vec2 end in bloom.SpokeEnds)
-        {
-            spokes.BeginFigure(ToVector(bloom.Hub));
-            spokes.AddLine(ToVector(end));
-            spokes.EndFigure(CanvasFigureLoop.Open);
-        }
-
-        using var rings = new CanvasPathBuilder(session);
-        foreach (WebBloom.RingSegment segment in bloom.RingSegments)
-        {
-            rings.BeginFigure(ToVector(segment.Start));
-            rings.AddQuadraticBezier(ToVector(segment.Control), ToVector(segment.End));
-            rings.EndFigure(CanvasFigureLoop.Open);
-        }
-
-        using var spokePath = CanvasGeometry.CreatePath(spokes);
-        using var ringPath = CanvasGeometry.CreatePath(rings);
         using var round = new CanvasStrokeStyle { StartCap = CanvasCapStyle.Round, EndCap = CanvasCapStyle.Round };
         Color shadow = Color.FromArgb((byte)Math.Round(255 * 0.22), 0, 0, 0);
         Color silk = Color.FromArgb((byte)Math.Round(255 * 0.92), 255, 255, 255);
-        session.DrawGeometry(spokePath, shadow, 2.2f, round);
-        session.DrawGeometry(ringPath, shadow, 2f, round);
-        session.DrawGeometry(spokePath, silk, 1.1f, round);
-        session.DrawGeometry(ringPath, silk, 0.9f, round);
+        IReadOnlyList<WebBloom.Thread> threads = bloom.Threads;
+
+        // Every underline first, then every thread, so no shadow falls across silk.
+        foreach (bool isShadow in new[] { true, false })
+        {
+            foreach (WebBloom.Thread thread in threads)
+            {
+                // Four straight pieces along the curve, joined by round caps: indistinguishable
+                // from the curve at these sizes, and no geometry object to build per frame.
+                float width = (float)(isShadow ? thread.Width + 1.1 : thread.Width);
+                Vec2 previous = thread.Start;
+                for (int piece = 1; piece <= 4; piece++)
+                {
+                    Vec2 next = thread.At(piece / 4.0);
+                    session.DrawLine(ToVector(previous), ToVector(next), isShadow ? shadow : silk, width, round);
+                    previous = next;
+                }
+            }
+        }
     }
 
     private void DrawCharms(CanvasDrawingSession session, RopeSnapshot snapshot)
