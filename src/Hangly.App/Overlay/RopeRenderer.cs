@@ -701,16 +701,16 @@ public sealed class RopeRenderer
             ToColor(palette.Light, 0.75));
     }
 
-    /// <summary>Strokes the entrance's web: silk-white threads over a faint dark underline, so it reads on a white window as well as a dark wallpaper.</summary>
+    /// <summary>Strokes the entrance's web, from the top edge to the rope: silk-white threads over a faint dark underline, so it reads on a white window as well as a dark wallpaper.</summary>
     /// <remarks>
-    /// Built from the bloom's fixed geometry each frame it is drawn — about forty short
-    /// strokes, for under a second and a half — into geometry that is disposed at once, so
-    /// when the entrance ends nothing is left holding memory. The same strokes, widths and
+    /// Built from the web's fixed geometry each frame it is drawn — about forty short strokes,
+    /// and only on frames that are drawn at all, so a settled rope costs nothing — into
+    /// geometry that is disposed at once. The same strokes, widths and
     /// alphas as macOS's <c>WebBloomRenderer</c>.
     /// </remarks>
     private static void DrawWebBloom(CanvasDrawingSession session, WebBloom bloom)
     {
-        if (bloom.Opacity <= 0.001 || bloom.Growth <= 0.001)
+        if (bloom.Growth <= 0.001)
         {
             return;
         }
@@ -718,7 +718,7 @@ public sealed class RopeRenderer
         using var spokes = new CanvasPathBuilder(session);
         foreach (Vec2 end in bloom.SpokeEnds)
         {
-            spokes.BeginFigure(ToVector(bloom.Anchor));
+            spokes.BeginFigure(ToVector(bloom.Hub));
             spokes.AddLine(ToVector(end));
             spokes.EndFigure(CanvasFigureLoop.Open);
         }
@@ -734,8 +734,8 @@ public sealed class RopeRenderer
         using var spokePath = CanvasGeometry.CreatePath(spokes);
         using var ringPath = CanvasGeometry.CreatePath(rings);
         using var round = new CanvasStrokeStyle { StartCap = CanvasCapStyle.Round, EndCap = CanvasCapStyle.Round };
-        Color shadow = Color.FromArgb((byte)Math.Round(255 * 0.22 * bloom.Opacity), 0, 0, 0);
-        Color silk = Color.FromArgb((byte)Math.Round(255 * 0.92 * bloom.Opacity), 255, 255, 255);
+        Color shadow = Color.FromArgb((byte)Math.Round(255 * 0.22), 0, 0, 0);
+        Color silk = Color.FromArgb((byte)Math.Round(255 * 0.92), 255, 255, 255);
         session.DrawGeometry(spokePath, shadow, 2.2f, round);
         session.DrawGeometry(ringPath, shadow, 2f, round);
         session.DrawGeometry(spokePath, silk, 1.1f, round);

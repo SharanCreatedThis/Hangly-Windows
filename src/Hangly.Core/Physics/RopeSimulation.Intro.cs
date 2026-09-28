@@ -5,6 +5,7 @@
 //  The Spider-Man entrance, as the rope itself: reeled out from the anchor.
 //
 
+using Hangly.Core.Geometry;
 using Hangly.Core.Models;
 
 namespace Hangly.Core.Physics;
@@ -22,6 +23,7 @@ public sealed partial class RopeSimulation
     {
         ResetToHanging();
         IntroElapsed = 0;
+        HasWeb = true;
         ReelFraction = IntroTable.Reel(0);
         for (int index = 0; index < Points.Length; index++)
         {
@@ -55,12 +57,42 @@ public sealed partial class RopeSimulation
         }
     }
 
-    /// <summary>The web at the anchor, while the entrance plays.</summary>
-    public WebBloom? Bloom => IntroElapsed is double elapsed
-        ? new WebBloom(
-            Anchor,
-            IntroTable.BloomSize(CharmLayout.Slots.Count > 0 ? CharmLayout.Slots[^1].Radius : 30),
-            IntroTable.BloomGrowth(elapsed),
-            IntroTable.BloomOpacity(elapsed))
-        : null;
+    /// <summary>Whether the entrance's web hangs from the top edge: from the entrance on, for as long as a Spider-Man charm stays on the rope.</summary>
+    public bool HasWeb { get; private set; }
+
+    /// <summary>Takes the web down, when the last Spider-Man charm leaves the rope.</summary>
+    public void DetachWeb() => HasWeb = false;
+
+    /// <summary>The web, if there is one: growing during the entrance, whole after it.</summary>
+    /// <remarks>
+    /// Its centre sits on the rope, <see cref="IntroTable.WebDepth"/> of its spread below the
+    /// anchor, along the direction the top of the rope is hanging — so when the charm swings,
+    /// the web flexes with the rope rather than the rope cutting through it.
+    /// </remarks>
+    public WebBloom? Bloom
+    {
+        get
+        {
+            if (!HasWeb)
+            {
+                return null;
+            }
+
+            double growth = IntroElapsed is double elapsed ? IntroTable.BloomGrowth(elapsed) : 1;
+            double spread = IntroTable.WebSpread(CharmLayout.Slots.Count > 0 ? CharmLayout.Slots[^1].Radius : 30);
+            Vec2 direction = new(0, 1);
+            for (int index = 1; index < Points.Length; index++)
+            {
+                Vec2 offset = Points[index].Position - Anchor;
+                if (offset.Magnitude > 1)
+                {
+                    direction = offset / offset.Magnitude;
+                    break;
+                }
+            }
+
+            Vec2 hub = Anchor + (direction * (spread * IntroTable.WebDepth * growth));
+            return new WebBloom(Anchor, hub, 0, spread, growth);
+        }
+    }
 }

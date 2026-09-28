@@ -15,9 +15,10 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
   exactly as the Standard rope does at rest, and every rope style keeps its look. With
   motion reduced it still stretches, and bounces less. The same choice as Hangly for Mac.
 - **The Spider-Man entrance.** With Spider-Man or Spider-Man Swinging on the rope, Hangly
-  starts with a web blooming at the top of the screen and Spider-Man dropping in on his
-  strand, a little past where he hangs and back, with the thwip of the web — about a second
-  and a half, then the rope is simply the rope. The sound follows Play sound effects and
+  starts with a web spun across the top edge of the screen and Spider-Man dropping in on
+  his strand, a little past where he hangs and back, with the thwip of the web — about a
+  second and a half. The web stays, hanging from the top of the screen, for as long as
+  Spider-Man is on the rope. The sound follows Play sound effects and
   Volume. On by default; switch it off in Appearance under Motion (the switch
   only appears with a Spider-Man charm on the rope). Skipped while motion is reduced.
 - **Reactive charms**, in Appearance under Motion → Interaction. The charm drifts away from

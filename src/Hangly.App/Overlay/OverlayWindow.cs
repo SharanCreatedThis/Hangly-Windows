@@ -593,6 +593,12 @@ public sealed class OverlayWindow : IDisposable
         Diagnostics.Log(
             "hanging " + string.Join(", ", charms.Select(charm => $"{charm.Id} beads={charm.Beads.Count}")));
         rope.SetCharmStack([.. charms.Select(charm => charm.Metrics)]);
+
+        // The entrance's web belongs to Spider-Man: it comes down with the last of him.
+        if (!charms.Any(charm => IntroTable.IsSpiderMan(charm.Id)))
+        {
+            rope.DetachWeb();
+        }
         rope.SetBeads([.. charms.Select(charm => charm.Beads)]);
     }
 

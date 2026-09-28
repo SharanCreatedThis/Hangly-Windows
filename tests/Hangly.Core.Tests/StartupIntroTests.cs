@@ -48,32 +48,44 @@ public sealed class StartupIntroTests
         Assert.Equal(1.06, IntroTable.Reel(0.95), 9);
         Assert.Equal(1, IntroTable.Reel(1.2));
         Assert.Equal(1, IntroTable.Reel(IntroTable.Duration));
-        Assert.Equal(0, IntroTable.BloomOpacity(IntroTable.Duration));
         Assert.Equal(0, IntroTable.BloomGrowth(0));
         Assert.Equal(1, IntroTable.BloomGrowth(0.2));
     }
 
-    [Fact]
-    public void TheWebHangsFromTheAnchorAndNeverReachesAboveIt()
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(0.3)]
+    [InlineData(1.0)]
+    public void EveryStrandEndsOnTheTopEdgeAndEveryRingEndsOnAStrand(double growth)
     {
-        var bloom = new WebBloom(new Vec2(100, 5), 60, 1, 1);
-        Assert.Equal(8, bloom.SpokeEnds.Count);
-        Assert.NotEmpty(bloom.RingSegments);
-        foreach (Vec2 end in bloom.SpokeEnds)
+        var anchor = new Vec2(100, 4);
+        var hub = anchor + (new Vec2(0.2, 1) / new Vec2(0.2, 1).Magnitude * 36 * growth);
+        var web = new WebBloom(anchor, hub, 0, 60, growth);
+        IReadOnlyList<Vec2> ends = web.SpokeEnds;
+        Assert.Equal(8, ends.Count);
+        Assert.All(ends, end => Assert.Equal(0, end.Y));
+        Assert.Equal(WebBloom.Rings.Length * (ends.Count - 1), web.RingSegments.Count);
+
+        foreach (WebBloom.RingSegment segment in web.RingSegments)
         {
-            Assert.True(end.Y >= bloom.Anchor.Y);
-            Assert.True(end.DistanceTo(bloom.Anchor) <= bloom.Size + 1e-9);
+            Assert.Contains(ends, end => OnStrand(segment.Start, web.Hub, end));
+            Assert.Contains(ends, end => OnStrand(segment.End, web.Hub, end));
+            Assert.True(segment.Control.Y >= Math.Min(segment.Start.Y, segment.End.Y), "sags down, never up");
         }
 
-        foreach (WebBloom.RingSegment segment in bloom.RingSegments)
+        static bool OnStrand(Vec2 point, Vec2 from, Vec2 to)
         {
-            Assert.True(segment.Start.Y >= bloom.Anchor.Y);
-            Assert.True(segment.Control.Y >= bloom.Anchor.Y);
-            Assert.True(segment.End.Y >= bloom.Anchor.Y);
-        }
+            Vec2 strand = to - from;
+            double length = strand.Magnitude;
+            if (length < 1e-9)
+            {
+                return point.DistanceTo(from) < 1e-9;
+            }
 
-        var unborn = new WebBloom(new Vec2(100, 5), 60, 0, 1);
-        Assert.All(unborn.SpokeEnds, end => Assert.Equal(unborn.Anchor, end));
+            double cross = Math.Abs((strand.X * (point.Y - from.Y)) - (strand.Y * (point.X - from.X))) / length;
+            double along = (((point.X - from.X) * strand.X) + ((point.Y - from.Y) * strand.Y)) / (length * length);
+            return cross < 1e-9 && along is >= 0 and <= 1;
+        }
     }
 
     private static RopeSimulation Rope(int charms)
@@ -104,6 +116,7 @@ public sealed class StartupIntroTests
         intro.BeginIntro();
         Assert.True(intro.Points[slot.Node].Position.DistanceTo(intro.Anchor) < rest.DistanceTo(intro.Anchor) * 0.1);
         Assert.NotNull(intro.Snapshot().Bloom);
+        Assert.Equal(0, intro.Snapshot().Bloom!.Value.Growth);
 
         double lowest = 0;
         int steps = 0;
@@ -119,6 +132,18 @@ public sealed class StartupIntroTests
 
         Assert.True(steps * Frame120 <= IntroTable.Duration + 0.02);
         Assert.Equal(1, intro.ReelFraction);
+        // The web stays: whole, attached, with no fade — until Spider-Man leaves the rope.
+        WebBloom web = intro.Snapshot().Bloom!.Value;
+        Assert.Equal(1, web.Growth);
+        Assert.All(web.SpokeEnds, end => Assert.Equal(0, end.Y));
+        Assert.True(web.Hub.Y > intro.Anchor.Y);
+        for (int tick = 0; tick < 120 * 5; tick++)
+        {
+            intro.Step(Frame120);
+        }
+
+        Assert.Equal(1, intro.Snapshot().Bloom!.Value.Growth);
+        intro.DetachWeb();
         Assert.Null(intro.Snapshot().Bloom);
         double length = rest.Y - intro.Anchor.Y;
         Assert.True(lowest > rest.Y);

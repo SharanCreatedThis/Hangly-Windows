@@ -60,11 +60,14 @@ public static class RopeBounds
             Include(charm.Center, (charm.Radius * CharmReach) + Margin);
         }
 
-        // The Spider-Man entrance's web, a fan hanging from the anchor: its full reach,
-        // whatever it has grown to, plus its stroke.
+        // The Spider-Man entrance's web: from the top edge, across its full spread, down to its
+        // centre on the rope, plus its stroke.
         if (snapshot.Bloom is Models.WebBloom bloom)
         {
-            Include(bloom.Anchor, bloom.Size + 2 + Margin);
+            double reach = bloom.Spread + 2 + Margin;
+            Include(new Vec2(bloom.Anchor.X - reach, bloom.Ceiling), Margin);
+            Include(new Vec2(bloom.Anchor.X + reach, bloom.Ceiling), Margin);
+            Include(bloom.Hub, 2 + Margin);
         }
 
         foreach (BeadPlacement bead in snapshot.Beads)

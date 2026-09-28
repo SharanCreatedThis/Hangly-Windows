@@ -16,7 +16,8 @@ namespace Hangly.Core.Models;
 /// drops on its own cord under the solver's own gravity and damping, overshoots a little
 /// as the reel runs past full, and settles as it comes back. Physics is in charge from the
 /// first frame, so at the end there is nothing to hand over. It replaces the launch swing
-/// for that one launch, and leaves nothing behind.
+/// for that one launch. The web it leaves stays, attached to the top edge, for as long as a
+/// Spider-Man charm is on the rope.
 /// </remarks>
 public static class IntroTable
 {
@@ -53,11 +54,11 @@ public static class IntroTable
     /// <summary>How far the web has spread, 0 to 1: out in the first 0.15 s.</summary>
     public static double BloomGrowth(double time) => EaseOut(Math.Clamp(time / 0.15, 0, 1));
 
-    /// <summary>How visible the web is: whole until the charm has landed, then gone by the end.</summary>
-    public static double BloomOpacity(double time) => time < 1.0 ? 1 : Math.Max(0, 1 - ((time - 1.0) / (Duration - 1.0)));
+    /// <summary>How far the web reaches along the top edge either side of the rope, in points, for a charm of <paramref name="radius"/>.</summary>
+    public static double WebSpread(double radius) => Math.Min(80, Math.Max(36, radius * 1.2));
 
-    /// <summary>The web's reach from the anchor, in points, for a charm of <paramref name="radius"/>.</summary>
-    public static double BloomSize(double radius) => Math.Min(70, Math.Max(28, radius * 0.9));
+    /// <summary>How far below the top edge the web's centre sits, as a fraction of its spread.</summary>
+    public const double WebDepth = 0.6;
 
     /// <summary>Whether the entrance plays at this launch: setting on, a Spider-Man charm anywhere on the rope, motion not reduced.</summary>
     public static bool Plays(bool enabled, IEnumerable<string> charmIds, bool reducesMotion) =>
@@ -76,60 +77,67 @@ public static class IntroTable
         progress < 0.5 ? 2 * progress * progress : 1 - (Math.Pow((-2 * progress) + 2, 2) / 2);
 }
 
-/// <summary>The web at the anchor while the entrance plays, drawn from fixed numbers — the same on both builds, at every launch.</summary>
-public readonly record struct WebBloom(Vec2 Anchor, double Size, double Growth, double Opacity)
+/// <summary>The web the entrance spins: a funnel from the top edge of the screen down to the rope.</summary>
+/// <remarks>
+/// <b>Everything is attached.</b> Every strand runs from the web's centre, on the rope, up to a
+/// point on the top edge; every ring runs from one strand to the next. No thread ends in the
+/// air, at any stage of the bloom: the strands' outer ends start on the top edge beside the
+/// rope and spread along it as the web grows, and the centre moves down the rope. The rope is
+/// the web's middle strand. Drawn from fixed numbers — the same on both builds, at every launch.
+/// </remarks>
+/// <param name="Anchor">Where the rope hangs from.</param>
+/// <param name="Hub">The web's centre, on the rope.</param>
+/// <param name="Ceiling">The top edge, in canvas points.</param>
+/// <param name="Spread">How far along the top edge the web reaches either side, fully grown.</param>
+/// <param name="Growth">How far it has spread, 0 to 1.</param>
+public readonly record struct WebBloom(Vec2 Anchor, Vec2 Hub, double Ceiling, double Spread, double Growth)
 {
-    /// <summary>Spoke directions in degrees from +x, y down: a fan hanging from the anchor. Uneven on purpose.</summary>
-    public static readonly double[] SpokeAngles = [8, 30, 52, 76, 98, 121, 146, 170];
+    /// <summary>Where each strand meets the top edge, as a fraction of <see cref="Spread"/> either side of the rope.</summary>
+    public static readonly double[] StrandEnds = [-1.0, -0.7, -0.42, -0.16, 0.16, 0.42, 0.7, 1.0];
 
-    /// <summary>Each spoke's length as a fraction of <see cref="Size"/>. The short ones are the torn edges.</summary>
-    public static readonly double[] SpokeLengths = [0.62, 0.95, 0.8, 1.0, 0.88, 0.97, 0.7, 0.5];
+    /// <summary>The rings' places along each strand, from the centre out.</summary>
+    public static readonly double[] Rings = [0.3, 0.55, 0.8];
 
-    /// <summary>The rings' distances from the anchor as fractions of <see cref="Size"/>; a ring spans two spokes only when both reach it.</summary>
-    public static readonly double[] Rings = [0.34, 0.6, 0.84];
+    /// <summary>A small, fixed unevenness per strand, so the rings are spun rather than printed.</summary>
+    public static readonly double[] Wobble = [0.02, -0.03, 0.01, -0.02, 0.03, -0.01, 0.02, -0.02];
 
-    /// <summary>How far each ring segment sags towards the anchor between spokes, as a fraction of the ring's radius.</summary>
-    public const double Sag = 0.1;
+    /// <summary>How far each ring thread sags between two strands, as a fraction of its length.</summary>
+    public const double Sag = 0.08;
 
-    /// <summary>One stretch of a ring between two spokes: a quadratic curve.</summary>
+    /// <summary>One stretch of a ring between two strands: a quadratic curve.</summary>
     public readonly record struct RingSegment(Vec2 Start, Vec2 Control, Vec2 End);
 
-    /// <summary>The spokes' outer ends at the current growth; each runs from <see cref="Anchor"/>.</summary>
+    /// <summary>Where each strand meets the top edge; each runs from <see cref="Hub"/>.</summary>
     public IReadOnlyList<Vec2> SpokeEnds
     {
         get
         {
-            var ends = new Vec2[SpokeAngles.Length];
+            var ends = new Vec2[StrandEnds.Length];
             for (int index = 0; index < ends.Length; index++)
             {
-                ends[index] = Point(SpokeAngles[index], Size * SpokeLengths[index] * Growth);
+                ends[index] = new Vec2(Anchor.X + (Spread * Growth * StrandEnds[index]), Ceiling);
             }
 
             return ends;
         }
     }
 
-    /// <summary>The ring segments, sagging towards the anchor between spokes.</summary>
+    /// <summary>The ring threads, each from one strand to the next, sagging a little.</summary>
     public IReadOnlyList<RingSegment> RingSegments
     {
         get
         {
+            IReadOnlyList<Vec2> ends = SpokeEnds;
             var segments = new List<RingSegment>();
             foreach (double ring in Rings)
             {
-                double radius = Size * ring * Growth;
-                for (int index = 0; index < SpokeAngles.Length - 1; index++)
+                for (int index = 0; index < ends.Count - 1; index++)
                 {
-                    if (SpokeLengths[index] < ring || SpokeLengths[index + 1] < ring)
-                    {
-                        continue;
-                    }
-
-                    double middle = (SpokeAngles[index] + SpokeAngles[index + 1]) / 2;
-                    segments.Add(new RingSegment(
-                        Point(SpokeAngles[index], radius),
-                        Point(middle, radius * (1 - Sag)),
-                        Point(SpokeAngles[index + 1], radius)));
+                    Vec2 start = Along(ends[index], ring * (1 + Wobble[index]));
+                    Vec2 end = Along(ends[index + 1], ring * (1 + Wobble[index + 1]));
+                    Vec2 middle = (start + end) / 2;
+                    double sag = start.DistanceTo(end) * Sag;
+                    segments.Add(new RingSegment(start, new Vec2(middle.X, middle.Y + sag), end));
                 }
             }
 
@@ -137,9 +145,6 @@ public readonly record struct WebBloom(Vec2 Anchor, double Size, double Growth, 
         }
     }
 
-    private Vec2 Point(double degrees, double distance)
-    {
-        double radians = degrees * Math.PI / 180;
-        return new Vec2(Anchor.X + (Math.Cos(radians) * distance), Anchor.Y + (Math.Sin(radians) * distance));
-    }
+    /// <summary>The point <paramref name="fraction"/> of the way from the centre to <paramref name="end"/>.</summary>
+    public Vec2 Along(Vec2 end, double fraction) => Hub + ((end - Hub) * fraction);
 }
