@@ -30,4 +30,13 @@ public sealed class WindowModeTests
     [InlineData("", false)]
     public void OnlyTheDesktopItselfLeavesTheCharmUncovered(string className, bool isDesktop) =>
         Assert.Equal(isDesktop, WindowModeTable.IsDesktopClass(className));
+
+    [Fact]
+    public void TheTraysAlwaysOnTopTickIsTheWindowSettingBothWays()
+    {
+        Assert.Equal(WindowMode.OnTop, WindowModeTable.FromAlwaysOnTop(true));
+        Assert.Equal(WindowMode.Desktop, WindowModeTable.FromAlwaysOnTop(false));
+        Assert.True(WindowModeTable.IsAlwaysOnTop(WindowMode.OnTop));
+        Assert.False(WindowModeTable.IsAlwaysOnTop(WindowMode.Desktop));
+    }
 }

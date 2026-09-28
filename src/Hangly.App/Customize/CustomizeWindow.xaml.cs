@@ -663,8 +663,21 @@ public sealed partial class CustomizeWindow : Window
             Visibility offered = overlay.CharmIds.Any(Hangly.Core.Models.IntroTable.IsSpiderMan)
                 ? Visibility.Visible
                 : Visibility.Collapsed;
-            StartupToggle.Visibility = offered;
-            StartupNote.Visibility = offered;
+            SpiderManSection.Visibility = offered;
+
+            // Which charm is hanging — the one on the end of the rope — and its cord.
+            CharmNameText.Text = overlay.CharmIds.Count > 0
+                ? environment.Charms.Find(overlay.CharmIds[^1]).DisplayName
+                : "";
+            if (RopeStyleChoice.Items.Count == 0)
+            {
+                foreach (Hangly.Core.Models.RopeStyle style in Hangly.Core.Models.RopeStyleTable.All)
+                {
+                    RopeStyleChoice.Items.Add(Hangly.Core.Models.RopeStyleTable.DisplayNameOf(style));
+                }
+            }
+
+            RopeStyleChoice.SelectedIndex = Hangly.Core.Models.RopeStyleTable.All.ToList().IndexOf(overlay.RopeStyle);
             FullscreenToggle.IsOn = overlay.HidesDuringFullscreenVideo;
             SoundToggle.IsOn = store.Settings.SoundEffectsEnabled;
             VolumeSlider.Value = Math.Round(store.Settings.SoundVolume * 100);
@@ -1292,7 +1305,6 @@ public sealed partial class CustomizeWindow : Window
         isLoading = true;
         try
         {
-            AnalyticsToggle.IsOn = analytics.IsEnabled;
             AnalyticsState.Text = analytics.IsEnabled ? "On" : "Off";
             AnalyticsUserName.Text = store.Settings.DisplayName.Length > 0
                 ? store.Settings.DisplayName
@@ -1338,15 +1350,23 @@ public sealed partial class CustomizeWindow : Window
         }
     }
 
-    private void OnAnalyticsToggled(object sender, RoutedEventArgs args)
+    /// <summary>Appearance → Rope → Style: the same choice as the Library's rope shelf and the tray's Rope menu.</summary>
+    private void OnRopeStyleChanged(object sender, SelectionChangedEventArgs args)
     {
-        if (isLoading)
+        var styles = Hangly.Core.Models.RopeStyleTable.All.ToList();
+        if (!isLoading && RopeStyleChoice.SelectedIndex >= 0 && RopeStyleChoice.SelectedIndex < styles.Count)
         {
-            return;
+            Hangly.Core.Models.RopeStyle style = styles[RopeStyleChoice.SelectedIndex];
+            store.UpdateOverlay(overlay => overlay with { RopeStyle = style });
         }
+    }
 
-        _ = analytics.SetEnabled(AnalyticsToggle.IsOn);
-        LoadAnalytics();
+    /// <summary>Appearance → Privacy → View privacy details: About's Analytics panel, opened.</summary>
+    private void OnPrivacyDetails(object sender, RoutedEventArgs args)
+    {
+        ShowSection("about");
+        AnalyticsSection.IsExpanded = true;
+        AnalyticsSection.StartBringIntoView();
     }
 
     private void OnRefreshAnalytics(object sender, RoutedEventArgs args) => LoadAnalytics();

@@ -869,8 +869,23 @@ public sealed class AppEnvironment : IDisposable
             new MenuEntry(
                 settings.Overlay.IsEnabled ? "Hide Charm" : "Show Charm",
                 () => store.UpdateOverlay(overlay => overlay with { IsEnabled = !overlay.IsEnabled })),
+
             MenuEntry.Separator,
             new MenuEntry("Library", OpenLibrary),
+            // The two behaviour switches people flip day to day, one click away — the same
+            // words as the macOS menu, directly below Library, and the same settings as
+            // Appearance → Behaviour — the menu is rebuilt from them each time it opens.
+            new MenuEntry(
+                "Always on Top",
+                () => store.UpdateOverlay(overlay => overlay with
+                {
+                    WindowMode = WindowModeTable.FromAlwaysOnTop(!WindowModeTable.IsAlwaysOnTop(overlay.WindowMode)),
+                }),
+                IsChecked: WindowModeTable.IsAlwaysOnTop(settings.Overlay.WindowMode)),
+            new MenuEntry(
+                "Auto-hide during full-screen video",
+                () => store.UpdateOverlay(overlay => overlay with { HidesDuringFullscreenVideo = !overlay.HidesDuringFullscreenVideo }),
+                IsChecked: settings.Overlay.HidesDuringFullscreenVideo),
             new MenuEntry("Create…", OpenCreate),
             MenuEntry.Separator,
             new MenuEntry("Charms", Children: charms),

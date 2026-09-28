@@ -12,21 +12,19 @@ does. Where they differ, it says so.
 Hangly keeps a register of the people who use it: who they are, and what they run it on.
 It does not record what anybody does with it.
 
-On by default, and switchable off in **Customize → About → Analytics**. Turning it off
-stops it immediately and discards the installation identifier.
+Part of using Hangly: there is no switch. Anyone who turned it off in an earlier version,
+when there was one, keeps it off — that choice is stored and honoured. **Customize → About →
+Analytics** shows exactly what is sent.
 
 ### The name you give
 
-Hangly asks for a name the first time it runs, and will not go further without one. With
-analytics on, that name is part of what is sent.
+Hangly asks for a name the first time it runs, and will not go further without one. That
+name is part of what is sent.
 
 **You type it.** Hangly does not read your Windows account name, your Microsoft account,
 your email address, your computer name, or any other part of the machine — there is no
 code in this build that could. Change it whenever you like in **Customize → Appearance →
 Your name**.
-
-If you would rather not send it, switch analytics off. The name stays on your machine and
-is still used to greet you.
 
 ### When anything is sent
 
@@ -146,13 +144,11 @@ These are not aspirations. `AnalyticsTests` in `Hangly.Core.Tests` asserts them 
 recording provider that captures exactly what would have left the machine — including that
 the provider has no way to send anything but an identify.
 
-### Turning it off
+### No switch
 
-**Customize → About → Analytics → Tell Hangly who is using it.**
-
-Switching it off stops it at the source and throws away the installation identifier and
-the record of what was sent under it. If you switch it back on, a new identifier is made and
-you are sent as a first launch, so the two cannot be joined.
+There was a switch — **Tell Hangly who is using it** — and it has gone: sending is part of
+using Hangly. An installation where it was switched off stays off; nothing re-enables it.
+Customize → Appearance → Privacy says plainly what is sent.
 
 ### Checking what your copy is doing
 

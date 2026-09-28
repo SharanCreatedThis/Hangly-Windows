@@ -127,13 +127,14 @@ so without the caveat.
 
 Hangly asks for no permissions and has no server and no accounts.
 
-With analytics on it tells the project who is using Hangly — the name you type when you
+It tells the project who is using Hangly — the name you type when you
 first run it, that this is Windows, the processor, and the Windows and Hangly versions — in
 one message on your first launch, again if you change your name, and again on a new major
 version; once a day that it runs, that it is still running and on which version; and once,
 if you uninstall it. It never sends anything about what you do in the app, your Windows account name,
-your files, your location, or anything describing your screen. Switch it off in
-**Customize → About**; `Hangly.exe --check-analytics` prints exactly what would be sent,
+your files, your location, or anything describing your screen. There is no switch (an
+installation that turned it off in an earlier version stays off); **Customize → About**
+lists what is sent, and `Hangly.exe --check-analytics` prints exactly what would be sent,
 without sending it. Builds made from this source send nothing.
 
 [PRIVACY.md](PRIVACY.md) is the full account, and it describes this build rather than the

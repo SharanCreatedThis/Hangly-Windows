@@ -707,73 +707,29 @@
                 </Grid>
 
                 <!-- Appearance -->
+                <!--
+                    Appearance, in the order people reach for things: the charm (which,
+                    where, how big), the rope, whether and how Hangly shows itself, how it
+                    answers the pointer and makes sound, what belongs to one charm, and
+                    last the two things set once — your name and what is shared about you.
+                    The same sections, order and words as macOS.
+                -->
                 <ScrollViewer x:Name="AppearancePage" Visibility="Collapsed">
-                    <StackPanel Margin="24,16,24,24" Spacing="18">
+                    <StackPanel Margin="24,16,24,24" Spacing="12">
                         <TextBlock
                             Style="{StaticResource TitleTextBlockStyle}"
                             Text="Appearance" />
 
-                        <!-- The name given at onboarding, changeable here. A name
-                             someone is asked for once and can never correct is a name
-                             they will resent. Saved when the box loses focus or Enter is
-                             pressed, not on every keystroke, so a half-typed name is never
-                             what the project is told. -->
                         <StackPanel Spacing="6">
-                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="You" />
-                            <TextBox
-                                x:Name="NameBox"
-                                Width="320"
-                                HorizontalAlignment="Left"
-                                AutomationProperties.AutomationId="NameBox"
-                                Header="Your name"
-                                KeyDown="OnNameKeyDown"
-                                LostFocus="OnNameCommitted" />
-                            <TextBlock
-                                MaxWidth="560"
-                                HorizontalAlignment="Left"
-                                Opacity="0.7"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="Hangly greets you by this name. While analytics is on, it is also how you appear in Hangly's list of the people who use it."
-                                TextWrapping="Wrap" />
-                        </StackPanel>
-
-                        <StackPanel Spacing="6">
-                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Size and reach" />
-                            <TextBlock x:Name="SizeLabel" Text="Charm size" />
-                            <Slider x:Name="SizeSlider" ValueChanged="OnSizeChanged" />
-                            <TextBlock x:Name="LengthLabel" Text="Rope length" />
-                            <Slider x:Name="LengthSlider" ValueChanged="OnLengthChanged" />
-                            <TextBlock x:Name="OpacityLabel" Text="Opacity" />
-                            <Slider x:Name="OpacitySlider" ValueChanged="OnOpacityChanged" />
-                            <!-- Glow: the same three choices, in the same order, as macOS. -->
-                            <TextBlock Text="Glow" />
-                            <muxc:RadioButtons
-                                x:Name="GlowChoice"
-                                AutomationProperties.AutomationId="GlowChoice"
-                                AutomationProperties.Name="Glow"
-                                MaxColumns="3"
-                                SelectionChanged="OnGlowChanged">
-                                <x:String>Off</x:String>
-                                <x:String>Soft</x:String>
-                                <x:String>Strong</x:String>
-                            </muxc:RadioButtons>
-                            <TextBlock
-                                MaxWidth="560"
-                                HorizontalAlignment="Left"
-                                Opacity="0.7"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="The charm's own colour, soft behind it. Strong shows best on a dark desktop."
-                                TextWrapping="Wrap" />
-                        </StackPanel>
-
-                        <!--
-                            A slider, not three corners. Top Left, Top Center and Top Right
-                            were three of the thousands of places a charm can hang, and the
-                            two somebody did not choose were rarely the one they wanted.
-                        -->
-                        <StackPanel Spacing="6">
-                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Where it hangs" />
-                            <!-- Drag the charm on a picture of the screen, as on macOS (B3). -->
+                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Appearance" />
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="Charm" />
+                                <TextBlock
+                                    x:Name="CharmNameText"
+                                    Opacity="0.7"
+                                    AutomationProperties.AutomationId="CharmNameText" />
+                            </StackPanel>
+                            <TextBlock Margin="0,6,0,0" Text="Position" />
                             <local:DesktopPicker x:Name="PositionPicker" AutomationProperties.AutomationId="PositionPicker" Margin="0,4,0,8" />
                             <TextBlock x:Name="PositionLabel" Text="Horizontal position" />
                             <Slider
@@ -824,7 +780,83 @@
                                 AutomationProperties.AutomationId="ResetPositionButton"
                                 Click="OnResetPosition"
                                 Content="Reset position" />
+                            <!-- Size and opacity side by side: two sliders about one charm. -->
+                            <Grid MaxWidth="560" HorizontalAlignment="Left" ColumnSpacing="24">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock x:Name="SizeLabel" Text="Size" />
+                                    <Slider x:Name="SizeSlider" MinWidth="240" AutomationProperties.Name="Size" ValueChanged="OnSizeChanged" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock x:Name="OpacityLabel" Text="Opacity" />
+                                    <Slider x:Name="OpacitySlider" MinWidth="240" AutomationProperties.Name="Opacity" ValueChanged="OnOpacityChanged" />
+                                </StackPanel>
+                            </Grid>
+                            <!-- Glow: the same three choices, in the same order, as macOS. -->
+                            <TextBlock Text="Glow" />
+                            <muxc:RadioButtons
+                                x:Name="GlowChoice"
+                                ToolTipService.ToolTip="The charm's own colour, soft behind it. Strong shows best on a dark desktop."
+                                AutomationProperties.AutomationId="GlowChoice"
+                                AutomationProperties.Name="Glow"
+                                MaxColumns="3"
+                                SelectionChanged="OnGlowChanged">
+                                <x:String>Off</x:String>
+                                <x:String>Soft</x:String>
+                                <x:String>Strong</x:String>
+                            </muxc:RadioButtons>
+                            <ComboBox
+                                x:Name="RopeStyleChoice"
+                                MinWidth="220"
+                                AutomationProperties.AutomationId="RopeStyleChoice"
+                                AutomationProperties.Name="Rope style"
+                                Header="Rope style"
+                                SelectionChanged="OnRopeStyleChanged" />
+                            <TextBlock x:Name="LengthLabel" Text="Rope length" />
+                            <Slider x:Name="LengthSlider" AutomationProperties.Name="Rope length" ValueChanged="OnLengthChanged" />
+                            <!-- Rope type and mouse reactive side by side: both decide how the charm answers a hand. -->
+                            <Grid MaxWidth="560" HorizontalAlignment="Left" ColumnSpacing="24">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="Rope type" />
+    <muxc:RadioButtons
+                                    x:Name="RopePhysicsChoice"
+                                    AutomationProperties.AutomationId="RopePhysicsChoice"
+                                    AutomationProperties.Name="Rope type"
+                                    MaxColumns="2"
+                                    SelectionChanged="OnRopePhysicsChanged">
+                                    <x:String>Standard</x:String>
+                                    <x:String>Elastic</x:String>
+                                </muxc:RadioButtons>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="Mouse reactive" />
+    <muxc:RadioButtons
+                                    x:Name="InteractionChoice"
+                                    AutomationProperties.AutomationId="InteractionChoice"
+                                    AutomationProperties.Name="Mouse reactive"
+                                    MaxColumns="2"
+                                    SelectionChanged="OnInteractionChanged">
+                                    <x:String>Normal</x:String>
+                                    <x:String>Reactive</x:String>
+                                </muxc:RadioButtons>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock
+                                MaxWidth="560"
+                                HorizontalAlignment="Left"
+                                Opacity="0.7"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="Elastic stretches when you pull the charm. Reactive drifts away from a quick pointer."
+                                TextWrapping="Wrap" />
                         </StackPanel>
+
 
                         <StackPanel Spacing="8">
                             <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Behaviour" />
@@ -848,7 +880,7 @@
                                 HorizontalAlignment="Left"
                                 Opacity="0.7"
                                 Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="On the Desktop hangs the charm over your wallpaper and behind your windows; it shows, and can be pushed, wherever the desktop does."
+                                Text="On the Desktop hangs the charm over your wallpaper and behind your windows."
                                 TextWrapping="Wrap" />
                             <ToggleSwitch
                                 x:Name="LoginToggle"
@@ -864,14 +896,13 @@
                                 HorizontalAlignment="Left"
                                 Opacity="0.7"
                                 Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="Steps out of the way while a film or game is full screen on the display the charm hangs on, and comes back when it stops. Off by default: telling a film from any other full-screen app is a guess, and it is occasionally wrong."
+                                Text="Steps out of the way while a film plays full screen, and comes back when it stops."
                                 TextWrapping="Wrap" />
                         </StackPanel>
 
-                        <!-- Sound: the same switch and slider as macOS, the same defaults. -->
                         <StackPanel Spacing="6">
-                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Sound" />
-                            <ToggleSwitch
+                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Sound &amp; Motion" />
+                                                        <ToggleSwitch
                                 x:Name="SoundToggle"
                                 AutomationProperties.AutomationId="SoundToggle"
                                 Header="Play sound effects"
@@ -885,21 +916,8 @@
                                 Minimum="0"
                                 StepFrequency="1"
                                 ValueChanged="OnVolumeChanged" />
-                            <TextBlock
-                                MaxWidth="560"
-                                HorizontalAlignment="Left"
-                                Opacity="0.7"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="Each charm sounds like what it is made of — bell, glass, metal, wood or cloth — when you throw it, when it joins the rope, and when two charms knock together. Silent while a full-screen app, game or presentation is in front."
-                                TextWrapping="Wrap" />
-                        </StackPanel>
 
-                        <!--
-                            Motion: the same three choices, in the same order, as Appearance on
-                            macOS. Follow System reads Windows' Animation effects switch.
-                        -->
-                        <StackPanel Spacing="6">
-                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Motion" />
+                            <TextBlock Margin="0,6,0,0" Text="Motion" />
                             <muxc:RadioButtons
                                 x:Name="MotionChoice"
                                 AutomationProperties.AutomationId="MotionChoice"
@@ -915,49 +933,17 @@
                                 HorizontalAlignment="Left"
                                 Opacity="0.7"
                                 Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="Reduced hangs the charm still until you move it, and lets a swing settle in seconds rather than a minute. It looks the same at rest. Follow system uses Animation effects in Windows Settings → Accessibility → Visual effects."
+                                Text="Reduced keeps the charm still until you move it. Follow system uses Windows' Animation effects."
                                 TextWrapping="Wrap" />
-                            <!-- Rope: the same two choices, in the same order, as macOS. -->
-                            <TextBlock Margin="0,6,0,0" Text="Rope" />
-                            <muxc:RadioButtons
-                                x:Name="RopePhysicsChoice"
-                                AutomationProperties.AutomationId="RopePhysicsChoice"
-                                AutomationProperties.Name="Rope"
-                                MaxColumns="2"
-                                SelectionChanged="OnRopePhysicsChanged">
-                                <x:String>Standard</x:String>
-                                <x:String>Elastic</x:String>
-                            </muxc:RadioButtons>
-                            <TextBlock
-                                MaxWidth="560"
-                                HorizontalAlignment="Left"
-                                Opacity="0.7"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="Elastic lets the cord stretch when you pull the charm, then bounce back and settle. It hangs exactly the same at rest. With motion reduced it still stretches, and bounces less."
-                                TextWrapping="Wrap" />
-                            <!-- Interaction: the same two choices, in the same order, as macOS. -->
-                            <TextBlock Margin="0,6,0,0" Text="Interaction" />
-                            <muxc:RadioButtons
-                                x:Name="InteractionChoice"
-                                AutomationProperties.AutomationId="InteractionChoice"
-                                AutomationProperties.Name="Interaction"
-                                MaxColumns="2"
-                                SelectionChanged="OnInteractionChanged">
-                                <x:String>Normal</x:String>
-                                <x:String>Reactive</x:String>
-                            </muxc:RadioButtons>
-                            <TextBlock
-                                MaxWidth="560"
-                                HorizontalAlignment="Left"
-                                Opacity="0.7"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="Reactive lets the charm drift away from a pointer moving quickly towards it. Reach for it slowly to take hold. Off while motion is reduced."
-                                TextWrapping="Wrap" />
-                            <!-- Only with a Spider-Man charm on the rope; the choice is kept either way. -->
+                        </StackPanel>
+
+                        <!-- Only with a Spider-Man charm on the rope; the choice is kept either way. -->
+                        <StackPanel x:Name="SpiderManSection" Spacing="6">
+                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Spider-Man" />
                             <ToggleSwitch
                                 x:Name="StartupToggle"
                                 AutomationProperties.AutomationId="StartupToggle"
-                                Header="Spider-Man entrance"
+                                Header="Startup animation"
                                 Toggled="OnStartupToggled" />
                             <TextBlock
                                 x:Name="StartupNote"
@@ -967,6 +953,42 @@
                                 Style="{StaticResource CaptionTextBlockStyle}"
                                 Text="When Hangly starts, Spider-Man drops in on a strand of web. Skipped while motion is reduced."
                                 TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="6">
+                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="About You" />
+                            <TextBox
+                                x:Name="NameBox"
+                                Width="320"
+                                HorizontalAlignment="Left"
+                                AutomationProperties.AutomationId="NameBox"
+                                Header="Your name"
+                                KeyDown="OnNameKeyDown"
+                                LostFocus="OnNameCommitted" />
+                            <TextBlock
+                                MaxWidth="560"
+                                HorizontalAlignment="Left"
+                                Opacity="0.7"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="Hangly greets you by this name."
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="6">
+                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Privacy" />
+                            <TextBlock
+                                MaxWidth="560"
+                                HorizontalAlignment="Left"
+                                Opacity="0.7"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="Hangly keeps your name on this PC to greet you, and sends it to the developer with your PC's processor and the versions of Windows and Hangly, plus a daily note that Hangly is running, to help improve the app. Nothing about what you do in the app, or the images and charms you make."
+                                TextWrapping="Wrap" />
+                            <HyperlinkButton
+                                x:Name="PrivacyDetailsLink"
+                                Padding="0"
+                                AutomationProperties.AutomationId="PrivacyDetailsLink"
+                                Click="OnPrivacyDetails"
+                                Content="View privacy details" />
                         </StackPanel>
 
                         <Button x:Name="ResetButton" Click="OnReset" Content="Restore defaults" />
@@ -1268,15 +1290,11 @@
                             HorizontalAlignment="Stretch"
                             Header="Analytics">
                             <StackPanel Margin="0,8,0,0" Spacing="12">
-                                <ToggleSwitch
-                                    x:Name="AnalyticsToggle"
-                                    Header="Tell Hangly who is using it"
-                                    Toggled="OnAnalyticsToggled" />
                                 <TextBlock
                                     Opacity="0.75"
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     TextWrapping="Wrap"
-                                    Text="Sends your name, that this is Windows, the processor, and the versions of Windows and Hangly — when you first start Hangly, if you change your name, and on a new major version. Once a day that Hangly runs, it also says it is still running, and on which version. If you uninstall, it says so once. Nothing about what you do in the app is ever sent. Switching it off stops it immediately and throws away the installation identifier." />
+                                    Text="Sends your name, that this is Windows, the processor, and the versions of Windows and Hangly — when you first start Hangly, if you change your name, and on a new major version. Once a day that Hangly runs, it also says it is still running, and on which version. If you uninstall, it says so once. Nothing about what you do in the app is ever sent. Sharing this is part of using Hangly; there is no switch. If you turned it off in an earlier version, it stays off." />
 
                                 <Grid ColumnSpacing="16" RowSpacing="6">
                                     <Grid.ColumnDefinitions>

@@ -20,6 +20,11 @@ public enum WindowMode
 
 public static class WindowModeTable
 {
+    /// <summary>For the tray's "Always on Top" tick: ticked is Always on Top, unticked On the Desktop. The macOS menu reads it the same way.</summary>
+    public static WindowMode FromAlwaysOnTop(bool alwaysOnTop) => alwaysOnTop ? WindowMode.OnTop : WindowMode.Desktop;
+
+    public static bool IsAlwaysOnTop(WindowMode mode) => mode == WindowMode.OnTop;
+
     public static string TitleOf(WindowMode mode) => mode == WindowMode.Desktop ? "On the Desktop" : "Always on Top";
 
     /// <summary>Whether a top-level window of this class is the desktop itself.</summary>

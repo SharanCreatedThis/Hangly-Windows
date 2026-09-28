@@ -8,6 +8,19 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 ## Unreleased
 
+**Changed**
+
+- **A simpler Appearance page.** One **Appearance** section first — the charm (which one,
+  where it hangs, size, opacity, glow) and its rope (style, length, Standard or Elastic,
+  mouse reactive) — then **Behaviour**, **Sound & Motion**, **Spider-Man** (only with him on
+  the rope), **About You** and **Privacy**. Less scrolling, and settings only. The same
+  sections, in the same order, as Hangly for Mac.
+- **Two new ticks in the tray menu, directly below Library:** **Always on Top** and
+  **Auto-hide during full-screen video**, which stay in step with the Appearance page.
+- **Privacy has no switch.** Appearance → Privacy says plainly what Hangly sends; About →
+  Analytics still lists it field by field. If you switched it off in an earlier version, it
+  stays off.
+
 **Added**
 
 - **An elastic rope**, in Appearance under Motion → Rope. Pull the charm and the cord
