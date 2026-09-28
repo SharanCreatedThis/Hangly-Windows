@@ -164,6 +164,8 @@
   <ItemGroup>
     <!-- Copied whole, exactly as the macOS bundle copies Assets/Charms. -->
     <Content Include="Assets/Charms/**" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The Spider-Man entrance's sound slot: whatever is there is copied; empty is silent. -->
+    <Content Include="Assets/Sounds/*.wav" CopyToOutputDirectory="PreserveNewest" />
 
     <!--
       The creator's UPI code, the same file the macOS bundle ships in Resources.

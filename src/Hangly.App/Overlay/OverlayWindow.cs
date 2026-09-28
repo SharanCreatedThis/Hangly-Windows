@@ -221,6 +221,7 @@ public sealed class OverlayWindow : IDisposable
                 && IntroTable.Plays(settings.StartupAnimation, settings.CharmIds, rope.Motion == RopeMotion.Reduced))
             {
                 rope.BeginIntro();
+                audio?.PlayEntrance();
             }
 
             // Subscribed here rather than in the constructor so the handler is attached on
