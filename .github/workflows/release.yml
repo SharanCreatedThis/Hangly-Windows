@@ -66,6 +66,29 @@ jobs:
         shell: pwsh
         run: ./tools/release-notes.ps1 -Version ${{ steps.version.outputs.version }} -OutFile notes.md
 
+      # The Spider-Man entrance's recording is not in this public repository
+      # (src/Hangly.App/Assets/Sounds/README.md), so a checkout has no sound and
+      # every CI build of 2.1.0 shipped a silent entrance. It is fetched from the
+      # release store — by a URL kept as a repository secret, not written here —
+      # and checked against the hash pinned below before anything is built.
+      - name: Fetch the entrance sound
+        shell: pwsh
+        env:
+          HANGLY_ENTRANCE_SOUND_URL: ${{ secrets.HANGLY_ENTRANCE_SOUND_URL }}
+        run: |
+          if (-not $env:HANGLY_ENTRANCE_SOUND_URL) {
+            Write-Error 'No HANGLY_ENTRANCE_SOUND_URL secret: this build would ship a silent entrance.'
+            exit 1
+          }
+          $target = 'src/Hangly.App/Assets/Sounds/SpiderManEntrance.wav'
+          Invoke-WebRequest -Uri $env:HANGLY_ENTRANCE_SOUND_URL -OutFile $target -UseBasicParsing
+          $hash = (Get-FileHash $target -Algorithm SHA256).Hash
+          if ($hash -ne 'A44AF79797662C5CAD1533EB95FBA13EEF32A1D9CA91D5A1FF4B3A93C309D36B') {
+            Write-Error "The entrance sound is not the pinned recording (got $hash)."
+            exit 1
+          }
+          Write-Host "entrance sound fetched and verified"
+
       - name: Publish
         shell: pwsh
         # A repository secret, never written in this public file: the installation
@@ -113,6 +136,12 @@ jobs:
             exit 1
           }
           Write-Host 'registry URL present'
+          # The entrance plays whatever sits in Assets/Sounds; nothing there is a silent entrance.
+          if (-not (Test-Path publish/Assets/Sounds/SpiderManEntrance.wav)) {
+            Write-Error 'The published app carries no entrance sound.'
+            exit 1
+          }
+          Write-Host 'entrance sound present'
 
       - name: Install vpk
         run: dotnet tool install --global vpk --version 1.2.0

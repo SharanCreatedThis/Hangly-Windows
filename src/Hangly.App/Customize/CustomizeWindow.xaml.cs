@@ -1024,7 +1024,7 @@ public sealed partial class CustomizeWindow : Window
         CheckUpdateButton.IsEnabled = false;
         UpdateMessage.Text = "Checking…";
 
-        ShowUpdateResult(await updater.CheckAsync());
+        ShowUpdateResult(await updater.CheckAsync(Hangly.Core.Analytics.UpdateTrigger.Manual));
         CheckUpdateButton.IsEnabled = true;
     }
 

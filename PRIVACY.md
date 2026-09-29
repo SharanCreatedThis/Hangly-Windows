@@ -39,7 +39,7 @@ Windows tells Hangly when it is being uninstalled, and Hangly sends one last upd
 
 ## Usage events
 
-Hangly reports six things to Google Analytics (the same property, through its Measurement Protocol), tagged with the installation ID and nothing
+Hangly reports these things to Google Analytics (the same property, through its Measurement Protocol), tagged with the installation ID and nothing
 else — never your nickname or your city:
 
 - that Hangly started, and whether at sign-in or by hand;
@@ -47,7 +47,14 @@ else — never your nickname or your city:
 - which charm you hang (a charm you made yourself is reported only as "custom");
 - which rope you choose;
 - that you opened the support page, and from where;
-- that you finished the welcome.
+- that you finished the welcome;
+- that Hangly was running today (once a day, with nothing attached);
+- how an update went: that one was available, that it downloaded, that it installed, or at
+  which step it failed and the error's type — with the version numbers involved.
+
+Each event also carries a session number (the time the session began) and how long it
+was since the previous event, which is what Google Analytics needs to count an installation
+as active. Neither says anything about what you did.
 
 Nothing else you do in Hangly is reported.
 

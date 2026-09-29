@@ -6,6 +6,25 @@ pulls the section out and the release workflow hands it to both.
 
 Headings are `## <version> — <date>`. Nothing else is a version heading.
 
+## 2.1.1 — 2026-09-29
+
+**Fixed**
+
+- **The Spider-Man entrance plays its sound again.** Builds of 2.1.0 from the release pipeline
+  shipped without the recording, so the entrance was silent on Windows.
+- **The Spider-Man showcase gives your whole setup back.** Anyone updating from 0.9.x meets
+  the entrance on its own look for two launches, and on the third every charm they had on the
+  rope comes back, in order and at its own size, with their rope style. A charm or rope chosen
+  meanwhile is kept.
+- **Updates from 0.9.x are reported as updates**, from 0.9.x, rather than as a first launch.
+
+**Added**
+
+- **Sessions and engagement for analytics**, so a Windows installation that is running counts
+  as active: every event now carries the session and engagement GA4 needs.
+- **Update reports**: available, download started, download completed, installed or failed,
+  and `daily_active` once a day while Hangly runs. Nothing personal. See PRIVACY.md.
+
 ## 2.1.0 — 2026-09-29
 
 **Changed**

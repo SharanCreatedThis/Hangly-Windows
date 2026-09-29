@@ -340,11 +340,10 @@ public sealed record PrivacySettings
     /// </remarks>
     public bool FirstIdentifyPending { get; init; }
 
-    /// <summary>The last local calendar day a <c>daily_active</c> was accepted, as yyyy-MM-dd.</summary>
+    /// <summary>The last local calendar day a <c>daily_active</c> event was sent, as yyyy-MM-dd.</summary>
     /// <remarks>
-    /// Written only on acceptance, so a day with no network is retried that day rather than
-    /// counted. A day that passes entirely offline is not backfilled: it was not a day the
-    /// project saw, and saying it was would be inventing a number.
+    /// Written when the event is handed to GA4's Measurement Protocol, which answers every request alike and so
+    /// cannot confirm it (<see cref="Analytics.DailyActive"/>). A day that passes entirely offline is not backfilled.
     /// </remarks>
     public string? LastActiveDay { get; init; }
 
