@@ -57,6 +57,48 @@ public sealed record AnalyticsEvent(string Name, IReadOnlyDictionary<string, str
 
     public static AnalyticsEvent WelcomeCompleted(bool explored) =>
         new("welcome_completed", new Dictionary<string, string> { ["path"] = explored ? "explore" : "start" });
+
+    /// <summary>Once a local day while Hangly runs (<see cref="DailyActive"/>).</summary>
+    public static AnalyticsEvent DailyActiveDay() => new("daily_active", new Dictionary<string, string>());
+
+    // The update funnel: available → download started → download completed → installed, or failed at a stage.
+    // `trigger` is "quiet" (found and fetched by the daily check) or "manual" (Check for Updates).
+
+    public static AnalyticsEvent UpdateAvailable(string toVersion, UpdateTrigger trigger) =>
+        new("update_available", new Dictionary<string, string> { ["to_version"] = toVersion, ["trigger"] = TriggerName(trigger) });
+
+    public static AnalyticsEvent UpdateDownloadStarted(string toVersion, UpdateTrigger trigger) =>
+        new("update_download_started", new Dictionary<string, string> { ["to_version"] = toVersion, ["trigger"] = TriggerName(trigger) });
+
+    public static AnalyticsEvent UpdateDownloadCompleted(string toVersion, UpdateTrigger trigger) =>
+        new("update_download_completed", new Dictionary<string, string> { ["to_version"] = toVersion, ["trigger"] = TriggerName(trigger) });
+
+    /// <summary>Sent by the new version on its first launch, so it is only ever sent by a build that works.</summary>
+    public static AnalyticsEvent UpdateInstalled(string fromVersion, string toVersion) =>
+        new("update_installed", new Dictionary<string, string> { ["from_version"] = fromVersion, ["to_version"] = toVersion });
+
+    public static AnalyticsEvent UpdateFailed(UpdateStage stage, string error, UpdateTrigger trigger) =>
+        new("update_failed", new Dictionary<string, string>
+        {
+            ["stage"] = stage switch { UpdateStage.Check => "check", UpdateStage.Download => "download", _ => "install" },
+            ["error"] = error,
+            ["trigger"] = TriggerName(trigger),
+        });
+
+    private static string TriggerName(UpdateTrigger trigger) => trigger == UpdateTrigger.Manual ? "manual" : "quiet";
+}
+
+public enum UpdateTrigger
+{
+    Quiet,
+    Manual,
+}
+
+public enum UpdateStage
+{
+    Check,
+    Download,
+    Install,
 }
 
 /// <summary>Where a support button was pressed.</summary>

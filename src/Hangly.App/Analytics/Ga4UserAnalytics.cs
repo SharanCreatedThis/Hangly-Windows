@@ -25,6 +25,7 @@ internal sealed class Ga4UserAnalytics : IUserAnalyticsService
     private readonly HttpClient http = new() { Timeout = TimeSpan.FromSeconds(10) };
     private readonly Uri endpoint;
     private string clientId = Guid.NewGuid().ToString("D");
+    private readonly Ga4Session session = new();
 
     private Ga4UserAnalytics(string measurementId, string apiSecret) =>
         endpoint = new Uri($"https://www.google-analytics.com/mp/collect?measurement_id={Uri.EscapeDataString(measurementId)}&api_secret={Uri.EscapeDataString(apiSecret)}");
@@ -39,13 +40,9 @@ internal sealed class Ga4UserAnalytics : IUserAnalyticsService
 
     public void Log(AnalyticsEvent analyticsEvent)
     {
-        var body = new
-        {
-            client_id = clientId,
-            user_id = clientId,
-            events = new[] { new { name = analyticsEvent.Name, @params = analyticsEvent.Parameters } },
-        };
-        _ = Send(body);
+        // session_id and engagement_time_msec, or GA4 counts nobody as active (Ga4Session).
+        (long sessionId, long engagement) = session.Stamp();
+        _ = Send(Ga4Payload.Build(clientId, analyticsEvent, sessionId, engagement));
     }
 
     private async Task Send(object body)

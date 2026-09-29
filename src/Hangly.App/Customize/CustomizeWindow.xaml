@@ -1278,7 +1278,7 @@
                                     Opacity="0.75"
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     TextWrapping="Wrap"
-                                    Text="Every installation is registered with Hangly's developer, using Google Firebase: the nickname you gave, your city, region and country (worked out from your connection; the address itself is not stored), and what you run it on. It is updated when something changes, and at most once a day to say Hangly is still in use. If you uninstall, it says so once. Hangly also reports crashes, with their details, and a few choices: when it starts, which charm and rope you pick, whether you open the support page, and finishing the welcome. This is part of using Hangly; there is no switch." />
+                                    Text="Every installation is registered with Hangly's developer, using Google Firebase: the nickname you gave, your city, region and country (worked out from your connection; the address itself is not stored), and what you run it on. It is updated when something changes, and at most once a day to say Hangly is still in use. If you uninstall, it says so once. Hangly also reports crashes, with their details, and a few choices: when it starts, which charm and rope you pick, whether you open the support page, and finishing the welcome; that it ran each day; and how updates go (available, downloaded, installed, or where one failed). This is part of using Hangly; there is no switch." />
 
                                 <Grid ColumnSpacing="16" RowSpacing="6">
                                     <Grid.ColumnDefinitions>

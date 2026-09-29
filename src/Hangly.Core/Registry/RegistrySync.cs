@@ -75,6 +75,7 @@ public sealed class RegistrySync
         InstallationRecord record = Store.LoadOrCreate(
             settings.Settings.Privacy.AnonymousId, facts, CurrentNickname, now(), installEvidence?.Invoke());
         analytics.SetInstallationId(record.InstallationId);
+        NoteActiveDay();
         RefreshFacts();
         settings.Changed += OnSettingsChanged;
         WatchTheDay();
@@ -301,8 +302,27 @@ public sealed class RegistrySync
                 return;
             }
 
-            OnOwner(() => _ = Sync());
+            OnOwner(() =>
+            {
+                NoteActiveDay();
+                _ = Sync();
+            });
         }
+    }
+
+    /// <summary>
+    /// Sends <c>daily_active</c> once a local day, from the launch and from the hourly check, so an installation that
+    /// runs for days without being reopened still counts as active each of them.
+    /// </summary>
+    private void NoteActiveDay()
+    {
+        if (Analytics.DailyActive.Due(settings.Settings.Privacy.LastActiveDay, now().ToLocalTime()) is not string today)
+        {
+            return;
+        }
+
+        analytics.Log(Analytics.AnalyticsEvent.DailyActiveDay());
+        settings.Update(current => current with { Privacy = current.Privacy with { LastActiveDay = today } });
     }
 
     private void OnOwner(Action action)

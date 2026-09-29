@@ -74,7 +74,8 @@ public sealed class SettingsStore
     }
 
     /// <summary>Applies a change and persists it. The only way to write a setting.</summary>
-    public void Update(Func<AppSettings, AppSettings> change) => Settings = change(storage).Clamped();
+    public void Update(Func<AppSettings, AppSettings> change) =>
+        Settings = EntranceIntroduction.NoteChoice(storage, change(storage).Clamped());
 
     /// <summary>Applies a change to the overlay half of the document.</summary>
     public void UpdateOverlay(Func<OverlaySettings, OverlaySettings> change) =>

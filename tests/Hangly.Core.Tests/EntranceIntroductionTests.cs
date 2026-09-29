@@ -66,14 +66,16 @@ public sealed class EntranceIntroductionTests
     }
 
     [Fact]
-    public void TheThirdLaunchGivesTheirLookBackAndSpiderManStays()
+    public void TheThirdLaunchGivesTheirWholeSetupBack()
     {
-        AppSettings third = Launch(Launch(Launch(ExistingUser())));
+        AppSettings before = ExistingUser();
+        AppSettings third = Launch(Launch(Launch(before)));
 
         Assert.Null(third.Milestones.EntranceShowcase);
-        Assert.Equal(["spiderMan"], third.Overlay.Stack.Ids);
-        Assert.Equal(RopeStyle.SpiderThread, third.Overlay.RopeStyle);
-        Assert.Equal(0.8, third.Overlay.Stack.Places[^1].Size);
+        Assert.Equal(["hamsa", "nazar"], third.Overlay.Stack.Ids);
+        Assert.Equal([1.0, 0.8], third.Overlay.Stack.Places.Select(place => place.Size));
+        Assert.Equal(before.Overlay.Stack.StoredSlots, third.Overlay.Stack.StoredSlots);
+        Assert.Equal(RopeStyle.GoldChain, third.Overlay.RopeStyle);
         Assert.Equal(0.2, third.Overlay.HorizontalPosition);
         Assert.Equal(40, third.Overlay.OffsetY);
         Assert.Equal(0.7, third.Overlay.CharmSize);
@@ -154,5 +156,113 @@ public sealed class EntranceIntroductionTests
         Assert.False(recovered);
         Assert.Equal(lent.Milestones.EntranceShowcase, read.Milestones.EntranceShowcase);
         Assert.Equal(0.7, Launch(Launch(read)).Overlay.CharmSize);
+        Assert.Equal(RopeStyle.GoldChain, Launch(Launch(read)).Overlay.RopeStyle);
+    }
+
+    private static SettingsStore StoreWith(AppSettings settings, string path)
+    {
+        var store = new SettingsStore(path);
+        store.Update(_ => settings);
+        return store;
+    }
+
+    [Fact]
+    public void ACharmOrRopeChosenWhileTheLookIsLentIsKeptEvenSpiderMan()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"hangly-showcase-{Guid.NewGuid():N}.json");
+        try
+        {
+            SettingsStore store = StoreWith(Launch(ExistingUser()), path);
+            store.UpdateOverlay(overlay => overlay.WithStack(CharmStackState.Of(["spiderMan", "spiderManSwinging"])));
+            Assert.True(store.Settings.Milestones.EntranceShowcase?.CharmChosen);
+
+            AppSettings third = Launch(Launch(store.Settings));
+            Assert.Equal(["spiderMan", "spiderManSwinging"], third.Overlay.Stack.Ids);
+            Assert.Equal(RopeStyle.SpiderThread, third.Overlay.RopeStyle);
+            Assert.Equal(0.7, third.Overlay.CharmSize);
+            Assert.Equal(GlowLevel.Off, third.Overlay.Glow);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void ChangingOnlyTheRopeStyleWhileLentKeepsTheRopeAsItIs()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"hangly-showcase-{Guid.NewGuid():N}.json");
+        try
+        {
+            SettingsStore store = StoreWith(Launch(ExistingUser()), path);
+            store.UpdateOverlay(overlay => overlay with { RopeStyle = RopeStyle.Leather });
+            AppSettings third = Launch(Launch(store.Settings));
+            Assert.Equal(RopeStyle.Leather, third.Overlay.RopeStyle);
+            Assert.Equal(["spiderMan"], third.Overlay.Stack.Ids);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void OtherChangesWhileLentAreNotACharmChoice()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"hangly-showcase-{Guid.NewGuid():N}.json");
+        try
+        {
+            SettingsStore store = StoreWith(Launch(ExistingUser()), path);
+            store.UpdateOverlay(overlay => overlay with { Glow = GlowLevel.Strong });
+            store.Update(settings => settings with { DisplayName = "Someone" });
+            Assert.False(store.Settings.Milestones.EntranceShowcase?.CharmChosen);
+            Assert.Equal(["hamsa", "nazar"], Launch(Launch(store.Settings)).Overlay.Stack.Ids);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void AShowcase210BeganWithNoRopeStillReadsAndEndsThe210Way()
+    {
+        AppSettings lent = Launch(ExistingUser());
+        EntranceShowcase showcase = lent.Milestones.EntranceShowcase!;
+        // What 2.1.0 wrote: no rope in either snapshot, no CharmChosen.
+        string json = lent.ToJson();
+        var node = System.Text.Json.Nodes.JsonNode.Parse(json)!;
+        var written = node["milestones"]!["entranceShowcase"]!.AsObject();
+        written["before"]!.AsObject().Remove("rope");
+        written["lent"]!.AsObject().Remove("rope");
+        written.Remove("charmChosen");
+        AppSettings read = AppSettings.FromJson(node.ToJsonString(), out bool recovered);
+        Assert.False(recovered);
+        Assert.Null(read.Milestones.EntranceShowcase!.Before.Rope);
+        Assert.False(read.Milestones.EntranceShowcase.CharmChosen);
+
+        AppSettings third = Launch(Launch(read));
+        Assert.Null(third.Milestones.EntranceShowcase);
+        Assert.Equal(["spiderMan"], third.Overlay.Stack.Ids);
+        Assert.Equal(0.8, third.Overlay.Stack.Places[^1].Size);
+        Assert.Equal(0.7, third.Overlay.CharmSize);
+        Assert.NotNull(showcase.Before.Rope);
+    }
+
+    [Fact]
+    public void ASnapshotThatNoLongerReadsBackGivesNoRopeBackAndTheRestStill()
+    {
+        AppSettings lent = Launch(ExistingUser());
+        EntranceShowcase showcase = lent.Milestones.EntranceShowcase!;
+        ShowcaseRope unreadable = showcase.Before.Rope! with
+        {
+            StoredSlots = [new RopeCharm("a-charm-this-build-does-not-have"), .. showcase.Before.Rope!.StoredSlots.Skip(1)],
+        };
+        lent = lent with { Milestones = lent.Milestones with { EntranceShowcase = showcase with { Before = showcase.Before with { Rope = unreadable } } } };
+
+        AppSettings third = Launch(Launch(lent));
+        Assert.Equal(["spiderMan"], third.Overlay.Stack.Ids);
+        Assert.Equal(0.7, third.Overlay.CharmSize);
+        Assert.Null(third.Milestones.EntranceShowcase);
     }
 }

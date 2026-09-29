@@ -40,3 +40,6 @@ google-services.json
 firebase-config*.json
 .firebaserc
 *.mmdb
+
+# Wrangler (Cloudflare CLI) state: account ids, never committed.
+.wrangler/

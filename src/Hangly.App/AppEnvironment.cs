@@ -263,6 +263,9 @@ public sealed class AppEnvironment : IDisposable
     /// <summary>Whether this launch came from a sign-in entry written before <c>--login</c>.</summary>
     private bool legacyLoginEntry;
 
+    /// <summary>This launch is the first of a new version (<see cref="NoteVersion"/>).</summary>
+    private bool firstLaunchOfUpdate;
+
     /// <summary>Where this launch lands, once onboarding and the tray are settled. See LaunchIntent.</summary>
     /// <remarks>
     /// Called after <see cref="ShowWelcomeIfNeeded"/>: a first launch has already put the
@@ -277,8 +280,11 @@ public sealed class AppEnvironment : IDisposable
             TimeSpan.FromMilliseconds(Environment.TickCount64),
             legacyLoginEntry);
         Diagnostics.Log($"launch: {destination}{(arguments.Count > 0 ? " (" + string.Join(' ', arguments) + ")" : string.Empty)}");
+        // An update launch is the first launch of a new version, whoever started it: 0.9.x's updater restarts the app
+        // without the argument 2.1's passes.
         analytics.Log(AnalyticsEvent.AppLaunch(
-            atLogin: arguments.Contains("--login", StringComparer.Ordinal) || legacyLoginEntry, afterUpdate: updatedLaunch));
+            atLogin: arguments.Contains("--login", StringComparer.Ordinal) || legacyLoginEntry,
+            afterUpdate: updatedLaunch || firstLaunchOfUpdate));
         // The release notes stand in for the Library on the launch they appear: one window, not two.
         if (destination == Hangly.Core.Lifecycle.LaunchDestination.Library && !releaseNotesDue)
         {
@@ -982,10 +988,14 @@ public sealed class AppEnvironment : IDisposable
         releaseNotesDue = Hangly.Core.Text.ReleaseHighlights.ShouldShow(
             previous, AppInfo.Version, updatedBefore: updatedLaunch || store.Settings.Milestones.LaunchCount > 1);
 
-        // An install from before this was recorded, that has launched before, is an update from an unknown version.
+        // An install that has launched before but never recorded a version is an update from 0.9.x: every Windows
+        // release before 2.1.0 was a 0.9 release, and none of them kept its version.
         if (previous is not null || store.Settings.Milestones.LaunchCount > 1)
         {
-            analytics.Log(AnalyticsEvent.AppUpdate(previous ?? "unknown"));
+            string from = previous ?? "0.9.x";
+            firstLaunchOfUpdate = true;
+            analytics.Log(AnalyticsEvent.AppUpdate(from));
+            analytics.Log(AnalyticsEvent.UpdateInstalled(from, AppInfo.Version));
         }
 
         store.Update(settings => settings with

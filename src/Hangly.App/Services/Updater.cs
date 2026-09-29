@@ -5,6 +5,7 @@
 //  Checking whether there is a newer Hangly, and becoming it.
 //
 
+using Hangly.Core.Analytics;
 using Velopack;
 using Velopack.Sources;
 
@@ -62,6 +63,13 @@ public sealed class Updater
     private readonly string feedUrl;
     private UpdateInfo? pending;
     private UpdateInfo? downloaded;
+
+    // The update funnel (AnalyticsEvent.UpdateAvailable …): who asked for this update, and which version was
+    // already reported available this run, so a daily check that finds the same one again adds nothing.
+    private UpdateTrigger trigger = UpdateTrigger.Quiet;
+    private string? reportedAvailable;
+
+    private static void Report(AnalyticsEvent analyticsEvent) => HanglyAnalytics.Log(analyticsEvent);
 
     /// <summary>The version downloaded and waiting for Hangly to restart, if any.</summary>
     public string? ReadyVersion => downloaded?.TargetFullRelease.Version.ToString();
@@ -125,8 +133,9 @@ public sealed class Updater
     }
 
     /// <summary>Asks the feed what exists. Never throws.</summary>
-    public async Task<UpdateCheck> CheckAsync()
+    public async Task<UpdateCheck> CheckAsync(UpdateTrigger trigger = UpdateTrigger.Quiet)
     {
+        this.trigger = trigger;
         try
         {
             UpdateManager manager = Manager();
@@ -142,6 +151,11 @@ public sealed class Updater
             }
 
             string version = pending.TargetFullRelease.Version.ToString();
+            if (reportedAvailable != version)
+            {
+                reportedAvailable = version;
+                Report(AnalyticsEvent.UpdateAvailable(version, trigger));
+            }
 
             // Whatever the release was packaged with, if anything. A release with no
             // notes is ordinary rather than an error, and shows the version alone.
@@ -151,6 +165,7 @@ public sealed class Updater
         catch (Exception exception)
         {
             Diagnostics.Log($"update check failed: {exception.GetType().Name}");
+            Report(AnalyticsEvent.UpdateFailed(UpdateStage.Check, exception.GetType().Name, trigger));
             return new UpdateCheck(null, "Couldn't check for updates just now.");
         }
     }
@@ -186,14 +201,18 @@ public sealed class Updater
         try
         {
             UpdateInfo found = pending;
+            string version = found.TargetFullRelease.Version.ToString();
+            Report(AnalyticsEvent.UpdateDownloadStarted(version, trigger));
             await Manager().DownloadUpdatesAsync(found).ConfigureAwait(false);
             downloaded = found;
+            Report(AnalyticsEvent.UpdateDownloadCompleted(version, trigger));
             Diagnostics.Log($"update {found.TargetFullRelease.Version} downloaded; applies on the next start");
             return true;
         }
         catch (Exception exception)
         {
             Diagnostics.Log($"update download failed: {exception.GetType().Name}");
+            Report(AnalyticsEvent.UpdateFailed(UpdateStage.Download, exception.GetType().Name, trigger));
             return false;
         }
     }
@@ -221,6 +240,7 @@ public sealed class Updater
         catch (Exception exception)
         {
             Diagnostics.Log($"update apply-on-exit failed: {exception.GetType().Name}");
+            Report(AnalyticsEvent.UpdateFailed(UpdateStage.Install, exception.GetType().Name, trigger));
         }
     }
 
@@ -250,6 +270,7 @@ public sealed class Updater
         catch (Exception exception)
         {
             Diagnostics.Log($"quiet update install failed: {exception.GetType().Name}");
+            Report(AnalyticsEvent.UpdateFailed(UpdateStage.Install, exception.GetType().Name, trigger));
             return false;
         }
     }
@@ -261,10 +282,27 @@ public sealed class Updater
             return "There's nothing to install.";
         }
 
+        // Only ever asked for by a person: the About page's Install, the tray's Restart to update.
+        trigger = UpdateTrigger.Manual;
+        string version = pending.TargetFullRelease.Version.ToString();
+        UpdateStage stage = UpdateStage.Download;
         try
         {
             UpdateManager manager = Manager();
+            // Downloaded as it always was; reported only when it is not the package the quiet check already fetched.
+            bool fresh = downloaded?.TargetFullRelease.Version.ToString() != version;
+            if (fresh)
+            {
+                Report(AnalyticsEvent.UpdateDownloadStarted(version, trigger));
+            }
+
             await manager.DownloadUpdatesAsync(pending).ConfigureAwait(false);
+            if (fresh)
+            {
+                Report(AnalyticsEvent.UpdateDownloadCompleted(version, trigger));
+            }
+
+            stage = UpdateStage.Install;
 
             Diagnostics.Log($"applying update {pending.TargetFullRelease.Version}");
             // Restarted quietly: the update is the only thing that changed, so no window
@@ -275,6 +313,7 @@ public sealed class Updater
         catch (Exception exception)
         {
             Diagnostics.Failure("applying an update", exception);
+            Report(AnalyticsEvent.UpdateFailed(stage, exception.GetType().Name, trigger));
             return "That update couldn't be installed. Your copy is unchanged.";
         }
     }
