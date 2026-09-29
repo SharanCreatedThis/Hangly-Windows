@@ -2,121 +2,150 @@
 //  FollowPrompt.cs
 //  Hangly
 //
-//  The card that asks, once in a while, whether you want to follow along.
+//  "Enjoying Hangly?": the support card, every third launch.
 //
 
 using Hangly.App.Services;
+using Hangly.Core.Analytics;
 using Hangly.Core.Settings;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 
 namespace Hangly.App.Onboarding;
 
-/// <summary>Whether the card was answered, and how.</summary>
-/// <remarks>The macOS type is <c>FollowPromptAnswer</c>, with these three cases.</remarks>
+/// <summary>How the card was closed. None of them stops it coming back on the next third launch.</summary>
+/// <remarks>The macOS type is <c>FollowPromptAnswer</c>.</remarks>
 public enum FollowAnswer
 {
-    /// <summary>Closed without choosing. Asked again later.</summary>
+    /// <summary>Continue, or closed by the title bar.</summary>
     Dismissed,
 
-    /// <summary>"Maybe later". Asked again later.</summary>
-    MaybeLater,
-
-    /// <summary>"Follow". Never asked again.</summary>
+    /// <summary>Opened Instagram.</summary>
     Followed,
 }
 
-/// <summary>The follow card, and the rules about when it appears.</summary>
+/// <summary>The "Enjoying Hangly?" support card, and when it appears.</summary>
 /// <remarks>
 /// The macOS counterparts are <c>FollowPrompt</c>, <c>FollowPromptPresenter</c> and
-/// <c>FollowPromptWindowController</c>, with three settings behind them —
-/// <c>hasSeenFollowPrompt</c>, <c>isFollowPromptSilenced</c> and
-/// <c>followPromptShownAtLaunch</c> — and four analytics events, all of whose names this
-/// build already carried.
+/// <c>FollowPromptWindowController</c>: the same title, words and buttons in the same
+/// order — the call to action first, then Instagram, then Continue.
 ///
-/// <para><b>What is quoted and what is not.</b> The structure, the settings and the event
-/// names are read from the shipping binary. The card's own words are <em>not</em> in it as
-/// literals, so the copy below is written here in the app's voice and is the one part of
-/// this that is not parity. It is marked as such in Docs/LIBRARY-AUDIT.md.</para>
+/// <para><b>When.</b> Every third launch, from the third: 3, 6, 9, 12… The rule and the
+/// words are in Core (<see cref="SupportCard"/>) so they are tested, and so the two
+/// platforms can be checked against each other.</para>
 ///
-/// <para><b>Why a launch number and not a charm count.</b> macOS records the launch the
-/// card was last shown at, which is what makes "maybe later" mean later rather than never:
-/// the card returns a set number of launches afterwards. The two thresholds below are the
-/// inferred part — macOS's own numbers are not recoverable from strings — and they are
-/// deliberately unhurried, because a card that asks to be followed is asking for a favour
-/// and should do it rarely.</para>
+/// <para>The creator credit here is the line alone, not the panel the welcome card uses:
+/// that panel carries the same call to action, and one card offering it twice reads as
+/// pressure.</para>
 /// </remarks>
 public sealed class FollowPrompt : Window
 {
-    /// <summary>The earliest launch the card may appear at.</summary>
-    /// <remarks>
-    /// Five, the macOS build's <c>launchesBeforeFollowPrompt</c>, read from its source.
-    /// This was three, inferred when that source was not to hand, and the two platforms
-    /// asked at different moments until the parity audit caught it. Someone who has opened
-    /// Hangly five times has decided to keep it.
-    /// </remarks>
-    public const int FirstLaunch = 5;
-
-    /// <summary>How many launches pass before "maybe later" is asked again.</summary>
-    public const int LaunchesBetween = 10;
-
     private readonly SettingsStore store;
+
     private FollowAnswer answer = FollowAnswer.Dismissed;
+
     private bool recorded;
 
     public FollowPrompt(SettingsStore store)
     {
         this.store = store;
-
         Title = "Hangly";
 
-        var follow = new Button
+        // Four groups with room between them, largest first: the question; who made it; the
+        // sentence; the buttons. macOS's rhythm, number for number — 14 between the title
+        // and the credit, 28 before the sentence, 32 before the buttons, a 36-point margin —
+        // centred in a card as tall as the support sheet needs (SupportSheet.QrSide).
+        var body = new StackPanel
         {
-            Content = "Follow",
-            Style = (Style)Application.Current.Resources["AccentButtonStyle"],
+            Margin = new Thickness(36),
+            VerticalAlignment = VerticalAlignment.Center,
         };
+
+        Button support = Branding.HanglyButtons.Primary(SupportCard.CallToAction, height: 48);
+        support.Margin = new Thickness(0, 32, 0, 0);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(support, "FollowSupportButton");
+        support.Click += async (_, _) =>
+        {
+            HanglyAnalytics.Log(AnalyticsEvent.SupportClicked(SupportSurface.Card));
+            try
+            {
+                await Customize.SupportSheet.ShowAsync(body);
+            }
+            catch (Exception exception)
+            {
+                Diagnostics.Failure("support sheet", exception);
+            }
+        };
+
+        Button follow = Branding.HanglyButtons.Secondary("Instagram");
+        follow.Margin = new Thickness(0, 12, 0, 0);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(follow, "FollowButton");
-
-        var later = new Button { Content = "Maybe later" };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(later, "FollowLaterButton");
-
         follow.Click += (_, _) => Answer(FollowAnswer.Followed);
-        later.Click += (_, _) => Answer(FollowAnswer.MaybeLater);
 
-        var buttons = new StackPanel
+        var carryOn = new HyperlinkButton
         {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Spacing = 8,
+            Content = "Continue",
+            FontSize = 13,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+            Margin = new Thickness(0, 8, 0, 0),
         };
-        buttons.Children.Add(later);
-        buttons.Children.Add(follow);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(carryOn, "FollowContinueButton");
+        carryOn.Click += (_, _) => Answer(FollowAnswer.Dismissed);
 
-        var body = new StackPanel { Spacing = 10, Margin = new Thickness(28) };
+        // Hangly's mark in Hangly's colour, as on macOS.
+        body.Children.Add(new TextBlock
+        {
+            Text = "\u2726",
+            FontSize = 22,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x6D, 0x5A, 0xE5)),
+        });
         body.Children.Add(new TextBlock
         {
             Text = "Enjoying Hangly?",
-            Style = (Style)Application.Current.Resources["TitleTextBlockStyle"],
+            FontSize = 26,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 12, 0, 0),
+        });
+
+        // "Created by" quiet and small; the handle is the line that matters.
+        body.Children.Add(new TextBlock
+        {
+            Text = "CREATED BY",
+            FontSize = 11,
+            CharacterSpacing = 120,
+            Opacity = 0.5,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 14, 0, 0),
         });
         body.Children.Add(new TextBlock
         {
-            Text = "It is made by one person. New charms, and whatever gets built next, "
-                + "turn up on Instagram first.",
-            TextWrapping = TextWrapping.Wrap,
+            Text = AppInfo.CreatorHandle,
+            FontSize = 16,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 4, 0, 0),
         });
-        // The handle used to be a third line of copy here, unlinked. It is in the credit
-        // below now, where it is clickable and where it reads the same as it does in
-        // every other window, so having it twice would be having it twice.
-        body.Children.Add(buttons);
-        body.Children.Add(Branding.CreatorCredit.Panel(body, stacked: true));
 
+        TextBlock message = Customize.SupportSheet.MessageBlock(balanced: true);
+        message.Margin = new Thickness(0, 28, 0, 0);
+        body.Children.Add(message);
+        body.Children.Add(support);
+        body.Children.Add(follow);
+        body.Children.Add(carryOn);
         Content = body;
 
-        // Taller than the 300 it was. The credit is a divider, a line and a button on
-        // its own row; the card had nothing spare, a card that asks a favour is the wrong
-        // place to crowd, and the coffee sheet opens inside this window and can be no
-        // taller than it.
-        Interop.WindowPlacement.SizeAndCentre(this, 460, 440);
+        // Mica, Windows 11's own window material, rather than a flat fill, running up under
+        // the caption buttons so the card has no separate title bar — as the macOS card.
+        SystemBackdrop = new MicaBackdrop();
+        ExtendsContentIntoTitleBar = true;
+
+        // Tall enough for the support sheet, which opens inside this window and can be no
+        // taller than it (SupportSheet.QrSide).
+        Interop.WindowPlacement.SizeAndCentre(this, 440, 600);
         Interop.WindowIcon.Apply(this);
         Interop.WindowPlacement.FixSize(this);
 
@@ -124,34 +153,11 @@ public sealed class FollowPrompt : Window
         Closed += (_, _) => Record();
     }
 
-    /// <summary>Whether the card is due.</summary>
-    /// <remarks>
-    /// Pure and static so the rule can be tested without a window, which is the only way
-    /// "asked again ten launches later" is checkable at all.
-    /// </remarks>
-    public static bool IsDue(AppSettings settings)
-    {
-        if (settings.IsFollowPromptSilenced)
-        {
-            return false;
-        }
-
+    /// <summary>Whether the card is due: every third launch (<see cref="SupportCard.IsDue"/>).</summary>
+    public static bool IsDue(AppSettings settings) =>
         // Never while onboarding is still owed: the first thing someone sees should not
         // be two windows asking for things.
-        if (WelcomeWindow.IsNeeded(settings))
-        {
-            return false;
-        }
-
-        int launches = settings.Milestones.LaunchCount;
-        if (launches < FirstLaunch)
-        {
-            return false;
-        }
-
-        return !settings.HasSeenFollowPrompt
-            || launches - settings.FollowPromptShownAtLaunch >= LaunchesBetween;
-    }
+        !WelcomeWindow.IsNeeded(settings) && SupportCard.IsDue(settings);
 
     /// <summary>Records that the card was shown, and when.</summary>
     public void Shown()
@@ -188,18 +194,9 @@ public sealed class FollowPrompt : Window
 
         recorded = true;
 
-        switch (answer)
+        if (answer == FollowAnswer.Followed)
         {
-            case FollowAnswer.Followed:
-                _ = Windows.System.Launcher.LaunchUriAsync(new Uri(AppInfo.InstagramUrl));
-
-                // Someone who followed is never asked again. That is the whole of what
-                // silencing is for.
-                store.Update(settings => settings with { IsFollowPromptSilenced = true });
-                break;
-
-            default:
-                break;
+            _ = Windows.System.Launcher.LaunchUriAsync(new Uri(AppInfo.InstagramUrl));
         }
 
         Diagnostics.Log($"follow card answered: {answer}");

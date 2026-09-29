@@ -78,6 +78,9 @@ public static class ProcessLifetime
     /// </remarks>
     public static void Dismiss(Window window) => window.AppWindow.Hide();
 
+    /// <summary>Whether any onboarding window (welcome, a card) is on screen.</summary>
+    public static bool AnyVisible => Held.Any(window => window.AppWindow.IsVisible);
+
     /// <summary>Lets the process end. Called on the way out, and nowhere else.</summary>
     public static void Release()
     {

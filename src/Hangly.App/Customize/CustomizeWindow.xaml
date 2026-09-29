@@ -721,16 +721,7 @@
                             Text="Appearance" />
 
                         <StackPanel Spacing="6">
-                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Appearance" />
-                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                <TextBlock Text="Charm" />
-                                <TextBlock
-                                    x:Name="CharmNameText"
-                                    Opacity="0.7"
-                                    AutomationProperties.AutomationId="CharmNameText" />
-                            </StackPanel>
-                            <TextBlock Margin="0,6,0,0" Text="Position" />
-                            <local:DesktopPicker x:Name="PositionPicker" AutomationProperties.AutomationId="PositionPicker" Margin="0,4,0,8" />
+                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Charm &amp; Rope" />
                             <TextBlock x:Name="PositionLabel" Text="Horizontal position" />
                             <Slider
                                 x:Name="PositionSlider"
@@ -808,13 +799,6 @@
                                 <x:String>Soft</x:String>
                                 <x:String>Strong</x:String>
                             </muxc:RadioButtons>
-                            <ComboBox
-                                x:Name="RopeStyleChoice"
-                                MinWidth="220"
-                                AutomationProperties.AutomationId="RopeStyleChoice"
-                                AutomationProperties.Name="Rope style"
-                                Header="Rope style"
-                                SelectionChanged="OnRopeStyleChanged" />
                             <TextBlock x:Name="LengthLabel" Text="Rope length" />
                             <Slider x:Name="LengthSlider" AutomationProperties.Name="Rope length" ValueChanged="OnLengthChanged" />
                             <!-- Rope type and mouse reactive side by side: both decide how the charm answers a hand. -->
@@ -836,11 +820,11 @@
                                 </muxc:RadioButtons>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock Text="Mouse reactive" />
+                                    <TextBlock Text="Mouse interaction" />
     <muxc:RadioButtons
                                     x:Name="InteractionChoice"
                                     AutomationProperties.AutomationId="InteractionChoice"
-                                    AutomationProperties.Name="Mouse reactive"
+                                    AutomationProperties.Name="Mouse interaction"
                                     MaxColumns="2"
                                     SelectionChanged="OnInteractionChanged">
                                     <x:String>Normal</x:String>
@@ -981,7 +965,7 @@
                                 HorizontalAlignment="Left"
                                 Opacity="0.7"
                                 Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="Hangly keeps your name on this PC to greet you, and sends it to the developer with your PC's processor and the versions of Windows and Hangly, plus a daily note that Hangly is running, to help improve the app. Nothing about what you do in the app, or the images and charms you make."
+                                Text="Hangly registers this installation with its developer: your nickname, your city, region and country (from your connection; the address is not kept), your PC's processor and the versions of Windows and Hangly, and when it was first and last used. It also reports crashes and a few choices, like which charm you pick, to help improve the app. Never the images you import."
                                 TextWrapping="Wrap" />
                             <HyperlinkButton
                                 x:Name="PrivacyDetailsLink"
@@ -1061,8 +1045,8 @@
                             secret and the analytics, and the left had four lines and a
                             lot of air.
 
-                            macOS ships CreatorCard and BuyCoffeeSheet, and a UPI QR in
-                            its bundle, so the coffee flow there is a sheet rather than a
+                            macOS ships CreatorCard and SupportSheet, and a UPI QR in
+                            its bundle, so the support flow there is a sheet rather than a
                             link. Every line of copy here is quoted from the macOS binary;
                             see Docs/LIBRARY-AUDIT.md.
                         -->
@@ -1097,7 +1081,7 @@
                                     Text="Photography • Film • Design • Code" />
 
                                 <!--
-                                    Coffee is the accented one and it is first, because it
+                                    Support is the accented one and it is first, because it
                                     is the only one of the four that is an offer rather
                                     than a direction. The rest are links, which is what
                                     keeps the row from reading as a toolbar.
@@ -1107,10 +1091,10 @@
                                     Orientation="Horizontal"
                                     Spacing="8">
                                     <Button
-                                        x:Name="CoffeeButton"
-                                        AutomationProperties.AutomationId="CoffeeButton"
-                                        Click="OnCoffeeClicked"
-                                        Content="Buy Creator a Coffee"
+                                        x:Name="SupportButton"
+                                        AutomationProperties.AutomationId="SupportButton"
+                                        Click="OnSupportClicked"
+                                        Content="Support Hangly Development"
                                         Style="{StaticResource AccentButtonStyle}" />
                                 </StackPanel>
                                 <StackPanel
@@ -1288,13 +1272,13 @@
                         <muxc:Expander
                             x:Name="AnalyticsSection"
                             HorizontalAlignment="Stretch"
-                            Header="Analytics">
+                            Header="Installation">
                             <StackPanel Margin="0,8,0,0" Spacing="12">
                                 <TextBlock
                                     Opacity="0.75"
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     TextWrapping="Wrap"
-                                    Text="Sends your name, that this is Windows, the processor, and the versions of Windows and Hangly — when you first start Hangly, if you change your name, and on a new major version. Once a day that Hangly runs, it also says it is still running, and on which version. If you uninstall, it says so once. Nothing about what you do in the app is ever sent. Sharing this is part of using Hangly; there is no switch. If you turned it off in an earlier version, it stays off." />
+                                    Text="Every installation is registered with Hangly's developer, using Google Firebase: the nickname you gave, your city, region and country (worked out from your connection; the address itself is not stored), and what you run it on. It is updated when something changes, and at most once a day to say Hangly is still in use. If you uninstall, it says so once. Hangly also reports crashes, with their details, and a few choices: when it starts, which charm and rope you pick, whether you open the support page, and finishing the welcome. This is part of using Hangly; there is no switch." />
 
                                 <Grid ColumnSpacing="16" RowSpacing="6">
                                     <Grid.ColumnDefinitions>
@@ -1309,10 +1293,10 @@
                                         <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
 
-                                    <TextBlock Opacity="0.7" Text="Sharing" />
+                                    <TextBlock Opacity="0.7" Text="Registry" />
                                     <TextBlock x:Name="AnalyticsState" Grid.Column="1" />
 
-                                    <TextBlock Grid.Row="1" Opacity="0.7" Text="Destination" />
+                                    <TextBlock Grid.Row="1" Opacity="0.7" Text="Place" />
                                     <TextBlock x:Name="AnalyticsEndpoint" Grid.Row="1" Grid.Column="1" />
 
                                     <TextBlock Grid.Row="2" Opacity="0.7" Text="Installation" />
@@ -1326,7 +1310,7 @@
                                     <TextBlock Grid.Row="3" Opacity="0.7" Text="Last sent" />
                                     <TextBlock x:Name="AnalyticsLastSent" Grid.Row="3" Grid.Column="1" />
 
-                                    <TextBlock Grid.Row="4" Opacity="0.7" Text="Your name" />
+                                    <TextBlock Grid.Row="4" Opacity="0.7" Text="Nickname" />
                                     <TextBlock
                                         x:Name="AnalyticsUserName"
                                         Grid.Row="4"
@@ -1341,7 +1325,7 @@
                                     Margin="0,8,0,0"
                                     Opacity="0.7"
                                     Style="{StaticResource CaptionTextBlockStyle}"
-                                    Text="What Hangly is told, and nothing else:" />
+                                    Text="What the registry holds, and nothing else:" />
                                 <TextBlock
                                     x:Name="AnalyticsFields"
                                     AutomationProperties.AutomationId="AnalyticsFields"
@@ -1354,7 +1338,7 @@
                                     MaxWidth="560"
                                     Opacity="0.7"
                                     Style="{StaticResource CaptionTextBlockStyle}"
-                                    Text="Never your files, their names, their contents, the folders they came from, your clipboard, your email, or your Windows account name."
+                                    Text="Never your IP address, your files, their names, their contents, the folders they came from, your clipboard, your email, or your Windows account name. Charms you make are reported only as &quot;custom&quot;."
                                     TextWrapping="Wrap" />
 
                                 <Button x:Name="RefreshAnalytics" Click="OnRefreshAnalytics" Content="Refresh" />

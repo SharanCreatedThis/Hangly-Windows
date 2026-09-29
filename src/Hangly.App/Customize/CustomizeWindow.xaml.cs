@@ -43,7 +43,7 @@ public sealed partial class CustomizeWindow : Window
 {
     private readonly SettingsStore store;
     private readonly ILaunchAtLogin launchAtLogin;
-    private readonly AnalyticsManager analytics;
+    private readonly Hangly.Core.Registry.RegistrySync registry;
     private readonly AppEnvironment environment;
     private readonly List<CharmTile> tiles = [];
     private readonly Dictionary<string, CharmTile> tilesById = new(StringComparer.Ordinal);
@@ -77,12 +77,12 @@ public sealed partial class CustomizeWindow : Window
     public CustomizeWindow(
         SettingsStore store,
         ILaunchAtLogin launchAtLogin,
-        AnalyticsManager analytics,
+        Hangly.Core.Registry.RegistrySync registry,
         AppEnvironment environment)
     {
         this.store = store;
         this.launchAtLogin = launchAtLogin;
-        this.analytics = analytics;
+        this.registry = registry;
         this.environment = environment;
 
         // Held for the whole of construction, and dropped by Load's finally.
@@ -96,6 +96,14 @@ public sealed partial class CustomizeWindow : Window
 
         InitializeComponent();
         Title = "Hangly";
+
+        // Hangly's indigo rather than the system accent, as on the cards (HanglyButtons).
+        Branding.HanglyButtons.Brand(SupportButton);
+        SupportButton.CornerRadius = Branding.HanglyButtons.Corner;
+        SupportButton.Height = 44;
+        SupportButton.Padding = new Thickness(20, 0, 20, 0);
+        SupportButton.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+        SupportButton.ActualThemeChanged += (_, _) => Branding.HanglyButtons.Brand(SupportButton);
         AppWindow.Closing += OnClosing;
 
         ResizeToDefault();
@@ -110,12 +118,9 @@ public sealed partial class CustomizeWindow : Window
         Load();
 
         store.Changed += OnStoreChanged;
-        PositionPicker.Moved += OnPickerMoved;
-        analytics.Changed += OnAnalyticsChanged;
         Closed += (_, _) =>
         {
             store.Changed -= OnStoreChanged;
-            analytics.Changed -= OnAnalyticsChanged;
         };
     }
 
@@ -131,10 +136,18 @@ public sealed partial class CustomizeWindow : Window
 
     private void ResizeToDefault()
     {
-        Interop.WindowPlacement.SizeAndCentre(this, 1120, 800);
+        CentreForOpening();
         Interop.WindowIcon.Apply(this);
         FixTheSize();
     }
+
+    /// <summary>Puts the window, at its one size, in the middle of the display the pointer is on.</summary>
+    /// <remarks>
+    /// Called on every open, not just the first: the window hides rather than closes, and
+    /// every Hangly window opens in the middle of the display in use rather than where it
+    /// was left (<see cref="Interop.WindowPlacement.SizeAndCentre"/>).
+    /// </remarks>
+    public void CentreForOpening() => Interop.WindowPlacement.SizeAndCentre(this, 1120, 800);
 
     /// <summary>Takes away resizing and maximising, and leaves everything else.</summary>
     /// <remarks>
@@ -156,43 +169,6 @@ public sealed partial class CustomizeWindow : Window
 
         presenter.IsResizable = false;
         presenter.IsMaximizable = false;
-    }
-
-    /// <summary>Puts the window in the middle of the display it opened on.</summary>
-    /// <remarks>
-    /// <b>Nothing was positioning it at all.</b> The window was resized and never moved,
-    /// so it opened wherever Windows put it — which for a new top-level window is a
-    /// cascade from the top-left corner, and for a window this size on a scaled display is
-    /// most of the way off the edge. Testers described it as landing "near screen edges"
-    /// and "random", and both were fair: the placement was whatever the shell felt like,
-    /// and it moved every time.
-    ///
-    /// <para>Only on the way up. The window hides rather than closes, so from the second
-    /// time onwards it comes back exactly where it was left — which is the behaviour
-    /// somebody who moved it deliberately expects, and re-centring on every open would
-    /// throw that away.</para>
-    /// </remarks>
-    private void CentreOnDisplay(Windows.Graphics.SizeInt32 size)
-    {
-        try
-        {
-            Microsoft.UI.Windowing.DisplayArea area = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(
-                AppWindow.Id,
-                Microsoft.UI.Windowing.DisplayAreaFallback.Primary);
-
-            // The work area, not the whole display, so a taskbar does not push the window
-            // down by its own height.
-            Windows.Graphics.RectInt32 work = area.WorkArea;
-
-            AppWindow.Move(new Windows.Graphics.PointInt32(
-                work.X + Math.Max(0, (work.Width - size.Width) / 2),
-                work.Y + Math.Max(0, (work.Height - size.Height) / 2)));
-        }
-        catch (Exception exception)
-        {
-            // A window in the wrong place is still a usable window.
-            Services.Diagnostics.Failure("centring the customize window", exception);
-        }
     }
 
     /// <summary>Lets the window close for good, on the way out of the application.</summary>
@@ -612,8 +588,8 @@ public sealed partial class CustomizeWindow : Window
         ShowResults();
     }
 
-    /// <summary>Choosing a rope from the Library, which is the same act as choosing it
-    /// from Appearance and goes through the same one write path.</summary>
+    /// <summary>Choosing a rope from the Library, the one page that offers it; the tray's
+    /// Rope menu goes through the same one write path.</summary>
     private void OnRopeListClicked(object sender, ItemClickEventArgs args)
     {
         if (args.ClickedItem is not RopeChoiceItem item || item.Style == Overlay.RopeStyle)
@@ -646,7 +622,6 @@ public sealed partial class CustomizeWindow : Window
             ShowPositionLabel();
             VerticalSlider.Value = Math.Clamp(overlay.OffsetY, VerticalSlider.Minimum, VerticalSlider.Maximum);
             ShowVerticalLabel();
-            ShowPositionPicker();
 
             SizeSlider.Value = overlay.CharmSize;
             LengthSlider.Value = overlay.RopeLength;
@@ -664,20 +639,6 @@ public sealed partial class CustomizeWindow : Window
                 ? Visibility.Visible
                 : Visibility.Collapsed;
             SpiderManSection.Visibility = offered;
-
-            // Which charm is hanging — the one on the end of the rope — and its cord.
-            CharmNameText.Text = overlay.CharmIds.Count > 0
-                ? environment.Charms.Find(overlay.CharmIds[^1]).DisplayName
-                : "";
-            if (RopeStyleChoice.Items.Count == 0)
-            {
-                foreach (Hangly.Core.Models.RopeStyle style in Hangly.Core.Models.RopeStyleTable.All)
-                {
-                    RopeStyleChoice.Items.Add(Hangly.Core.Models.RopeStyleTable.DisplayNameOf(style));
-                }
-            }
-
-            RopeStyleChoice.SelectedIndex = Hangly.Core.Models.RopeStyleTable.All.ToList().IndexOf(overlay.RopeStyle);
             FullscreenToggle.IsOn = overlay.HidesDuringFullscreenVideo;
             SoundToggle.IsOn = store.Settings.SoundEffectsEnabled;
             VolumeSlider.Value = Math.Round(store.Settings.SoundVolume * 100);
@@ -707,7 +668,7 @@ public sealed partial class CustomizeWindow : Window
 
     private void OnNameCommitted(object sender, RoutedEventArgs args) => CommitName();
 
-    /// <summary>Saves a changed name and lets analytics tell the project, once.</summary>
+    /// <summary>Saves a changed nickname. The installation registry notices and sends it.</summary>
     /// <remarks>
     /// An empty box puts the old name back rather than saving nothing: the name is required
     /// everywhere else, and clearing it here would be a way round that.
@@ -727,7 +688,6 @@ public sealed partial class CustomizeWindow : Window
         }
 
         store.Update(settings => settings with { DisplayName = chosen });
-        _ = analytics.Sync();
         Diagnostics.Log("name changed");
     }
 
@@ -1042,7 +1002,7 @@ public sealed partial class CustomizeWindow : Window
 
         if (page == "about")
         {
-            LoadAnalytics();
+            LoadInstallation();
         }
     }
 
@@ -1290,98 +1250,54 @@ public sealed partial class CustomizeWindow : Window
     private void OnSuggestClicked(object sender, RoutedEventArgs args) =>
         _ = Windows.System.Launcher.LaunchUriAsync(new Uri(AppInfo.SuggestMailUrl));
 
-    /// <summary>
-    /// The analytics inspector.
-    /// </summary>
+    /// <summary>What the installation registry holds for this machine, for whoever wants to check.</summary>
     /// <remarks>
-    /// PRIVACY.md says this shows whether sharing is on, whether a destination is
-    /// configured and which, the installation identifier masked, and the last event sent
-    /// and when. It is in the app rather than behind a developer flag because the
-    /// argument for collecting anything at all is that it can be inspected.
+    /// macOS's <c>InstallationPanel</c>. In the app rather than behind a developer flag because the argument for
+    /// registering anything at all is that it can be inspected. The installation ID is masked: enough to tell two
+    /// machines apart, not worth writing down.
     /// </remarks>
-    private void LoadAnalytics()
+    private void LoadInstallation()
     {
-        bool wasLoading = isLoading;
-        isLoading = true;
-        try
-        {
-            AnalyticsState.Text = analytics.IsEnabled ? "On" : "Off";
-            AnalyticsUserName.Text = store.Settings.DisplayName.Length > 0
-                ? store.Settings.DisplayName
-                : "(not set)";
-
-            // Built from the manager rather than typed here, so the list cannot drift
-            // from what is actually sent.
-            AnalyticsFields.Text = string.Join(
-                ", ",
-                analytics.PersonProperties().Keys.Prepend("install_id").Distinct());
-            AnalyticsEndpoint.Text = analytics.Connection.Summary;
-            AnalyticsIdentifier.Text = analytics.MaskedIdentifier ?? "none yet";
-            AnalyticsLastSent.Text = LastSentDescription();
-        }
-        finally
-        {
-            isLoading = wasLoading;
-        }
+        Hangly.Core.Registry.InstallationRecord? record = registry.Store.Record;
+        AnalyticsState.Text = !registry.IsConfigured
+            ? "Not configured in this build"
+            : record?.Uploaded is null
+                ? registry.LastFailure is null ? "Waiting to register" : "Will retry when online"
+                : $"Registered — last seen {record.LastSeen?.LocalDateTime:d}";
+        AnalyticsEndpoint.Text = string.Join(", ", new[] { record?.City, record?.Region, record?.Country }.Where(part => !string.IsNullOrEmpty(part)))
+            is { Length: > 0 } place ? place : "Not known yet";
+        string id = record?.InstallationId.ToString("D") ?? string.Empty;
+        AnalyticsIdentifier.Text = id.Length > 0 ? $"{id[..8]}-••••-••••-••••-••••••••{id[^4..]}" : "none yet";
+        AnalyticsLastSent.Text = registry.LastAcceptedAt is DateTimeOffset at ? $"{at.LocalDateTime:HH:mm:ss}" : "nothing this session";
+        AnalyticsUserName.Text = record is { Nickname.Length: > 0 } ? record.Nickname : "(not set)";
+        AnalyticsFields.Text = "installationId, nickname, city, region, country, platform, osName, osVersion, appVersion, "
+            + "architecture, firstSeen, lastSeen, activeDays, retentionDays, crash reports";
     }
 
-    /// <summary>The most recent thing sent this session, in words.</summary>
-    private string LastSentDescription()
-    {
-        string? identify = analytics.LastReason is IdentifyReason reason
-            ? $"{AnalyticsManager.NameOf(reason).Replace('_', ' ')} — {analytics.LastSentAt:HH:mm:ss}"
-            : null;
-        string? active = analytics.LastActiveSentAt is DateTimeOffset at ? $"active today — {at:HH:mm:ss}" : null;
-
-        return (identify, active) switch
-        {
-            (null, null) => "nothing this session",
-            (string one, null) => one,
-            (null, string other) => other,
-            _ => analytics.LastActiveSentAt >= analytics.LastSentAt ? active! : identify!,
-        };
-    }
-
-    private void OnAnalyticsChanged()
-    {
-        if (AboutPage.Visibility == Visibility.Visible)
-        {
-            LoadAnalytics();
-        }
-    }
-
-    /// <summary>Appearance → Rope → Style: the same choice as the Library's rope shelf and the tray's Rope menu.</summary>
-    private void OnRopeStyleChanged(object sender, SelectionChangedEventArgs args)
-    {
-        var styles = Hangly.Core.Models.RopeStyleTable.All.ToList();
-        if (!isLoading && RopeStyleChoice.SelectedIndex >= 0 && RopeStyleChoice.SelectedIndex < styles.Count)
-        {
-            Hangly.Core.Models.RopeStyle style = styles[RopeStyleChoice.SelectedIndex];
-            store.UpdateOverlay(overlay => overlay with { RopeStyle = style });
-        }
-    }
-
-    /// <summary>Appearance → Privacy → View privacy details: About's Analytics panel, opened.</summary>
+    /// <summary>Appearance → Privacy → View privacy details: About's Installation panel, opened.</summary>
     private void OnPrivacyDetails(object sender, RoutedEventArgs args)
     {
         ShowSection("about");
         AnalyticsSection.IsExpanded = true;
         AnalyticsSection.StartBringIntoView();
+        LoadInstallation();
     }
 
-    private void OnRefreshAnalytics(object sender, RoutedEventArgs args) => LoadAnalytics();
+    private void OnRefreshAnalytics(object sender, RoutedEventArgs args) => LoadInstallation();
 
-    private async void OnCoffeeClicked(object sender, RoutedEventArgs args)
+    private async void OnSupportClicked(object sender, RoutedEventArgs args)
     {
+        Hangly.Core.Analytics.HanglyAnalytics.Log(
+            Hangly.Core.Analytics.AnalyticsEvent.SupportClicked(Hangly.Core.Analytics.SupportSurface.About));
         try
         {
-            await BuyCoffeeSheet.ShowAsync(Root);
+            await SupportSheet.ShowAsync(Root);
         }
         catch (Exception exception)
         {
             // A dialog that cannot open must not take the window with it: this is the
             // one handler reached from a button that does nothing else.
-            Diagnostics.Failure("coffee sheet", exception);
+            Diagnostics.Failure("support sheet", exception);
         }
     }
 
@@ -1457,7 +1373,6 @@ public sealed partial class CustomizeWindow : Window
         }
 
         store.UpdateOverlay(overlay => overlay with { HorizontalPosition = at });
-        ShowPositionPicker();
     }
 
     private void ShowPositionLabel() =>
@@ -1465,45 +1380,6 @@ public sealed partial class CustomizeWindow : Window
 
     private void ShowVerticalLabel() =>
         VerticalLabel.Text = $"Vertical position \u2014 {(int)Math.Round(VerticalSlider.Value)} pt from the top";
-
-    /// <summary>Points the miniature at the chosen display, with the bottom charm on it.</summary>
-    private void ShowPositionPicker()
-    {
-        OverlaySettings overlay = Overlay;
-        Services.DisplayInfo display = Services.DisplayObserver.Chosen(overlay.DisplayId, overlay.DisplayIndex);
-        double scale = display.Scale > 0 ? display.Scale : 1;
-        string? thumbnail = overlay.Stack.Places.LastOrDefault() is { } bottom
-            ? CharmThumbnails.PathFor(environment.Charms.Find(bottom.Id))
-            : null;
-
-        // Sized against the shipped charm, so the miniature grows as the charm does.
-        PositionPicker.Show(
-            overlay.Position,
-            overlay.OffsetY,
-            display.WorkArea.Width / scale,
-            display.WorkArea.Height / scale,
-            overlay.RopeLength,
-            overlay.CharmSize / new OverlaySettings().CharmSize,
-            thumbnail);
-    }
-
-    private void OnPickerMoved(double position, double offsetY)
-    {
-        isLoading = true;
-        try
-        {
-            PositionSlider.Value = Math.Round(position * 100);
-            VerticalSlider.Value = Math.Clamp(offsetY, VerticalSlider.Minimum, VerticalSlider.Maximum);
-            ShowPositionLabel();
-            ShowVerticalLabel();
-        }
-        finally
-        {
-            isLoading = false;
-        }
-
-        store.UpdateOverlay(overlay => overlay with { HorizontalPosition = position, OffsetY = offsetY });
-    }
 
     private void OnVerticalChanged(object sender, RangeBaseValueChangedEventArgs args)
     {
@@ -1514,7 +1390,6 @@ public sealed partial class CustomizeWindow : Window
         }
 
         store.UpdateOverlay(overlay => overlay with { OffsetY = Math.Round(args.NewValue) });
-        ShowPositionPicker();
     }
 
     /// <summary>Back to where a new install hangs it.</summary>
@@ -1662,7 +1537,7 @@ public sealed partial class CustomizeWindow : Window
     /// <para><see cref="AppSettings.Defaults"/> rather than <c>new OverlaySettings()</c>,
     /// which is the same distinction the store draws when there is no file: the plain
     /// record leaves the position null, meaning "not chosen", and the charm would land
-    /// hard against the right edge instead of at the 85% a new install gets.</para>
+    /// hard against the right edge instead of at the 87% a new install gets.</para>
     ///
     /// <para>What is <em>not</em> restored: the name, the analytics identifier, the
     /// milestones, the favourites and the recents. None of those is a default anybody is

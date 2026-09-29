@@ -38,10 +38,11 @@ public readonly record struct UpdateCheck(string? Version, string Message, strin
 /// component and no identifier — the same promise the macOS build's appcast makes, and
 /// the reason PRIVACY.md can say an update check carries nothing.</para>
 ///
-/// <para><b>Silent.</b> A found update is downloaded in the background and applied the
-/// next time Hangly starts — which Velopack does on its own, before any window, for a
-/// package already downloaded — or as Hangly quits, whichever comes first. Nothing asks
-/// and nothing is shown. The About page can still install one at once.</para>
+/// <para><b>Silent.</b> A found update is downloaded in the background and installed while
+/// the person is away — locked, or a screen saver up (<see cref="Core.Lifecycle.UpdateTiming"/>)
+/// — or as Hangly quits, or the next time it starts, whichever comes first. Nothing asks
+/// and nothing is shown while it happens; the new version greets them with its release
+/// notes when they return. The About page and the tray can still install one at once.</para>
 ///
 /// <para><b>Every failure is quiet.</b> A machine with no network, a feed that has not
 /// been published yet, and a release that will not parse are all the same answer: there
@@ -220,6 +221,36 @@ public sealed class Updater
         catch (Exception exception)
         {
             Diagnostics.Log($"update apply-on-exit failed: {exception.GetType().Name}");
+        }
+    }
+
+    /// <summary>
+    /// Installs the downloaded update as this process exits and starts the new version quietly. Never throws.
+    /// </summary>
+    /// <remarks>
+    /// For the moment nobody is looking (<see cref="Core.Lifecycle.UpdateTiming"/>): silent, so Velopack shows no
+    /// progress window, and restarted with <see cref="Core.Lifecycle.LaunchIntent.UpdatedArgument"/>, so the new
+    /// version opens only its release notes. The caller exits straight after.
+    /// </remarks>
+    /// <returns>Whether the update is handed over; false leaves it for the next Quit or start.</returns>
+    public bool ApplyQuietlyAndRestart()
+    {
+        if (downloaded is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            Manager().WaitExitThenApplyUpdates(
+                downloaded.TargetFullRelease, silent: true, restart: true, restartArgs: [Core.Lifecycle.LaunchIntent.UpdatedArgument]);
+            Diagnostics.Log($"update {downloaded.TargetFullRelease.Version} installing quietly; Hangly restarts on it");
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Diagnostics.Log($"quiet update install failed: {exception.GetType().Name}");
+            return false;
         }
     }
 

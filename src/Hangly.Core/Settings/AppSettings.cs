@@ -24,12 +24,15 @@ public sealed record OverlaySettings
     public double Opacity { get; init; } = 1.0;
 
     /// <summary>How large the charm is drawn, as a multiple of the shipped size.</summary>
-    /// <summary>180% on a new install: see <see cref="CharmCatalog.FirstRunId"/>.</summary>
-    public double CharmSize { get; init; } = 1.8;
+    /// <summary>
+    /// macOS's new-install size, 1.245, carried across: the Windows canvas is 360 tall
+    /// against the Mac's 420, so the same look needs 420/360 of the number.
+    /// </summary>
+    public double CharmSize { get; init; } = 1.4525;
 
     /// <summary>How far the charm hangs, as a multiple of the shipped rope.</summary>
-    /// <summary>The shipped length on a new install, which is what macOS hangs.</summary>
-    public double RopeLength { get; init; } = 1.0;
+    /// <summary>macOS's new-install length, 0.893, scaled the same way as <see cref="CharmSize"/>.</summary>
+    public double RopeLength { get; init; } = 1.042;
 
     /// <summary>
     /// Top right on a new install, out of the way of what is usually in the middle.
@@ -114,8 +117,8 @@ public sealed record OverlaySettings
     /// <summary>What the chosen display was called, for a menu to name it while it is away.</summary>
     public string? DisplayName { get; init; }
 
-    /// <summary>Step out of the way while a film plays full screen on this display. Off by default, as on macOS.</summary>
-    public bool HidesDuringFullscreenVideo { get; init; }
+    /// <summary>Step out of the way while a film plays full screen on this display. On by default, as on macOS; the tray's tick turns it off.</summary>
+    public bool HidesDuringFullscreenVideo { get; init; } = true;
 
     /// <summary>Appearance → Motion: follow Windows' animation effects, or choose.</summary>
     public MotionPreference Motion { get; init; } = MotionPreference.FollowSystem;
@@ -386,6 +389,15 @@ public sealed record MilestoneSettings
     /// <summary>Times the rope has swung through vertical.</summary>
     public long SwingsSurvived { get; init; }
 
+    /// <summary>Whether this install has had the one-time Spider-Man introduction: <see cref="EntranceIntroduction"/>.</summary>
+    public bool SpiderManIntroCompleted { get; init; }
+
+    /// <summary>The version this install last ran, for the <c>hangly_app_update</c> event. macOS's <c>lastLaunchedVersion</c>.</summary>
+    public string? LastLaunchedVersion { get; init; }
+
+    /// <summary>While the Spider-Man introduction has lent the shipped look: what to give back, and when. See <see cref="EntranceIntroduction"/>.</summary>
+    public EntranceShowcase? EntranceShowcase { get; init; }
+
     public bool IsFirstLaunch => LaunchCount <= 1;
 }
 
@@ -494,6 +506,10 @@ public sealed record AppSettings
     /// </remarks>
     public const int DisplayNameLimit = 40;
 
+    /// <summary>The one charm a new install hangs, at macOS's shipped place size.</summary>
+    /// <remarks>Above <see cref="Defaults"/> because static initialisers run in the order they are written.</remarks>
+    public static IReadOnlyList<Models.RopeCharm> FirstRunSlots { get; } = [new(CharmCatalog.FirstRunId, 1.38)];
+
     /// <summary>What a machine with no settings file starts with.</summary>
     /// <remarks>
     /// <b>Not the same thing as the property defaults, and deliberately.</b> Every
@@ -508,10 +524,15 @@ public sealed record AppSettings
     /// charm exactly where it was. Giving the property itself a number would move every
     /// one of those installs. So the new-install position is stated here, where only a
     /// machine with no file at all can see it.</para>
+    ///
+    /// <para>The values are the ones macOS ships (September 2026), where the Mac's 12 pt
+    /// inset and trailing offset land the rope at 0.87 of the width and its −12 pt lift is
+    /// clamped to the top. The shipped Spider-Man is drawn large on purpose, as its own
+    /// place size: <see cref="FirstRunSlots"/>.</para>
     /// </remarks>
     public static AppSettings Defaults { get; } = new()
     {
-        Overlay = new OverlaySettings { HorizontalPosition = 0.85 },
+        Overlay = new OverlaySettings { HorizontalPosition = 0.87, Slots = FirstRunSlots, CharmCount = 1 },
     };
 
     public int SchemaVersion { get; init; } = 1;
@@ -542,17 +563,16 @@ public sealed record AppSettings
 
     /// <summary>Which launch the follow card was last shown at.</summary>
     /// <remarks>
-    /// macOS calls this <c>followPromptShownAtLaunch</c>, and it is what turns "maybe
-    /// later" into a real answer rather than a synonym for "no": the card comes back a
-    /// set number of launches after the one it was last shown at, and not before.
+    /// macOS calls this <c>followPromptShownAtLaunch</c>. It keeps the support card to
+    /// once per launch (<see cref="SupportCard.IsDue"/>).
     /// </remarks>
     public int FollowPromptShownAtLaunch { get; init; }
 
-    /// <summary>Whether the person asked not to be shown it again.</summary>
+    /// <summary>What builds before the every-third-launch card wrote when it was answered for good.</summary>
     /// <remarks>
-    /// Separate from <see cref="HasSeenFollowPrompt"/> on purpose, which is how macOS
-    /// models it too: "seen once" and "do not ask again" are different answers, and a
-    /// card that treats them the same either nags or never returns.
+    /// Still read and written so a settings file survives a trip back to an older build,
+    /// but no longer consulted: the card now comes back every third launch however it was
+    /// answered (<see cref="SupportCard"/>), as on macOS.
     /// </remarks>
     public bool IsFollowPromptSilenced { get; init; }
 
@@ -561,8 +581,8 @@ public sealed record AppSettings
     /// <summary>Sound effects: on by default, as on macOS.</summary>
     public bool SoundEffectsEnabled { get; init; } = true;
 
-    /// <summary>Sound volume, 0–1. The macOS default: quiet, because it is an ornament.</summary>
-    public double SoundVolume { get; init; } = 0.14;
+    /// <summary>Sound volume, 0–1. Half, as on macOS: loud enough that the Spider-Man entrance is heard.</summary>
+    public double SoundVolume { get; init; } = 0.5;
 
     public PrivacySettings Privacy { get; init; } = new();
 

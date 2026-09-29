@@ -6,20 +6,52 @@ pulls the section out and the release workflow hands it to both.
 
 Headings are `## <version> — <date>`. Nothing else is a version heading.
 
-## Unreleased
+## 2.1.0 — 2026-09-29
 
 **Changed**
 
-- **A simpler Appearance page.** One **Appearance** section first — the charm (which one,
-  where it hangs, size, opacity, glow) and its rope (style, length, Standard or Elastic,
-  mouse reactive) — then **Behaviour**, **Sound & Motion**, **Spider-Man** (only with him on
-  the rope), **About You** and **Privacy**. Less scrolling, and settings only. The same
-  sections, in the same order, as Hangly for Mac.
+- **A simpler Appearance page.** **Charm & Rope** first — horizontal and vertical position
+  with Reset position, size, opacity, glow, rope length, Standard or Elastic, and mouse
+  interaction — then **Behaviour**, **Sound & Motion**, **Spider-Man** (only with him on
+  the rope), **About You** and **Privacy**. The picture of the desktop is gone (the sliders
+  move the charm), and ropes are chosen in the Library, not here. The same sections, in the
+  same order, as Hangly for Mac.
+- **New defaults** for a new install and for Reset: Spider-Man on Spider Thread, a little
+  larger and further in from the corner, and Auto-hide during full-screen video on. A fresh
+  Hangly on Windows and on a Mac now looks the same.
+- **Sound effects start at half volume** on a new install (they were at 14%, too quiet to hear
+  the Spider-Man entrance). Volume is in Appearance → Sound & Motion.
+- **This update shows off the Spider-Man entrance, then gives your look back.** For the
+  first two launches after updating, Hangly starts as a new install does — Spider-Man on
+  Spider Thread at the shipped size and position, default opacity and glow, sound on at half
+  volume — so the entrance plays, with its sound, both times. On the third launch your own
+  size, position, opacity, glow, rope length and sound come back, except anything you
+  changed in the meantime. Spider-Man stays until you choose another charm; the entrance
+  plays on every launch while he is on the rope, and never with any other charm.
+- **Every Hangly window opens in the middle of the display the pointer is on** — Library,
+  Welcome and Enjoying Hangly — every time, rather than on the main display or wherever it
+  was last left.
+- **"❤️ Support Hangly Development"** is the support button everywhere. The
+  Enjoying Hangly? card and the support sheet say one thing — "Even **₹1,000** helps bring
+  new ideas to life." — with the amount in bold and one clear Support button. The welcome
+  card has a Support button too. The card appears on every third launch (3, 6, 9…).
+- **A simpler welcome.** A bigger Spider-Man hangs from the top edge of the card and
+  drops in on his web (silently), above "What should we call you?", a name field and
+  Continue. The name is required, and can be changed later in Appearance → About You.
 - **Two new ticks in the tray menu, directly below Library:** **Always on Top** and
   **Auto-hide during full-screen video**, which stay in step with the Appearance page.
-- **Privacy has no switch.** Appearance → Privacy says plainly what Hangly sends; About →
-  Analytics still lists it field by field. If you switched it off in an earlier version, it
-  stays off.
+- **PostHog is gone; Hangly now uses Firebase.** Each installation has one permanent
+  record — the name you gave, the Windows, processor and Hangly versions, the city the
+  network places it in (worked out on the server; your IP address is never stored), when
+  it was first and last seen, and its crash count. It is updated when something changes
+  and at most once a day otherwise. Six events are counted in Google Analytics (launch,
+  update, charm chosen, rope chosen, Support clicked, welcome finished). A crash sends its
+  stack trace, with your user name and profile path removed. Uninstalling tells the
+  registry, once. There is no switch; Appearance → Privacy, About → Installation and
+  [PRIVACY.md](PRIVACY.md) say what is sent. An installation from an earlier version keeps
+  its identity and its original install date.
+- **Version 2.1.0**, from 0.9.4, so Hangly for Windows and Hangly for Mac share one
+  version number from now on.
 
 **Added**
 
@@ -107,27 +139,20 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 - **The welcome says what the Mac's says.** Its second step now tells you that dropping a
   picture on the charm makes your own, and its words are shared with Hangly for Mac.
 
-- **Updates install themselves.** Hangly checks shortly after it starts and once a day
-  while it runs, downloads a new version quietly, and installs it the next time Hangly
-  starts or quits. Nothing asks and nothing is shown; **Restart to update** in the tray
-  menu applies it at once for anybody who would rather not wait.
+- **Updates install themselves while you're away.** Hangly checks shortly after it starts
+  and once a day while it runs, downloads a new version quietly, and installs it once your
+  PC is locked or the screen saver is up — never in front of you — or the next time Hangly
+  starts or quits. The restart opens nothing else; after an update to a new version,
+  **What's New** is waiting in the middle of the screen when you come back.
+  **Restart to update** in the tray menu applies it at once. The same as Hangly for Mac.
 
-- Analytics now records who uses Hangly, not what they do with it. One message is sent the
-  first time you start Hangly, again if you change your name, and again when a new major
-  version arrives — your name, that this is Windows, the processor, and the versions of
-  Windows and Hangly. Nothing about launches, charms, ropes or anything else you do in the
-  app is sent any more. PostHog is also asked not to work out where you are.
-- You can change your name in **Customize → Appearance**.
-- Once a day that Hangly runs, it says it is still running and on which version — nothing
-  else — so the number of people using it and the versions they are on can be counted.
+- You can change your name in **Customize → Appearance → About You**.
 - If you uninstall Hangly, it says so once, and removes itself from your Windows startup
   list. It used to leave that entry behind, pointing at a program that was gone.
-- If you install Hangly with no internet connection, your profile is sent by itself when
-  the connection comes back.
 
 **Fixed**
 
-- **The welcome card's last line is no longer cut off.** The credit and the coffee button
+- **The welcome card's last line is no longer cut off.** The credit and the support button
   at its foot had been pushed below the window's edge.
 
 - **The rope follows the clock while Hangly runs.** Morning, afternoon and night used to be
@@ -150,16 +175,12 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 - A rare race between the tray menu changing charms and the overlay drawing them.
 - Launch at login now starts the copy of Hangly you are running. An entry left by an
   earlier copy in another folder used to count as "on" while Windows started the old one.
-- The card asking you to follow the creator waits until the fifth launch, as it does on a
-  Mac, rather than the third.
 - **Less CPU while the charm swings.** Frames now go straight from the GPU to the screen
   instead of being copied back through system memory first, and once the charm is still
   Hangly checks the mouse thirty times a second instead of at the display's full rate.
 - **Memory no longer grows as you change charms.** Forty charm changes used to take Hangly
   from 123 MB to 317 MB, and none of it came back; it now stays between 55 and 75 MB.
 
-- The About page no longer says analytics never sends your name. It did, and now it says so.
-- The analytics details no longer draw your name on top of another row.
 
 ## 0.9.4 — 2026-09-22
 

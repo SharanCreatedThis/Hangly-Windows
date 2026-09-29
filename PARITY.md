@@ -213,7 +213,7 @@ documentation, and the Windows source. Not estimated.
 | Overlay rendering | Shadow, gradients, bloom, rim, artwork beads | Flat beads, no shadow, halo disc | **Gap** — §1.1, §1.2 |
 | Library browse | Packs, detail pane, reorder, per-charm size | Grid, chips, search, favourites, recents | **Partial** — §2 |
 | About page | Statistics, Secrets, creator, coffee, release notes | Links, analytics inspector | **Partial** — §7 |
-| Analytics | PostHog, 25 events | PostHog, 25 events, inspector | **Parity** (Windows adds the inspector) |
+| Analytics | Firebase registry, Analytics (6 events), Crashlytics | Firebase registry, GA4 (6 events), crash reports to the registry | **Parity** (2.1.0) |
 | Custom import — SVG | Yes | Yes | **Parity** |
 | Custom import — photo | Vision subject extraction | **None** | **Missing** — §5 |
 | Charm Studio | Full window, staged pipeline | **None**; the **Create** tab is v1.0's answer | **v1.1** — §6 |

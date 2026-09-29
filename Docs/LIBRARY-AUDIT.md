@@ -19,9 +19,9 @@ running app, and from the documentation.
 | `CharmCard` | One charm tile |
 | `CharmLibraryItem` | The merged model behind a tile |
 | `LibraryCollection` | A collection as the Library models it |
-| `AboutPage`, `AboutHero`, `AboutStatistics`, `AboutSecrets`, `AboutCoffeeButton` | About's sections |
+| `AboutPage`, `AboutHero`, `AboutStatistics`, `AboutSecrets`, `AboutSupportButton` | About's sections |
 | `CreatorCard` | The creator card |
-| `BuyCoffeeSheet` | The coffee flow, a sheet rather than a link |
+| `SupportSheet` | The support flow, a sheet rather than a link |
 | `SecretVault`, `Secret` | The secrets feature and its store |
 | `AppMilestones` | The milestones model |
 
@@ -54,14 +54,14 @@ See §6.
 
 These are literals in the shipping binary, so they are quotations rather than inventions.
 
-**Creator and coffee**
+**Creator and support**
 - "Support the Creator"
-- "Buy Creator a Coffee"
+- "❤️ Support Hangly Development"
 - "Thank you for using Hangly."
 - "Suggest a charm to the creator (swarnsharan@gmail.com)"
 - "Opens https://instagram.com/sharan.created.this"
 - "Opens a message to the creator"
-- `CreatorUPIQR.png` / `.jpg` ship in `Contents/Resources` — the coffee flow shows a real
+- `CreatorUPIQR.png` / `.jpg` ship in `Contents/Resources` — the support flow shows a real
   UPI QR, which is why it is a sheet and not a link.
 
 **Secrets** — button "Tell me a secret", empty state "No secret revealed yet",

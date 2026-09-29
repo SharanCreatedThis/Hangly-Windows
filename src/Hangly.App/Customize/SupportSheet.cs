@@ -1,5 +1,5 @@
 //
-//  BuyCoffeeSheet.cs
+//  SupportSheet.cs
 //  Hangly
 //
 //  The creator's UPI code, shown rather than linked to.
@@ -12,9 +12,9 @@ using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace Hangly.App.Customize;
 
-/// <summary>The coffee sheet: a QR to scan, an address to copy, a link to open.</summary>
+/// <summary>The support sheet: a QR to scan, an address to copy, a link to open.</summary>
 /// <remarks>
-/// macOS ships this as <c>BuyCoffeeSheet</c> around <c>CreatorUPIQR.png</c>, and Windows
+/// macOS ships this as <c>SupportSheet</c> around <c>CreatorUPIQR.png</c>, and Windows
 /// ships the same file. That is the whole reason this is a sheet and not a hyperlink: a
 /// UPI code is scanned off the screen by a phone, so the thing that has to happen is that
 /// the picture appears, not that a browser opens.
@@ -28,7 +28,7 @@ namespace Hangly.App.Customize;
 /// <para>Nothing here is reported. Analytics records who uses Hangly, not what they
 /// click.</para>
 /// </remarks>
-internal static class BuyCoffeeSheet
+internal static class SupportSheet
 {
     /// <summary>Where the QR lands beside the executable.</summary>
     private static string QrPath => Path.Combine(AppContext.BaseDirectory, "Assets", "CreatorUPIQR.png");
@@ -37,15 +37,46 @@ internal static class BuyCoffeeSheet
     /// <remarks>
     /// The rest of the sheet — the dialog's own chrome, a title, a line of thanks, the
     /// address, two buttons and their spacing — measured at about 390 points over the
-    /// follow card, and a dialog cannot exceed its host. What is left over is the code's.
+    /// follow card, and a dialog cannot exceed its host. The one-line support message adds
+    /// about fifty more, so <see cref="Reserved"/> is 440. What is left over is the code's.
     /// The number is measured rather than guessed, twice: at 240 the payment link was off
     /// the bottom edge entirely, and at 330 it was underneath the dialog's own button
     /// strip with only its top edge showing.
     /// </remarks>
+    private const double Reserved = 440;
+
     private static double QrSide(FrameworkElement root)
     {
         double available = root.XamlRoot?.Size.Height ?? 0;
-        return available <= 0 ? 150 : Math.Clamp(available - 390, 100, 190);
+        return available <= 0 ? 150 : Math.Clamp(available - Reserved, 100, 190);
+    }
+
+    /// <summary>The support message, the same on every screen that asks: the card and this sheet.</summary>
+    /// <remarks>
+    /// A size up from body text, with the amount in bold — emphasised in the sentence's own
+    /// size rather than set larger, so it reads as stress, not as a price tag. macOS builds
+    /// the same line in <c>SupportMessage</c>.
+    /// </remarks>
+    public static TextBlock MessageBlock(double fontSize = 18, bool balanced = false)
+    {
+        string message = balanced ? Hangly.Core.Settings.SupportCard.BalancedMessage : Hangly.Core.Settings.SupportCard.Message;
+        string amount = Hangly.Core.Settings.SupportCard.Amount;
+        int at = message.IndexOf(amount, StringComparison.Ordinal);
+
+        var block = new TextBlock
+        {
+            FontSize = fontSize,
+            LineHeight = fontSize * 1.35,
+            Opacity = 0.88,
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(block, "SupportMessage");
+        block.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = message[..at] });
+        block.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = amount, FontWeight = Microsoft.UI.Text.FontWeights.Bold });
+        block.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = message[(at + amount.Length)..] });
+        return block;
     }
 
     /// <summary>Shows the sheet over <paramref name="root"/>.</summary>
@@ -66,7 +97,7 @@ internal static class BuyCoffeeSheet
             Text = "Copied",
             Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
         };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(copied, "CoffeeCopied");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(copied, "SupportCopied");
 
         // The address is the button.
         //
@@ -79,7 +110,7 @@ internal static class BuyCoffeeSheet
             HorizontalAlignment = HorizontalAlignment.Center,
             Padding = new Thickness(14, 8, 14, 8),
         };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(copy, "CoffeeUpiId");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(copy, "SupportUpiId");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(copy, $"Copy UPI ID {AppInfo.UpiId}");
         ToolTipService.SetToolTip(copy, "Click to copy");
         copy.Click += (_, _) =>
@@ -94,19 +125,16 @@ internal static class BuyCoffeeSheet
         };
 
         var body = new StackPanel { Spacing = 10, MinWidth = 260 };
-        body.Children.Add(new TextBlock
-        {
-            Text = "Thank you for using Hangly.",
-            TextWrapping = TextWrapping.Wrap,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        });
+        TextBlock message = MessageBlock(16);
+        message.MaxWidth = 340;
+        body.Children.Add(message);
 
         if (File.Exists(QrPath))
         {
             body.Children.Add(new Border
             {
                 Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White),
-                CornerRadius = new CornerRadius(8),
+                CornerRadius = Branding.HanglyButtons.Corner,
                 Padding = new Thickness(12),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Child = new Image
@@ -131,9 +159,9 @@ internal static class BuyCoffeeSheet
         }
         else
         {
-            // Reported rather than hidden: a coffee sheet with no code in it is a
+            // Reported rather than hidden: a support sheet with no code in it is a
             // packaging failure, and a blank space would not say so.
-            Diagnostics.Log($"coffee QR missing at {QrPath}");
+            Diagnostics.Log($"support QR missing at {QrPath}");
             body.Children.Add(new TextBlock
             {
                 Text = "The QR code is missing from this build. The address below still works.",
@@ -157,15 +185,18 @@ internal static class BuyCoffeeSheet
         var sheet = new ContentDialog
         {
             XamlRoot = root.XamlRoot,
-            Title = "Support the Creator",
+            Title = Hangly.Core.Settings.SupportCard.Title,
             Content = body,
             PrimaryButtonText = "Open payment page",
             CloseButtonText = "Close",
             DefaultButton = ContentDialogButton.Primary,
         };
         sheet.PrimaryButtonClick += (_, _) =>
-            _ = Windows.System.Launcher.LaunchUriAsync(new Uri(AppInfo.CoffeeUrl));
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(sheet, "CoffeeSheet");
+            _ = Windows.System.Launcher.LaunchUriAsync(new Uri(AppInfo.SupportUrl));
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(sheet, "SupportSheet");
+
+        // The payment page in Hangly's colour, as every support button is (HanglyButtons).
+        Branding.HanglyButtons.Brand(sheet);
 
         await sheet.ShowAsync();
     }

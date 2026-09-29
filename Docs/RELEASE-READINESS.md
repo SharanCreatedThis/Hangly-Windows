@@ -33,7 +33,7 @@ weeks. Three numbers, because they answer different questions:
 | Library | Grid, search, detail panel, hero cards, reorder, per-place size, favourites, recents | 12 | 100% |
 | Create | PNG/JPG/SVG → charm, via the existing import path | 8 | 100% |
 | Import + security | 42-file hostile corpus, two defects fixed, filesystem guarded | 8 | 100% |
-| About and creator | Hero, creator card, milestones, secrets, UPI coffee sheet | 6 | 100% |
+| About and creator | Hero, creator card, milestones, secrets, UPI support sheet | 6 | 100% |
 | Onboarding | Welcome with mandatory name, follow card | 5 | 100% |
 | Analytics | Shared project, macOS names, HTTP 200 verified, inspector. One orphan event | 6 | 95% |
 | Settings and persistence | Survives upgrade, verified end to end | 5 | 100% |
@@ -122,7 +122,7 @@ outstanding for weeks.
 ### v1.0 — ship this
 Overlay and physics · 70 charms · Library with detail panel, hero cards, reorder and
 per-place sizing · **Create** · SVG and raster import with the hostile corpus behind it ·
-About, creator card, secrets, milestones, UPI coffee · onboarding with a display name ·
+About, creator card, secrets, milestones, UPI support · onboarding with a display name ·
 analytics into the shared project · auto-update · signed, once SignPath has answered.
 
 ### v1.1 — the next thing

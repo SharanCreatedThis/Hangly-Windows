@@ -67,31 +67,24 @@
       development build that claims a version that was never released is a build whose
       About page cannot be trusted in a bug report.
     -->
-    <Version>0.9.4</Version>
+    <Version>2.1.0</Version>
     <Copyright>Copyright © 2026 sharancreatedthis</Copyright>
 
     <!--
-      Analytics configuration, as build properties rather than as source.
-
-      The macOS build reads these out of its bundle for the same reason: a PostHog
-      *project* key is the publishable kind that is meant to ship inside a client, so
-      this is about keeping it swappable per configuration rather than keeping it secret.
-
-      There is no key here, deliberately. Only a release is allowed to tell the
-      production project anything, so the key is passed in by the release workflow and
-      every other build — Debug, a local Release, CI — has none, sends nothing, and says
-      "No destination configured" on its About page.
-
-      It is written into release.yml as text rather than held in a repository secret:
-      v0.9.1 went out with no key because the secret it read did not exist, and a
-      publishable client key gains nothing from being hidden. release.yml also fails the
-      build if the published assembly does not contain it.
-
-          dotnet publish ... -p:HanglyAnalyticsKey=phc_...
+      Google Analytics (the same property as macOS's Firebase Analytics, through its Web
+      stream's Measurement Protocol). Never written here: the release workflow passes them
+      from repository secrets (-p:HanglyGa4MeasurementId=G-... -p:HanglyGa4ApiSecret=...).
+      Empty, as in every developer build, means no analytics and nothing sent.
     -->
-    <HanglyAnalyticsHost Condition="'$(HanglyAnalyticsHost)' == ''">us.i.posthog.com</HanglyAnalyticsHost>
-    <HanglyAnalyticsKey Condition="'$(HanglyAnalyticsKey)' == ''"></HanglyAnalyticsKey>
-    <HanglyBuildNumber Condition="'$(HanglyBuildNumber)' == ''">5</HanglyBuildNumber>
+    <HanglyGa4MeasurementId Condition="'$(HanglyGa4MeasurementId)' == ''"></HanglyGa4MeasurementId>
+    <HanglyGa4ApiSecret Condition="'$(HanglyGa4ApiSecret)' == ''"></HanglyGa4ApiSecret>
+    <HanglyBuildNumber Condition="'$(HanglyBuildNumber)' == ''">6</HanglyBuildNumber>
+    <!--
+      The installation registry's URL. Never written here: the release workflow passes it
+      from the HANGLY_REGISTRY_URL repository secret (-p:HanglyRegistryUrl=...). Empty, as
+      in every developer build, means no registry and nothing sent.
+    -->
+    <HanglyRegistryUrl Condition="'$(HanglyRegistryUrl)' == ''"></HanglyRegistryUrl>
     <!--
       A folder of packages to update from instead of GitHub Releases. Empty in every
       release, which release.yml checks. Set only to test silent updating end to end:
@@ -155,9 +148,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <AssemblyMetadata Include="HanglyAnalyticsHost" Value="$(HanglyAnalyticsHost)" />
-    <AssemblyMetadata Include="HanglyAnalyticsKey" Value="$(HanglyAnalyticsKey)" />
+    <AssemblyMetadata Include="HanglyGa4MeasurementId" Value="$(HanglyGa4MeasurementId)" />
+    <AssemblyMetadata Include="HanglyGa4ApiSecret" Value="$(HanglyGa4ApiSecret)" />
     <AssemblyMetadata Include="HanglyBuildNumber" Value="$(HanglyBuildNumber)" />
+    <AssemblyMetadata Include="HanglyRegistryUrl" Value="$(HanglyRegistryUrl)" />
     <AssemblyMetadata Include="HanglyUpdateFeed" Value="$(HanglyUpdateFeed)" />
   </ItemGroup>
 

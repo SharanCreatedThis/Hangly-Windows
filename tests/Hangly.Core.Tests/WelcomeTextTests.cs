@@ -11,10 +11,8 @@ public class WelcomeTextTests
     {
         Assert.Equal("Welcome, Sharan", WelcomeText.Title(" Sharan "));
         Assert.Equal("Welcome to Hangly", WelcomeText.Title(""));
-        Assert.Equal("A tiny charm that hangs from your screen.", WelcomeText.Tagline);
-        Assert.Equal(
-            ["Browse charms from around the world", "Drop a picture on the charm to make your own", "Change the rope, where it hangs and how big it is"],
-            WelcomeText.Things);
+        Assert.Equal("A little delight, every time you look up.", WelcomeText.Tagline);
+        Assert.Equal("Choose your charm. Make every detail yours.", WelcomeText.Invitation);
         Assert.Equal("Explore Library", WelcomeText.Explore);
         Assert.Equal("Start Using Hangly", WelcomeText.Start);
     }
