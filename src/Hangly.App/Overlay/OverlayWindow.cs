@@ -76,6 +76,9 @@ public sealed class OverlayWindow : IDisposable
     private const long TopmostIntervalMs = 1000;
 
     private OverlaySettings settings;
+
+    /// <summary>Whether this process has decided about the Spider-Man entrance; see IntroTable.</summary>
+    private static int introSpent;
     private bool isClickThrough = true;
     private bool wasButtonDown;
     private Vec2 lastCursor;
@@ -209,7 +212,17 @@ public sealed class OverlayWindow : IDisposable
             // Before the first step, so a rope that should appear hanging still never
             // takes one step of the launch swing.
             ApplyMotion();
+            rope.SetPhysics(settings.RopePhysics);
             rope.Start();
+
+            // The Spider-Man entrance, once per launch: this loop is started again when
+            // the charm is switched off and on, and that is not a launch.
+            if (Interlocked.Exchange(ref introSpent, 1) == 0
+                && IntroTable.Plays(settings.StartupAnimation, settings.CharmIds, rope.Motion == RopeMotion.Reduced))
+            {
+                rope.BeginIntro();
+                audio?.PlayEntrance();
+            }
 
             // Subscribed here rather than in the constructor so the handler is attached on
             // the thread that will raise it.
@@ -418,7 +431,7 @@ public sealed class OverlayWindow : IDisposable
         WatchFullscreen();
         if (!isHiddenForFullscreen)
         {
-            surface.RaiseToTop();
+            surface.HoldPlace();
         }
     }
 
@@ -475,6 +488,15 @@ public sealed class OverlayWindow : IDisposable
     {
         settings = updated;
         renderer.Glow = updated.Glow;
+        rope.SetPhysics(updated.RopePhysics);
+        bool onDesktop = updated.WindowMode == WindowMode.Desktop;
+        if (surface.OnDesktop != onDesktop)
+        {
+            surface.OnDesktop = onDesktop;
+            lastCover = null;
+            surface.HoldPlace();
+        }
+
         rope.SetStyle(updated.RopeStyle);
         ApplyMotion();
         WatchFullscreen();
@@ -525,7 +547,7 @@ public sealed class OverlayWindow : IDisposable
 
         // The canvas is measured in points and the desktop in pixels, so the size the
         // rope is fitted to is scaled up exactly once, here, and never again.
-        Size canvas = OverlayMetrics.CanvasSize(settings.CharmSize, settings.RopeLength);
+        Size canvas = OverlayMetrics.CanvasSize(settings.CharmSize, settings.RopeLength, settings.RopePhysics);
         var pixels = new Size(canvas.Width * scale, canvas.Height * scale);
 
         frame = ScreenPlacement.Frame(
@@ -541,7 +563,10 @@ public sealed class OverlayWindow : IDisposable
             (int)Math.Round(frame.Height),
             scale);
 
-        rope.Fit(CanvasSize, settings.CharmSize, settings.RopeLength);
+        // Fitted to the canvas an unstretched rope would have: an elastic rope's extra room is
+        // below it, to stretch into, and must not make the rope itself any longer.
+        double stretchRoom = OverlayMetrics.StretchRoom(settings.RopeLength, settings.RopePhysics);
+        rope.Fit(new Size(CanvasSize.Width, CanvasSize.Height - stretchRoom), settings.CharmSize, settings.RopeLength);
     }
 
     /// <summary>
@@ -568,6 +593,12 @@ public sealed class OverlayWindow : IDisposable
         Diagnostics.Log(
             "hanging " + string.Join(", ", charms.Select(charm => $"{charm.Id} beads={charm.Beads.Count}")));
         rope.SetCharmStack([.. charms.Select(charm => charm.Metrics)]);
+
+        // The entrance's web belongs to Spider-Man: it comes down with the last of him.
+        if (!charms.Any(charm => IntroTable.IsSpiderMan(charm.Id)))
+        {
+            rope.DetachWeb();
+        }
         rope.SetBeads([.. charms.Select(charm => charm.Beads)]);
     }
 
@@ -704,6 +735,72 @@ public sealed class OverlayWindow : IDisposable
     /// </summary>
     private const uint IdleWaitMs = 33;
 
+    /// <summary>Where the pointer was at the previous poll, and when (Stopwatch ticks), for Reactive's approach speed.</summary>
+    private (Vec2 Location, long At)? lastPoll;
+
+    /// <summary>Interaction → Reactive: charms drift away from a pointer moving towards them.</summary>
+    /// <remarks>
+    /// Rides the poll that already runs for click-through, awake or settled, so it adds no
+    /// wake-up of its own: a pointer far from the charm costs one distance check per charm.
+    /// The speed is measured between polls — at the settled 33 ms cadence as much as at
+    /// 120 Hz — and a gap longer than a tenth of a second is not a speed at all.
+    /// </remarks>
+    private void Repel(NativeMethods.Point cursor, Vec2 location, bool isButtonDown)
+    {
+        long now = System.Diagnostics.Stopwatch.GetTimestamp();
+        (Vec2 Location, long At)? previous = lastPoll;
+        lastPoll = (location, now);
+
+        if (settings.Interaction != InteractionMode.Reactive || isButtonDown || rope.IsDragging
+            || previous is not (Vec2 before, long at))
+        {
+            return;
+        }
+
+        double seconds = (now - at) / (double)System.Diagnostics.Stopwatch.Frequency;
+        if (seconds <= 0 || seconds > 0.1)
+        {
+            return;
+        }
+
+        // On the desktop, a charm behind somebody's window does not feel the pointer.
+        bool insideFrame = cursor.X >= frame.Left && cursor.X < frame.Right && cursor.Y >= frame.Top && cursor.Y < frame.Bottom;
+        if (!insideFrame || IsCoveredOnDesktop(cursor))
+        {
+            return;
+        }
+
+        rope.Repel(location, (location - before) / seconds);
+    }
+
+    /// <summary>The last answer to "does a window cover the charm here", and when (TickCount64) it was asked.</summary>
+    private (long At, bool Covered)? lastCover;
+
+    /// <summary>Whether the overlay is on the desktop and another window is in front of it at the cursor.</summary>
+    /// <remarks>
+    /// Asked only once the cursor is over the charm, and remembered for a quarter of a
+    /// second: this runs on every frame, and asking the window manager each time while
+    /// somebody's pointer rests on the charm is the busy overlay the click-through guard
+    /// exists to prevent. An Always on Top install never asks.
+    /// </remarks>
+    private bool IsCoveredOnDesktop(NativeMethods.Point cursor)
+    {
+        if (!surface.OnDesktop)
+        {
+            return false;
+        }
+
+        long now = Environment.TickCount64;
+        if (lastCover is (long at, bool covered) && now - at < 250)
+        {
+            return covered;
+        }
+
+        bool isCovered = DesktopLayer.IsCovered(surface.Handle, cursor.X, cursor.Y);
+        lastCover = (now, isCovered);
+        return isCovered;
+    }
+
     private void PollPointer()
     {
         if (!NativeMethods.GetCursorPos(out NativeMethods.Point cursor))
@@ -721,12 +818,21 @@ public sealed class OverlayWindow : IDisposable
         // Which place, not just whether: a drop has to land on the charm it was aimed at.
         // This is polled anyway for click-through, so the drop target costs no extra work.
         hoveredCharm = rope.CharmIndexAt(location);
+
+        // On the desktop, a charm behind somebody's window is not under the cursor,
+        // whatever the geometry says — and a drag already under way is not interrupted.
+        if (hoveredCharm is not null && !rope.IsDragging && IsCoveredOnDesktop(cursor))
+        {
+            hoveredCharm = null;
+        }
         bool overCharm = hoveredCharm is not null;
 
         // The cursor may only pass through when it is not over the charm — and never
         // mid-drag, or letting go while moving fast would drop the charm the instant the
         // pointer outran it.
         SetClickThrough(!overCharm && !rope.IsDragging);
+
+        Repel(cursor, location, isButtonDown);
 
         if (isButtonDown && !wasButtonDown && overCharm)
         {
@@ -798,7 +904,7 @@ public sealed class OverlayWindow : IDisposable
             ? style | NativeMethods.WsExTransparent
             : style & ~NativeMethods.WsExTransparent;
         NativeMethods.SetExtendedStyle(surface.Handle, style);
-        surface.RaiseToTop();
+        surface.HoldPlace();
     }
 
     public void Dispose()
@@ -855,17 +961,26 @@ public static class OverlayMetrics
     /// keep in step by hand. The height is untouched: it was already correct, because
     /// <c>TailFraction</c> is exactly the room the lowest charm and its halo hang in.</para>
     /// </remarks>
-    public static Size CanvasSize(double charmSize, double ropeLength)
+    /// <summary>The extra height, in points, an elastic rope needs below it to stretch into; zero for Standard.</summary>
+    public static double StretchRoom(double ropeLength, RopePhysics physics) =>
+        physics == RopePhysics.Elastic
+            ? BaseHeight * ElasticTable.CanvasAllowance(RopeConfiguration.Layout.LengthFraction, ropeLength)
+            : 0;
+
+    public static Size CanvasSize(double charmSize, double ropeLength, RopePhysics physics = RopePhysics.Standard)
     {
         Size room = RopeConfiguration.Layout.CanvasScale(charmSize, ropeLength);
-        double height = BaseHeight * room.Height;
+        double height = (BaseHeight * room.Height) + StretchRoom(ropeLength, physics);
 
         // How far the charm's centre can get from the anchor. `unit` in
         // RopeConfiguration.Fitted always works out to BaseHeight, because the canvas is
         // BaseHeight × room.Height and it divides by room.Height — so the rope's length in
         // points is this, with no fitting to do. The drag clamp is what bounds it.
         double rope = BaseHeight * RopeConfiguration.Layout.LengthFraction * ropeLength;
-        double swing = rope * RopeConfiguration.Default.MaximumReachRatio;
+        // An elastic rope can be pulled out to its stretch ceiling, so its drag circle is
+        // that much wider. Standard is unchanged.
+        double swing = rope * RopeConfiguration.Default.MaximumReachRatio
+            * (physics == RopePhysics.Elastic ? ElasticTable.Ceiling : 1);
 
         // What the lowest charm reaches past its own centre. CharmStackLayout caps its
         // radius at the headroom below the rope divided by the halo extent, and that

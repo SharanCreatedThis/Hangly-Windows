@@ -6,6 +6,7 @@
 //
 
 using Hangly.Core.Geometry;
+using Hangly.Core.Models;
 
 namespace Hangly.Core.Physics;
 
@@ -22,11 +23,15 @@ public sealed partial class RopeSimulation
     /// <returns>The largest correction applied, so the caller can stop early.</returns>
     internal double SolveDistanceConstraints()
     {
-        double restLength = Configuration.SegmentLength;
+        double restLength = Configuration.SegmentLength * ReelFraction;
         double largestCorrection = 0;
+        bool elastic = Physics == RopePhysics.Elastic;
         for (int index = 0; index < Points.Length - 1; index++)
         {
-            largestCorrection = Math.Max(largestCorrection, SolveLink(index, index + 1, restLength));
+            double correction = elastic
+                ? SolveElasticLink(index, restLength, Configuration.FixedTimeStep)
+                : SolveLink(index, index + 1, restLength);
+            largestCorrection = Math.Max(largestCorrection, correction);
         }
 
         return largestCorrection;
@@ -86,7 +91,9 @@ public sealed partial class RopeSimulation
         {
             for (int second = first + 1; second < slots.Count; second++)
             {
-                double minimum = slots[first].Radius + slots[second].Radius;
+                // Scaled with the reel: while the entrance has the rope nearly shut, the
+                // charms hang that close by design, and must not knock or be pushed apart.
+                double minimum = (slots[first].Radius + slots[second].Radius) * Math.Min(1, ReelFraction);
                 int lower = slots[first].Node, upper = slots[second].Node;
                 if (lower >= 0 && upper >= 0 && lower < Points.Length && upper < Points.Length)
                 {
@@ -100,7 +107,7 @@ public sealed partial class RopeSimulation
                 double correction = Separate(
                     slots[first].Node,
                     slots[second].Node,
-                    slots[first].Radius + slots[second].Radius);
+                    minimum);
                 largestCorrection = Math.Max(largestCorrection, correction);
             }
         }
@@ -158,7 +165,7 @@ public sealed partial class RopeSimulation
     /// </remarks>
     internal void EnforceMaximumStretch()
     {
-        double limit = Configuration.SegmentLength * Configuration.MaxStretchRatio;
+        double limit = Configuration.SegmentLength * ReelFraction * StretchCeiling;
 
         for (int pass = 0; pass < Configuration.StretchPasses; pass++)
         {

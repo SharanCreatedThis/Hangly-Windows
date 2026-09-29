@@ -100,6 +100,6 @@ public sealed partial class RopeSimulation
                 Beads[index].Owner);
         }
 
-        return new RopeSnapshot(points, CharmPlacements, beads, MeasuredMaximumStretch, IsDragging);
+        return new RopeSnapshot(points, CharmPlacements, beads, MeasuredMaximumStretch, IsDragging, Bloom);
     }
 }

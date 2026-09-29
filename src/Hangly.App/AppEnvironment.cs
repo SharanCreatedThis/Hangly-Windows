@@ -38,8 +38,7 @@ public sealed class AppEnvironment : IDisposable
     private readonly SettingsStore store;
     private readonly ILaunchAtLogin launchAtLogin;
     private readonly RopeSimulation rope;
-    private readonly AnalyticsManager analytics;
-    private readonly IAnalyticsProvider analyticsProvider;
+    private readonly IUserAnalyticsService analytics;
 
     private TrayIcon? tray;
     private OverlayWindow? overlay;
@@ -61,8 +60,24 @@ public sealed class AppEnvironment : IDisposable
 
     private Customize.CustomizeWindow? customize;
 
+    private readonly Hangly.Core.Registry.RegistrySync registry;
+
     /// <summary>The XAML thread's queue, for things the overlay's thread asks the windows to do.</summary>
     private Microsoft.UI.Dispatching.DispatcherQueue? xamlQueue;
+
+    /// <summary>This launch is Velopack starting the new version after an update: it opens nothing but the release notes and is not counted.</summary>
+    private readonly bool updatedLaunch = Environment.GetCommandLineArgs()
+        .Skip(1)
+        .Contains(Hangly.Core.Lifecycle.LaunchIntent.UpdatedArgument, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>When this process started, for <see cref="Hangly.Core.Lifecycle.UpdateTiming.SettleAfterLaunch"/>.</summary>
+    private readonly long startedAt = Environment.TickCount64;
+
+    /// <summary>This launch is the first of a new feature version after an update: it opens the release notes.</summary>
+    private bool releaseNotesDue;
+
+    /// <summary>Looks, once a minute, for the moment to install a downloaded update.</summary>
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? updateWait;
 
     public AppEnvironment(SettingsStore? store = null, ILaunchAtLogin? launchAtLogin = null)
     {
@@ -77,25 +92,27 @@ public sealed class AppEnvironment : IDisposable
             RebuildIndex();
         }
 
-        // PostHog when this build has a key, nothing when it does not. An app built
-        // without one runs with no analytics at all, which is a supported state and the
+        // Google Analytics when this build has its stream, nothing when it does not. A build
+        // without it runs with no analytics at all, which is a supported state and the
         // default one.
-        analyticsProvider = AppInfo.HasAnalyticsDestination
-            ? new PostHogProvider(AppInfo.AnalyticsHost, AppInfo.AnalyticsKey)
-            : new NoOpAnalyticsProvider();
-
-        analytics = new AnalyticsManager(
-            this.store,
-            analyticsProvider,
-            AppInfo.AnalyticsHost,
-            AppInfo.HasAnalyticsDestination,
-            AppInfo.Version,
-            AppInfo.BuildNumber,
-            AppInfo.WindowsVersion);
+        analytics = (IUserAnalyticsService?)Ga4UserAnalytics.For(AppInfo.Ga4MeasurementId, AppInfo.Ga4ApiSecret)
+            ?? new NoOpUserAnalytics();
+        HanglyAnalytics.Use(analytics);
 
         // A first identify made offline goes as soon as the network comes back, not on
         // the next launch. The manager ignores this when nothing is pending, which is
         // nearly always, and marshals it onto this thread itself.
+        // The installation registry: this installation's one document, kept up to date. No
+        // client when the build has no registry URL, which is every build but a release.
+        registry = new Hangly.Core.Registry.RegistrySync(
+            new Hangly.Core.Registry.InstallationStore(),
+            Installation.HttpRegistryClient.For(AppInfo.RegistryUrl),
+            this.store,
+            new Hangly.Core.Registry.PlatformFacts(AppInfo.WindowsVersion, AppInfo.Version, AppInfo.Architecture),
+            analytics: analytics,
+            crashes: CrashReporter.Pending,
+            installEvidence: () => Hangly.Core.Registry.InstallEvidence.Earliest(Hangly.Core.Registry.InstallEvidence.DefaultFolders));
+
         System.Net.NetworkInformation.NetworkChange.NetworkAvailabilityChanged += OnNetworkAvailabilityChanged;
 
         OverlaySettings settings = this.store.Settings.Overlay;
@@ -125,7 +142,8 @@ public sealed class AppEnvironment : IDisposable
 
     /// <summary>
     /// Keeps Hangly up to date without a word: checks a little after launch and once a
-    /// day after that, and downloads whatever it finds for the next start to apply.
+    /// day after that, downloads whatever it finds, and installs it at the first moment
+    /// nobody is looking (<see cref="WaitForQuietMoment"/>) — or at the next Quit or start.
     /// </summary>
     /// <remarks>
     /// <b>Silent by design.</b> Nothing pops up, nothing steals focus and nothing blocks.
@@ -154,6 +172,7 @@ public sealed class AppEnvironment : IDisposable
                         if (await Updates.DownloadAsync().ConfigureAwait(false))
                         {
                             // Nothing more to check for until this one is applied.
+                            xamlQueue?.TryEnqueue(WaitForQuietMoment);
                             return;
                         }
                     }
@@ -166,6 +185,44 @@ public sealed class AppEnvironment : IDisposable
                 await Task.Delay(UpdateCheckInterval).ConfigureAwait(false);
             }
         });
+    }
+
+    /// <summary>Installs the downloaded update once <see cref="Hangly.Core.Lifecycle.UpdateTiming"/> says nobody would see it.</summary>
+    /// <remarks>
+    /// Hangly starts at sign-in and is rarely quit, so waiting for a Quit could leave somebody on an old version for
+    /// weeks. Instead the update goes in while they are away — locked, or a screen saver up — and never with a Hangly
+    /// window open. The restart opens only the release notes, waiting for them in the middle of the screen, and no
+    /// card; the entrance plays as on any launch when Spider-Man is on the rope. Runs on the XAML thread, which owns
+    /// the windows it asks about.
+    /// </remarks>
+    private void WaitForQuietMoment()
+    {
+        if (updateWait is not null || xamlQueue is null)
+        {
+            return;
+        }
+
+        updateWait = xamlQueue.CreateTimer();
+        updateWait.Interval = Hangly.Core.Lifecycle.UpdateTiming.CheckEvery;
+        updateWait.Tick += (timer, _) =>
+        {
+            bool windowOpen = customize?.AppWindow.IsVisible == true || Onboarding.ProcessLifetime.AnyVisible;
+            Hangly.Core.Lifecycle.UpdateMoment moment = UpdateMomentReader.Read(
+                TimeSpan.FromMilliseconds(Environment.TickCount64 - startedAt), windowOpen);
+            if (!Hangly.Core.Lifecycle.UpdateTiming.ShouldInstall(moment))
+            {
+                return;
+            }
+
+            timer.Stop();
+            Diagnostics.Log($"away and idle {moment.Idle.TotalMinutes:F0} min; installing the update");
+            if (Updates.ApplyQuietlyAndRestart())
+            {
+                Exit();
+            }
+        };
+        updateWait.Start();
+        Diagnostics.Log("update downloaded; waiting for a quiet moment to install it");
     }
 
     /// <summary>How long after launch the first check runs.</summary>
@@ -220,7 +277,10 @@ public sealed class AppEnvironment : IDisposable
             TimeSpan.FromMilliseconds(Environment.TickCount64),
             legacyLoginEntry);
         Diagnostics.Log($"launch: {destination}{(arguments.Count > 0 ? " (" + string.Join(' ', arguments) + ")" : string.Empty)}");
-        if (destination == Hangly.Core.Lifecycle.LaunchDestination.Library)
+        analytics.Log(AnalyticsEvent.AppLaunch(
+            atLogin: arguments.Contains("--login", StringComparer.Ordinal) || legacyLoginEntry, afterUpdate: updatedLaunch));
+        // The release notes stand in for the Library on the launch they appear: one window, not two.
+        if (destination == Hangly.Core.Lifecycle.LaunchDestination.Library && !releaseNotesDue)
         {
             OpenLibrary();
         }
@@ -231,6 +291,23 @@ public sealed class AppEnvironment : IDisposable
 
     public void ShowWelcomeIfNeeded()
     {
+        // After an update to a new feature version, the release notes and nothing else: not the Enjoying Hangly card
+        // as well. The restart after an update never asks for a name either; a later launch does.
+        if (releaseNotesDue && (updatedLaunch || !Onboarding.WelcomeWindow.IsNeeded(store.Settings)))
+        {
+            var notes = new Onboarding.ReleaseNotesWindow();
+            Onboarding.ProcessLifetime.KeepAlive(notes);
+            notes.Activate();
+            Diagnostics.Log($"release notes shown for {AppInfo.Version}");
+            return;
+        }
+
+        if (updatedLaunch)
+        {
+            Diagnostics.Log("restarted by an update: no welcome or card this launch");
+            return;
+        }
+
         if (!Onboarding.WelcomeWindow.IsNeeded(store.Settings))
         {
             ShowFollowIfDue();
@@ -240,7 +317,7 @@ public sealed class AppEnvironment : IDisposable
         // Quit is passed only on this route. The About page's "Show welcome again" opens
         // the same card for somebody who already has a name, and closing that one must
         // not take the app with it.
-        var welcome = new Onboarding.WelcomeWindow(store, analytics, OpenLibrary, Quit);
+        var welcome = new Onboarding.WelcomeWindow(store, OpenLibrary, Quit, index);
         activeWelcome = welcome;
 
         // Hidden rather than closed when it is dismissed, so the app is still running
@@ -258,7 +335,7 @@ public sealed class AppEnvironment : IDisposable
     /// <summary>Reopens the welcome card on demand, from the About page.</summary>
     public void ShowWelcomeAgain()
     {
-        var welcome = new Onboarding.WelcomeWindow(store, analytics, OpenLibrary);
+        var welcome = new Onboarding.WelcomeWindow(store, OpenLibrary);
         activeWelcome = welcome;
         Onboarding.ProcessLifetime.KeepAlive(welcome);
         welcome.SkipToWelcome();
@@ -287,6 +364,30 @@ public sealed class AppEnvironment : IDisposable
         // the entry while Hangly was not running, so the stored flag is corrected from
         // the system before anything reads it.
         Diagnostics.Log($"bootstrap starting; settings at {SettingsStore.DefaultPath}");
+
+        // Before the overlay reads the rope, and before the launch is counted: a launch
+        // count of zero is how a new install is told from somebody updating. Marked done
+        // at the end of bootstrap, once the overlay is up.
+        bool introduced = false;
+        bool gaveBack = false;
+        store.Update(settings =>
+        {
+            (AppSettings advanced, gaveBack) = EntranceIntroduction.Advance(settings);
+            (AppSettings next, introduced) = EntranceIntroduction.Apply(advanced);
+            return next;
+        });
+        if (gaveBack)
+        {
+            // Before the overlay reads it. The rope is not part of it, so the cord built above stands.
+            Diagnostics.Log("the look lent for the Spider-Man introduction is given back");
+        }
+
+        if (introduced)
+        {
+            // The rope was built in the constructor, before this ran, on the old cord.
+            rope.SetStyle(store.Settings.Overlay.RopeStyle);
+            Diagnostics.Log("Spider-Man lent for two launches, on Spider Thread, to introduce the entrance");
+        }
 
         // On a first run, switch it on rather than merely defaulting the flag to true.
         //
@@ -344,12 +445,20 @@ public sealed class AppEnvironment : IDisposable
 
         store.Changed += OnSettingsChanged;
 
-        // After the tray and before the overlay: starting it counts the launch, which
-        // the follow card is scheduled off and which has nothing to do with whether
-        // anything is sent. Not awaited — an identify is never on the path to a charm.
-        _ = analytics.Start();
-        Diagnostics.Log(
-            $"analytics {(analytics.IsEnabled ? "on" : "off")}; {analytics.Connection.Summary}");
+        // After the tray and before the overlay. The support card is scheduled off this count, which the quiet
+        // restart after an update is not: nobody started Hangly.
+        if (!updatedLaunch)
+        {
+            Hangly.Core.Lifecycle.LaunchCounter.Count(store);
+        }
+        NoteVersion();
+        NoteChoices(store.Settings.Overlay);
+
+        // Creates the installation's permanent ID on its first launch; sends the record once
+        // there is a nickname to send, and any crash reports waiting from the last run. Not
+        // awaited — the registry is never on the path to a charm.
+        _ = registry.Start();
+        Diagnostics.Log($"registry {(registry.IsConfigured ? "configured" : "not configured in this build")}");
 
         if (store.Settings.Overlay.IsEnabled)
         {
@@ -360,6 +469,12 @@ public sealed class AppEnvironment : IDisposable
         else
         {
             Diagnostics.Log("overlay disabled in settings; tray only");
+        }
+
+        // The launch got this far, so the Spider-Man introduction has happened: never again.
+        if (!store.Settings.Milestones.SpiderManIntroCompleted)
+        {
+            store.Update(EntranceIntroduction.Complete);
         }
 
         // Last, and on its own thread, so nothing above waits on a network call.
@@ -707,14 +822,32 @@ public sealed class AppEnvironment : IDisposable
     /// </remarks>
     private void OpenCustomize()
     {
+        // Hangly is not usable until it has a name: while the welcome card is waiting for
+        // one, the Library, Create and the rest bring the card forward instead. As on macOS.
+        if (activeWelcome is { } waiting && waiting.AppWindow.IsVisible && Onboarding.WelcomeWindow.IsNeeded(store.Settings))
+        {
+            Interop.WindowPlacement.BringToFront(waiting);
+            return;
+        }
+
         try
         {
             // Built once and kept. It hides on close rather than closing, so there is
-            // nothing to rebuild and the window comes back where it was left.
-            if (customize is null)
+            // nothing to rebuild.
+            bool created = customize is null;
+            customize ??= new Customize.CustomizeWindow(store, launchAtLogin, registry, this);
+            if (created)
             {
-                customize = new Customize.CustomizeWindow(store, launchAtLogin, analytics, this);
                 Diagnostics.Log("customize window created");
+            }
+
+            // Every Hangly window opens in the middle of the display the pointer is on,
+            // every time, as on macOS. One already open, or minimised, is being brought
+            // back rather than opened, and stays where it is.
+            IntPtr handle = WinRT.Interop.WindowNative.GetWindowHandle(customize);
+            if (!created && !customize.AppWindow.IsVisible && !Interop.NativeMethods.IsIconic(handle))
+            {
+                customize.CentreForOpening();
             }
 
             customize.AppWindow.Show();
@@ -792,6 +925,7 @@ public sealed class AppEnvironment : IDisposable
         // rebuilding, and it is cheap to notice here rather than measuring artwork again
         // on every slider move.
         IReadOnlyList<RopeCharm> places = settings.Overlay.Stack.Places;
+        NoteChoices(settings.Overlay);
         if (artwork is not null && !hangingPlaces.SequenceEqual(places))
         {
             IReadOnlyList<string> ids = [.. places.Select(place => place.Id)];
@@ -803,6 +937,61 @@ public sealed class AppEnvironment : IDisposable
 
 
         overlay?.Apply(settings.Overlay);
+    }
+
+    /// <summary>What was hanging, and on which cord, when choices were last noted.</summary>
+    private IReadOnlyList<string>? notedCharms;
+    private RopeStyle? notedRope;
+
+    /// <summary><c>charm_selected</c> for each charm newly on the rope and <c>rope_selected</c> for a new cord.</summary>
+    /// <remarks>
+    /// Noticed here, where every change to the settings arrives, rather than at each of the places a charm or a rope
+    /// can be chosen — the Library, the tray, the Studio — so none of them can forget to report it. The first call
+    /// only records what is there: a launch is not a choice.
+    /// </remarks>
+    private void NoteChoices(OverlaySettings overlay)
+    {
+        IReadOnlyList<string> ids = overlay.Stack.Ids;
+        if (notedCharms is not null)
+        {
+            foreach (string id in ids.Except(notedCharms, StringComparer.Ordinal))
+            {
+                analytics.Log(AnalyticsEvent.CharmSelected(id));
+            }
+
+            if (notedRope != overlay.RopeStyle)
+            {
+                analytics.Log(AnalyticsEvent.RopeSelected(overlay.RopeStyle));
+            }
+        }
+
+        notedCharms = ids;
+        notedRope = overlay.RopeStyle;
+    }
+
+    /// <summary>Notes this launch's version, and reports an update when it changed.</summary>
+    private void NoteVersion()
+    {
+        string? previous = store.Settings.Milestones.LastLaunchedVersion;
+        if (previous == AppInfo.Version)
+        {
+            return;
+        }
+
+        // 0.9.x did not record its version, so an install that has run before is an update too.
+        releaseNotesDue = Hangly.Core.Text.ReleaseHighlights.ShouldShow(
+            previous, AppInfo.Version, updatedBefore: updatedLaunch || store.Settings.Milestones.LaunchCount > 1);
+
+        // An install from before this was recorded, that has launched before, is an update from an unknown version.
+        if (previous is not null || store.Settings.Milestones.LaunchCount > 1)
+        {
+            analytics.Log(AnalyticsEvent.AppUpdate(previous ?? "unknown"));
+        }
+
+        store.Update(settings => settings with
+        {
+            Milestones = settings.Milestones with { LastLaunchedVersion = AppInfo.Version },
+        });
     }
 
     /// <summary>
@@ -869,8 +1058,23 @@ public sealed class AppEnvironment : IDisposable
             new MenuEntry(
                 settings.Overlay.IsEnabled ? "Hide Charm" : "Show Charm",
                 () => store.UpdateOverlay(overlay => overlay with { IsEnabled = !overlay.IsEnabled })),
+
             MenuEntry.Separator,
             new MenuEntry("Library", OpenLibrary),
+            // The two behaviour switches people flip day to day, one click away — the same
+            // words as the macOS menu, directly below Library, and the same settings as
+            // Appearance → Behaviour — the menu is rebuilt from them each time it opens.
+            new MenuEntry(
+                "Always on Top",
+                () => store.UpdateOverlay(overlay => overlay with
+                {
+                    WindowMode = WindowModeTable.FromAlwaysOnTop(!WindowModeTable.IsAlwaysOnTop(overlay.WindowMode)),
+                }),
+                IsChecked: WindowModeTable.IsAlwaysOnTop(settings.Overlay.WindowMode)),
+            new MenuEntry(
+                "Auto-hide during full-screen video",
+                () => store.UpdateOverlay(overlay => overlay with { HidesDuringFullscreenVideo = !overlay.HidesDuringFullscreenVideo }),
+                IsChecked: settings.Overlay.HidesDuringFullscreenVideo),
             new MenuEntry("Create…", OpenCreate),
             MenuEntry.Separator,
             new MenuEntry("Charms", Children: charms),
@@ -943,8 +1147,15 @@ public sealed class AppEnvironment : IDisposable
     /// </summary>
     private void Quit()
     {
-        BankSwings();
         Updates.ApplyOnExit();
+        Exit();
+    }
+
+    /// <summary>Ends the process: the swings saved, and every held window released so WinUI can exit.</summary>
+    private void Exit()
+    {
+        updateWait?.Stop();
+        BankSwings();
         customize?.AllowClose();
         customize = null;
         Onboarding.ProcessLifetime.Release();
@@ -955,7 +1166,7 @@ public sealed class AppEnvironment : IDisposable
     {
         if (args.IsAvailable)
         {
-            analytics.NetworkBecameAvailable();
+            registry.NetworkBecameAvailable();
         }
     }
 
@@ -963,7 +1174,6 @@ public sealed class AppEnvironment : IDisposable
     {
         System.Net.NetworkInformation.NetworkChange.NetworkAvailabilityChanged -= OnNetworkAvailabilityChanged;
         store.Changed -= OnSettingsChanged;
-        (analyticsProvider as IDisposable)?.Dispose();
         audio?.Dispose();
         HideOverlay();
         tray?.Dispose();

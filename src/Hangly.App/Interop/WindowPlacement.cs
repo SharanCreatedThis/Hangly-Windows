@@ -24,24 +24,39 @@ namespace Hangly.App.Interop;
 /// </remarks>
 public static class WindowPlacement
 {
-    /// <summary>Resizes a window to a size in points and centres it on its display.</summary>
+    /// <summary>
+    /// Resizes a window to a size in points and centres it on the display the pointer is on.
+    /// </summary>
+    /// <remarks>
+    /// <b>The pointer's display, not the window's and not the primary.</b> Somebody who
+    /// picks Library from the tray on their second monitor is looking at that monitor; the
+    /// window opening on the primary, or wherever it was last left, means turning to find
+    /// it. The same rule as macOS's <c>WindowCentering</c>.
+    ///
+    /// <para><b>Sized for that display's scale</b>, read from the monitor rather than from
+    /// the window, which may still be on another display at another scale. Sizing first
+    /// and moving after would open a window at the wrong size whenever the two differ.</para>
+    ///
+    /// <para>Called every time a window opens, not once when it is built: a window that
+    /// hides rather than closes comes back in the middle of the display in use, not where
+    /// it was left.</para>
+    /// </remarks>
     public static void SizeAndCentre(Window window, double widthInPoints, double heightInPoints)
     {
         try
         {
-            IntPtr handle = WinRT.Interop.WindowNative.GetWindowHandle(window);
-            double scale = NativeMethods.GetDpiForWindow(handle) / 96.0;
-            if (scale <= 0)
-            {
-                scale = 1;
-            }
-
+            Microsoft.UI.Windowing.DisplayArea area = UnderPointer(window);
+            double scale = ScaleOf(area, window);
             var size = new Windows.Graphics.SizeInt32(
                 (int)Math.Round(widthInPoints * scale),
                 (int)Math.Round(heightInPoints * scale));
 
-            window.AppWindow.Resize(size);
-            Centre(window, size);
+            Windows.Graphics.RectInt32 work = area.WorkArea;
+            (int x, int y) = Hangly.Core.Geometry.Centring.Origin(work.X, work.Y, work.Width, work.Height, size.Width, size.Height);
+
+            // Moved and sized in one call, so the window never spends a frame on one
+            // display at the other's size.
+            window.AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, y, size.Width, size.Height));
         }
         catch (Exception exception)
         {
@@ -50,29 +65,38 @@ public static class WindowPlacement
         }
     }
 
-    /// <summary>Centres a window of a known size on the display it opened on.</summary>
+    /// <summary>The display the pointer is on; the window's own if the pointer cannot be read.</summary>
     /// <remarks>
-    /// The <em>work area</em> rather than the whole display, so a taskbar does not push
-    /// the window down by its own height and leave it looking low.
+    /// The <em>work area</em> of it is what windows are centred in, so a taskbar does not
+    /// push the window down by its own height and leave it looking low.
     /// </remarks>
-    public static void Centre(Window window, Windows.Graphics.SizeInt32 size)
+    private static Microsoft.UI.Windowing.DisplayArea UnderPointer(Window window)
     {
-        try
+        if (NativeMethods.GetCursorPos(out NativeMethods.Point pointer))
         {
-            Microsoft.UI.Windowing.DisplayArea area = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(
-                window.AppWindow.Id,
-                Microsoft.UI.Windowing.DisplayAreaFallback.Primary);
-
-            Windows.Graphics.RectInt32 work = area.WorkArea;
-
-            window.AppWindow.Move(new Windows.Graphics.PointInt32(
-                work.X + Math.Max(0, (work.Width - size.Width) / 2),
-                work.Y + Math.Max(0, (work.Height - size.Height) / 2)));
+            return Microsoft.UI.Windowing.DisplayArea.GetFromPoint(
+                new Windows.Graphics.PointInt32(pointer.X, pointer.Y),
+                Microsoft.UI.Windowing.DisplayAreaFallback.Nearest);
         }
-        catch (Exception exception)
+
+        return Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(
+            window.AppWindow.Id,
+            Microsoft.UI.Windowing.DisplayAreaFallback.Primary);
+    }
+
+    /// <summary>The display's own scale, falling back to the window's.</summary>
+    private static double ScaleOf(Microsoft.UI.Windowing.DisplayArea area, Window window)
+    {
+        IntPtr monitor = Microsoft.UI.Win32Interop.GetMonitorFromDisplayId(area.DisplayId);
+        if (monitor != IntPtr.Zero
+            && NativeMethods.GetDpiForMonitor(monitor, NativeMethods.MdtEffectiveDpi, out uint dpi, out _) == 0
+            && dpi > 0)
         {
-            Diagnostics.Failure("centring a window", exception);
+            return dpi / 96.0;
         }
+
+        double scale = NativeMethods.GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(window)) / 96.0;
+        return scale > 0 ? scale : 1;
     }
 
     /// <summary>Lifts <paramref name="window"/> out of the taskbar if it is minimised.</summary>
@@ -115,7 +139,7 @@ public static class WindowPlacement
     /// <remarks>
     /// The welcome and follow cards are laid out for one size and have nothing to do with
     /// extra room, so dragging their edges only breaks the composition. It is also what
-    /// keeps the coffee sheet predictable: a ContentDialog is bounded by the window it
+    /// keeps the support sheet predictable: a ContentDialog is bounded by the window it
     /// opens over, and that sheet is sized from the host's height.
     /// </remarks>
     public static void FixSize(Window window)

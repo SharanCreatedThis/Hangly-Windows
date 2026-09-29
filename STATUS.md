@@ -112,9 +112,11 @@ were. Full write-up in PORTING.md §3.
 - **About**, with the app icon read back out of the executable, the version and build, the
   copyright, links to the website, GitHub, the release notes and Instagram, and the
   coffee button.
-- **Analytics**, with the macOS build's event names exactly, and the inspector
-  `PRIVACY.md` promises: whether sharing is on, where it would go, the installation
-  identifier masked, the last event, and how many have been sent.
+- **Installation registry and analytics** (2.1.0, replacing PostHog): one permanent
+  `installation.json` in `%AppData%\Hangly`, synced to a Firebase Cloud Function; six GA4
+  events through the Measurement Protocol; crash reports with stack traces; an uninstall
+  signal from the Velopack hook. About → Installation shows the masked ID, place, versions
+  and sync state.
 - The **Customize window**: a WinUI settings window with a charm picker showing all
   seventy as artwork grouped by pack, the number on the cord, the cord itself with its
   description, size, reach and opacity, where it hangs, and the two behaviour switches.
@@ -236,6 +238,9 @@ rhythm is to run it whenever any of that changes.
 
 ### Analytics, verified
 
+*The PostHog build (0.9.x). 2.1.0 replaced it with the Firebase registry; its checks are
+`tools/registry-check.ps1` and `InstallationRegistryTests`.*
+
 | | |
 |---|---|
 | Launches with sharing **off**: nothing captured, no identifier minted | ✅ |
@@ -306,10 +311,10 @@ would be worse than saying so.
 
 | | |
 |---|---|
-| `macos_version` → `windows_version` | The same key holding a different kind of number would make the two datasets disagree about what the word means |
-| Transport | Hand-written against PostHog's capture endpoint rather than their SDK. The macOS build wraps the SDK behind the same provider seam; here the wrapper was the whole job, and a file this size can be read to check what leaves |
-| No batching | Each event is its own request. macOS lets the SDK queue; at a handful of events per session there is nothing to gain and a queue is something to lose on a crash |
-| Events defined but never fired | **One: `collection_charm_selected`.** Found by the hardening audit; the other twenty-four all have a call site. This row used to claim every event had one |
+| Analytics transport | GA4 Measurement Protocol, hand-written; macOS uses the Firebase SDK. There is no Firebase Analytics SDK for Windows desktop |
+| `app_update` → `hangly_app_update` | GA4 reserves `app_update` for its SDKs and drops it from the Measurement Protocol |
+| Crashes | Stack traces go to Firestore `crashReports` through the registry; macOS uses Crashlytics, which has no Windows desktop SDK |
+| Uninstall | Windows reports it (Velopack hook); a Mac cannot see its own removal, so it is estimated from 30 days of silence |
 | Import input format | SVG, PNG and JPG here. macOS additionally cuts the subject out of a photograph; that is a v1.1 item |
 | Import review step | macOS opens every interactive import in the Studio first. Here the **Create** tab is the review step, and an import from the menu or a drop goes straight into the Library |
 | About page | Hero, statistics, secrets, creator card, milestones, the UPI coffee sheet and in-app release notes are all there now. This row used to say none of them were |

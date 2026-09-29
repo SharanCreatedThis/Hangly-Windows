@@ -1,164 +1,72 @@
 # Privacy
 
-Hangly is an ornament that hangs on your desktop. It needs almost nothing about you to do
-that, and it collects almost nothing.
+Hangly is an ornament that hangs on your desktop. What leaves your PC, and why, is all
+below: the installation registry, a few usage events, crash reports, and the update check.
 
-This is the **Windows** build. It is a port of the macOS one and the promises are the
-same, but the two apps are not identical and this document describes what *this* one
-does. Where they differ, it says so.
+## The installation registry
 
-## Analytics
+Every installation of Hangly is registered with its developer, in Google Firebase. The
+record exists so the developer can see how many people use Hangly, where, on what, and for
+how long — and it is the only record kept about you. It is part of using Hangly: there is
+no switch.
 
-Hangly keeps a register of the people who use it: who they are, and what they run it on.
-It does not record what anybody does with it.
+### What the record holds
 
-On by default, and switchable off in **Customize → About → Analytics**. Turning it off
-stops it immediately and discards the installation identifier.
-
-### The name you give
-
-Hangly asks for a name the first time it runs, and will not go further without one. With
-analytics on, that name is part of what is sent.
-
-**You type it.** Hangly does not read your Windows account name, your Microsoft account,
-your email address, your computer name, or any other part of the machine — there is no
-code in this build that could. Change it whenever you like in **Customize → Appearance →
-Your name**.
-
-If you would rather not send it, switch analytics off. The name stays on your machine and
-is still used to greet you.
-
-### When anything is sent
-
-One message, called an *identify*, at exactly three moments:
-
-| When | |
+| | |
 |---|---|
-| The first time you start Hangly | After you have given a name, never before |
-| You change your name | Once, with the new name |
-| A new major version arrives | The first time you start, say, 2.0 after 1.x |
+| Installation ID | A random identifier made on this PC the first time Hangly runs, kept in `%AppData%\Hangly\installation.json`, and used for nothing else. It never changes. |
+| Nickname | What you typed when Hangly asked "What should we call you?" — never read from your account, your PC's name or anything else. Change it any time in **Customize → Appearance → About You**. |
+| City, region, country | Worked out from your internet connection's address by Hangly's server, using the MaxMind GeoLite2 database. **The address itself is never stored or logged.** Nothing more exact than a city. |
+| Platform and processor | Windows, and whether it is x64 or ARM64. |
+| Versions | Of Windows and of Hangly. |
+| Versions over time | The version of Hangly it started on, the one before the latest update, and when it updated. |
+| First and last seen | When Hangly was first installed and when it was last in use. The time comes from Hangly's server. For an installation from before 2.1.0, the first date comes from the old analytics records or, if analytics was switched off, from the creation date of Hangly's folders in `%AppData%` and `%LocalAppData%` (only the date is sent). |
+| Retention and crash counts | How many days it has been used, how long since it was first seen, and how many times Hangly has crashed. |
 
-And once a day that Hangly runs, and once when you uninstall it, the messages below. That is
-all. Starting Hangly, quitting it, hanging a charm, changing a rope, opening a window,
-importing a picture — none of it is sent, and the code that used to send it has
-been removed. If an identify cannot be delivered because you are offline, it is tried again
-the next time you start Hangly.
+### When it is sent
 
-It goes to [PostHog](https://posthog.com) (US region).
+The record is saved on your PC first, then sent. An update is sent only when something
+has changed — your nickname, a new version, a new city — and at most once a day to say
+Hangly is still in use. Nothing is sent before you have given a nickname. If you are
+offline, it waits and is sent when you are back.
 
-> **Builds made from the source send nothing.** The key that lets Hangly reach PostHog is
-> added only by the release workflow. A copy built by anybody else — or by the author for
-> testing — has no destination, and its About page says *No destination configured*.
-
-### Once a day: "still running"
-
-On each day Hangly runs, it sends one more message, `daily_active`, after the identify
-and never before it. It says only that this copy ran today, and which platform and
-versions it is:
-
-```json
-{
-  "event": "daily_active",
-  "distinct_id": "<the same identifier>",
-  "properties": {
-    "platform": "windows", "architecture": "arm64",
-    "app_version": "1.0.0", "build_number": "6", "os_version": "10.0.26200.0",
-    "$geoip_disable": true, "$ip": null,
-    "$set": { "platform": "windows", "app_version": "1.0.0", "...": "the same platform facts" }
-  }
-}
-```
-
-No name, no charms, no settings, nothing about what you did. At most once per calendar day,
-checked once an hour while Hangly runs. A day with no network is not sent later. It is what
-lets the project count how many people are still using Hangly and which versions they are
-on, without counting what they do.
+The record is written by Hangly's server only; the app cannot read it back, and neither can
+anyone else's. To have your record deleted, contact the developer from **About**.
 
 ### When you uninstall
 
-If you uninstall Hangly through **Settings → Apps**, it sends one last message,
-`app_uninstalled`, with the same identifier and the platform facts — no name — so the
-project knows this copy is gone rather than just quiet. Only with analytics on, and only if
-Hangly had already told the project who you are. If the machine is offline at that moment,
-or Hangly is removed by deleting its folder by hand, nothing is sent: there is no Hangly left
-to try again.
+Windows tells Hangly when it is being uninstalled, and Hangly sends one last update so the record is marked uninstalled. If you install it again, the same record is used.
 
-The same step removes Hangly's entry from your Windows startup list, so Windows does not go
-on trying to start a program that is no longer there.
+## Usage events
 
-### Exactly what an identify carries
+Hangly reports six things to Google Analytics (the same property, through its Measurement Protocol), tagged with the installation ID and nothing
+else — never your nickname or your city:
 
-This is a real payload, printed by this build with `Hangly.exe --check-analytics` (which
-shows it without sending it):
+- that Hangly started, and whether at sign-in or by hand;
+- that Hangly was updated;
+- which charm you hang (a charm you made yourself is reported only as "custom");
+- which rope you choose;
+- that you opened the support page, and from where;
+- that you finished the welcome.
 
-```json
-{
-  "event": "$identify",
-  "distinct_id": "ce319cc7-eae6-4a95-ae97-f38fcab87ad6",
-  "properties": {
-    "identify_reason": "first_launch",
-    "$lib": "hangly-windows",
-    "$lib_version": "0.9.4",
-    "$geoip_disable": true,
-    "$ip": null,
-    "$set": {
-      "user_name": "Sharan",
-      "name": "Sharan",
-      "username": "Sharan",
-      "platform": "windows",
-      "architecture": "arm64",
-      "app_version": "0.9.4",
-      "build_number": "5",
-      "os_version": "10.0.26200.0",
-      "$os": "Windows",
-      "$os_version": "10.0.26200.0",
-      "$app_version": "0.9.4"
-    }
-  }
-}
-```
+Nothing else you do in Hangly is reported.
 
-- **`distinct_id`** is a random identifier made on this machine the first time anything is
-  sent. It is not derived from your hardware, account or network.
-- **`$set`** is what PostHog stores on you. The name appears three times because PostHog
-  shows a person by `name` or `username`, and older Hangly data used `user_name`; it is one
-  name, written where it can be read.
-- **`$geoip_disable`** and **`$ip: null`** stop PostHog working out a country, region or
-  city from the address the message came from.
-- **`identify_reason`** is which of the three moments above this is.
+## Crash reports
 
-The same list is on the About page, built from the code that sends it rather than typed
-out, so it cannot drift from what actually leaves.
+Crashes, and a few non-fatal errors, are written to a file on your PC when they happen and sent on the next launch: the error's type, message and stack trace, the app and Windows versions, the processor, and when it happened (the server also records when it arrived). Your user folder and account name are removed from the text first. They are stored in Hangly's Firebase project, beside your installation's record.
 
-### What is never sent
+## What is never collected
 
-- Anything about what you do in Hangly: launches, clicks, charms, ropes, windows, imports.
-- Your email address, phone number, or any account. Hangly has no accounts.
-- Your Windows account name, Microsoft account, or computer name.
-- Files you import, their names, their contents, or where they came from.
-- Your clipboard.
-- Your location.
-- Where your charm sits, how large it is, which display it is on, or anything else
-  describing your desktop.
-- Keystrokes, screen contents, other applications, or what you are doing.
+- Your email address, your Windows account name or your PC's name.
+- Your IP address, or any location more exact than your city.
+- Images you import, or anything about them — not the file, its name or its size.
+- Where your charm sits on screen, or anything else about your desktop.
+- Keystrokes, screen contents, other apps, or what you are doing.
 
-These are not aspirations. `AnalyticsTests` in `Hangly.Core.Tests` asserts them against a
-recording provider that captures exactly what would have left the machine — including that
-the provider has no way to send anything but an identify.
+## Checking what your copy holds
 
-### Turning it off
-
-**Customize → About → Analytics → Tell Hangly who is using it.**
-
-Switching it off stops it at the source and throws away the installation identifier and
-the record of what was sent under it. If you switch it back on, a new identifier is made and
-you are sent as a first launch, so the two cannot be joined.
-
-### Checking what your copy is doing
-
-The same panel shows, for this machine: whether sharing is on, whether a destination is
-configured, the installation identifier (masked), the last identify sent this session and
-why, and your name.
+**Customize → About → Installation** shows the installation ID (masked), your nickname, the
+place the registry has for you, and when the record was last updated.
 
 ## Charms you import
 
@@ -190,8 +98,8 @@ next time Hangly starts or quits — nothing asks and nothing is shown. The tray
   as it does for anyone reading the repository in a browser. The updater
   ([Velopack](https://velopack.io)) states that its runtime and the binaries it ships with
   the app collect no telemetry, analytics or tracking data.
-- **There is no Hangly server**, for updates or for anything else. There is nothing to
-  report to and nothing that knows you checked.
+- **There is no Hangly update server.** Updates come from GitHub; nothing reports that you
+  checked. (The installation registry above is a separate service, in Firebase.)
 
 See `Docs/DISTRIBUTION.md` for how releases are built and signed.
 
@@ -213,6 +121,6 @@ It does not read window contents, other applications, or anything you type.
 
 ## No other network use
 
-Beyond analytics and the update check, Hangly makes no network requests. It loads no
-remote content and contacts no other service. The links on the About page open in your
+Beyond the registry, usage events, crash reports and the update check, Hangly makes no
+network requests. It loads no remote content and contacts no other service. The links on the About page open in your
 browser; the app does not fetch them.

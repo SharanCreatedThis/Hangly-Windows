@@ -121,6 +121,7 @@ public static class Diagnostics
 
         text.Append(exception?.StackTrace);
         Write(text.ToString());
+        CrashReporter.Record(stage, exception);
     }
 
     /// <summary>
@@ -165,55 +166,33 @@ public static class Diagnostics
     /// adds anything to the charms the person actually has.
     /// </remarks>
     /// <summary>
-    /// Writes to the log exactly what the next identify would carry, and whether one is due.
+    /// Writes what the installation registry holds for this machine, and what the next launch would send, to the log.
     /// </summary>
     /// <remarks>
-    /// Uses the settings the person actually has — their name, their installation
-    /// identifier — because a payload built from invented values would not answer the
-    /// question being asked, which is what this copy of Hangly tells the project about this
-    /// person. <b>It sends nothing.</b> Sending would itself be a change to the person the
-    /// project holds, and a check that alters what it is checking is not a check. It does
-    /// not count a launch either.
+    /// For <c>--registry-check</c>. <b>It sends nothing</b> and counts no launch: a check that changed what it is
+    /// checking would not be a check.
     /// </remarks>
-    public static void CheckAnalytics()
+    public static void CheckRegistry()
     {
         try
         {
-            var store = new Core.Settings.SettingsStore(Core.Settings.SettingsStore.DefaultPath);
-            Log($"analytics check: sharing is {(store.Settings.Privacy.AnalyticsEnabled ? "on" : "off")}");
-            Log($"analytics check: name is '{store.Settings.DisplayName}'");
-            Log($"analytics check: {(AppInfo.HasAnalyticsDestination ? $"destination {AppInfo.AnalyticsHost}" : "no key in this build, so there is nowhere to send")}");
+            var store = new Core.Registry.InstallationStore();
+            Core.Registry.InstallationRecord? record = store.LoadExisting();
+            Log($"registry check: {(AppInfo.RegistryUrl.Length > 0 ? $"registry {AppInfo.RegistryUrl}" : "no registry URL in this build, so nothing is sent")}");
+            if (record is null)
+            {
+                Log($"registry check: no installation yet ({store.FilePath})");
+                return;
+            }
 
-            using var provider = new Analytics.PostHogProvider(AppInfo.AnalyticsHost, AppInfo.AnalyticsKey);
-            var manager = new Core.Analytics.AnalyticsManager(
-                store,
-                provider,
-                AppInfo.AnalyticsHost,
-                AppInfo.HasAnalyticsDestination,
-                AppInfo.Version,
-                AppInfo.BuildNumber,
-                AppInfo.WindowsVersion);
-
-            Core.Analytics.IdentifyReason? due = manager.PendingReason();
-            Log(due is Core.Analytics.IdentifyReason reason
-                ? $"analytics check: an identify is due ({Core.Analytics.AnalyticsManager.NameOf(reason)})"
-                : "analytics check: nothing is due; nothing would be sent on the next launch");
-
-            Log(manager.HeartbeatDue()
-                ? "analytics check: today's daily_active is due"
-                : $"analytics check: no daily_active due (last counted day: {store.Settings.Privacy.LastActiveDay ?? "none"})");
-            Log($"analytics check daily_active properties: {string.Join(", ", manager.OperationalProperties().Keys)}");
-
-            string distinctId = store.Settings.Privacy.AnonymousId?.ToString("D") ?? "(minted on the first send)";
-            string payload = provider.Preview(
-                distinctId,
-                manager.PersonProperties(),
-                manager.EventProperties(due ?? Core.Analytics.IdentifyReason.FirstLaunch));
-            Log($"analytics check payload: {payload}");
+            Log($"registry check: installation {record.InstallationId:D}, nickname '{record.Nickname}', {record.Architecture}, Windows {record.OsVersion}, Hangly {record.AppVersion}");
+            Log($"registry check: {(record.Uploaded is null ? "not registered yet" : $"registered; last seen {record.LastSeen:O}; place {record.City}, {record.Region}, {record.Country}")}");
+            Log($"registry check: {(record.IsDue(DateTimeOffset.UtcNow) ? "an update is due on the next launch" : "up to date")}");
+            Log($"registry check: {CrashReporter.Pending.Pending().Count} crash report(s) waiting");
         }
         catch (Exception exception)
         {
-            Failure("analytics check", exception);
+            Failure("registry check", exception);
         }
     }
 

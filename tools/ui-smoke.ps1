@@ -358,7 +358,7 @@ if ($about) {
     foreach ($link in 'Website', 'GitHub', 'Release notes', 'Instagram') {
         Check "About links to $link" ([bool](FindIn ([System.Windows.Automation.ControlType]::Hyperlink) "^$link$"))
     }
-    Check 'About offers the coffee button' ([bool](FindIn ([System.Windows.Automation.ControlType]::Button) 'Buy Creator a Coffee'))
+    Check 'About offers the support button' ([bool](ById 'SupportButton'))
     Check 'About offers the creator card'  ([bool](FindIn ([System.Windows.Automation.ControlType]::Text) '^Support the Creator$'))
     Check 'About offers suggesting a charm'([bool](FindIn ([System.Windows.Automation.ControlType]::Hyperlink) '^Suggest a charm$'))
 
@@ -367,18 +367,18 @@ if ($about) {
         Check "About shows $stat" ([bool](ById $stat))
     }
 
-    # The coffee sheet: the QR, the address, the copy, and closing again.
-    $coffee = ById 'CoffeeButton'
-    if ($coffee) {
-        $coffee.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    # The support sheet: the QR, the address, the copy, and closing again.
+    $support = ById 'SupportButton'
+    if ($support) {
+        $support.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
         Start-Sleep -Seconds 3
-        Check 'the coffee sheet opens'        ([bool](ById 'CoffeeUpiId'))
-        Check 'the sheet shows the UPI id'    ((ById 'CoffeeUpiId').Current.Name -eq '8870786087@yescred')
-        Check 'the sheet offers to copy it'   ([bool](ById 'CoffeeCopyButton'))
-        Check 'the sheet offers the page'     ([bool](ById 'CoffeeOpenButton'))
+        Check 'the support sheet opens'        ([bool](ById 'SupportUpiId'))
+        Check 'the sheet shows the UPI id'    ((ById 'SupportUpiId').Current.Name -eq '8870786087@yescred')
+        Check 'the sheet offers to copy it'   ([bool](ById 'SupportCopyButton'))
+        Check 'the sheet offers the page'     ([bool](ById 'SupportOpenButton'))
         Check 'the QR shipped with the build' (-not [bool](FindIn ([System.Windows.Automation.ControlType]::Text) 'QR code is missing'))
 
-        $copyButton = ById 'CoffeeCopyButton'
+        $copyButton = ById 'SupportCopyButton'
         if ($copyButton) {
             $copyButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
             Start-Sleep -Milliseconds 800
@@ -391,7 +391,7 @@ if ($about) {
             $closeButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
             Start-Sleep -Seconds 2
         }
-        Check 'closing the sheet dismisses it' (-not [bool](ById 'CoffeeUpiId'))
+        Check 'closing the sheet dismisses it' (-not [bool](ById 'SupportUpiId'))
     }
 
     $secretsBefore = [int](ById 'StatSecrets').Current.Name

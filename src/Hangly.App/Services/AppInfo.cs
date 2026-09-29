@@ -36,17 +36,22 @@ public static class AppInfo
         Self.GetCustomAttribute<AssemblyCopyrightAttribute>()?.Copyright
         ?? "Copyright © 2026 sharancreatedthis";
 
-    /// <summary>Where analytics would be sent.</summary>
-    public static string AnalyticsHost { get; } = Metadata("HanglyAnalyticsHost") ?? string.Empty;
+    /// <summary>The Google Analytics Web stream's Measurement ID (<c>G-…</c>), empty when this build has none.</summary>
+    public static string Ga4MeasurementId { get; } = Metadata("HanglyGa4MeasurementId") ?? string.Empty;
 
-    /// <summary>The PostHog project key, empty when this build has none.</summary>
-    public static string AnalyticsKey { get; } = Metadata("HanglyAnalyticsKey") ?? string.Empty;
-
-    /// <summary>Whether this build has anywhere to send events.</summary>
-    public static bool HasAnalyticsDestination =>
-        AnalyticsKey.Length > 0 && AnalyticsHost.Length > 0;
+    /// <summary>The stream's Measurement Protocol API secret, empty when this build has none.</summary>
+    public static string Ga4ApiSecret { get; } = Metadata("HanglyGa4ApiSecret") ?? string.Empty;
 
     public static string WindowsVersion { get; } = Environment.OSVersion.Version.ToString();
+
+    /// <summary>The installation registry's URL, empty when this build has none.</summary>
+    public static string RegistryUrl { get; } = Metadata("HanglyRegistryUrl") ?? string.Empty;
+
+    /// <summary>The machine's architecture in the registry's vocabulary: "arm64" or "x64", as on macOS.</summary>
+    public static string Architecture { get; } =
+        System.Runtime.InteropServices.RuntimeInformation.OSArchitecture == System.Runtime.InteropServices.Architecture.Arm64
+            ? "arm64"
+            : "x64";
 
     public static string WebsiteUrl => "https://www.sharancreatedthis.in/products/hangly";
 
@@ -99,7 +104,7 @@ public static class AppInfo
     /// <summary>The creator's UPI address, as the macOS build carries it.</summary>
     public static string UpiId => "8870786087@yescred";
 
-    public static string CoffeeUrl => "https://www.sharancreatedthis.in/coffee";
+    public static string SupportUrl => "https://www.sharancreatedthis.in/coffee";
 
     /// <summary>Where "Suggest a charm" writes to.</summary>
     /// <remarks>

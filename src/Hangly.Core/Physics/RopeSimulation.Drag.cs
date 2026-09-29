@@ -6,6 +6,7 @@
 //
 
 using Hangly.Core.Geometry;
+using Hangly.Core.Models;
 
 namespace Hangly.Core.Physics;
 
@@ -131,7 +132,8 @@ public sealed partial class RopeSimulation
         // rope reaches half as far. Clamping to the whole rope's length here would let
         // the upper half be pulled straight past its limit and stretch.
         double held = (DragIndex ?? (Points.Length - 1)) * Configuration.SegmentLength;
-        double reach = held * Configuration.MaximumReachRatio;
+        // An elastic rope can be pulled past its length, as far as its stretch allows.
+        double reach = held * Configuration.MaximumReachRatio * (Physics == RopePhysics.Elastic ? ElasticTable.Ceiling : 1);
         Vec2 offset = location - Anchor;
         double distance = offset.Magnitude;
         if (distance <= reach || distance <= Precision.UlpOfOne)

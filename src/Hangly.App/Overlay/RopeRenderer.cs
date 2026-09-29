@@ -86,6 +86,12 @@ public sealed class RopeRenderer
 
         session.Antialiasing = CanvasAntialiasing.Antialiased;
 
+        // The Spider-Man entrance's web, behind the rope it hangs from.
+        if (snapshot.Bloom is WebBloom bloom)
+        {
+            DrawWebBloom(session, bloom);
+        }
+
         // No DPI transform here, and that is the correction to an earlier mistake worth
         // recording: a CanvasControl's drawing session is already in DIPs, so scaling it
         // again by the window's DPI drew everything twice its size. On a 200% display the
@@ -693,6 +699,43 @@ public sealed class RopeRenderer
             (float)(bead.Size.Width * 0.18),
             (float)(bead.Size.Height * 0.16),
             ToColor(palette.Light, 0.75));
+    }
+
+    /// <summary>Strokes the entrance's web, from the top edge to the rope: silk-white threads over a faint dark underline, so it reads on a white window as well as a dark wallpaper.</summary>
+    /// <remarks>
+    /// Drawn from the web's fixed pattern each frame that is drawn at all — a settled rope draws
+    /// none — as short straight lines, so nothing is allocated per frame and nothing is kept. The same strokes, widths and
+    /// alphas as macOS's <c>WebBloomRenderer</c>.
+    /// </remarks>
+    private static void DrawWebBloom(CanvasDrawingSession session, WebBloom bloom)
+    {
+        if (bloom.Growth <= 0.001)
+        {
+            return;
+        }
+
+        using var round = new CanvasStrokeStyle { StartCap = CanvasCapStyle.Round, EndCap = CanvasCapStyle.Round };
+        Color shadow = Color.FromArgb((byte)Math.Round(255 * 0.22), 0, 0, 0);
+        Color silk = Color.FromArgb((byte)Math.Round(255 * 0.92), 255, 255, 255);
+        IReadOnlyList<WebBloom.Thread> threads = bloom.Threads;
+
+        // Every underline first, then every thread, so no shadow falls across silk.
+        foreach (bool isShadow in new[] { true, false })
+        {
+            foreach (WebBloom.Thread thread in threads)
+            {
+                // Four straight pieces along the curve, joined by round caps: indistinguishable
+                // from the curve at these sizes, and no geometry object to build per frame.
+                float width = (float)(isShadow ? thread.Width + 1.1 : thread.Width);
+                Vec2 previous = thread.Start;
+                for (int piece = 1; piece <= 4; piece++)
+                {
+                    Vec2 next = thread.At(piece / 4.0);
+                    session.DrawLine(ToVector(previous), ToVector(next), isShadow ? shadow : silk, width, round);
+                    previous = next;
+                }
+            }
+        }
     }
 
     private void DrawCharms(CanvasDrawingSession session, RopeSnapshot snapshot)

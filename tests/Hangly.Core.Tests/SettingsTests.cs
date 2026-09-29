@@ -42,14 +42,24 @@ public class SettingsCodingTests
         Assert.Equal(["spiderMan"], overlay.CharmIds);
         Assert.Equal(RopeStyle.SpiderThread, overlay.RopeStyle);
         Assert.Equal(OverlayAnchor.TopTrailing, overlay.Anchor);
-        Assert.Equal(1.0, overlay.RopeLength);
-        Assert.Equal(1.8, overlay.CharmSize);
+        // macOS's 1.245 and 0.893, carried across the 420 / 360 canvas so the charm and
+        // cord look the same size on screen as on a Mac (measured side by side).
+        Assert.Equal(1.042, overlay.RopeLength);
+        Assert.Equal(1.4525, overlay.CharmSize);
+        Assert.True(overlay.HidesDuringFullscreenVideo);
+        Assert.Equal(GlowLevel.Soft, overlay.Glow);
+        // Half volume, as on macOS: at 14% the Spider-Man entrance could not be heard.
+        Assert.True(settings.SoundEffectsEnabled);
+        Assert.Equal(0.5, settings.SoundVolume);
 
         // From an empty document rather than from no document: a file that says "{}" has
         // been written by something, so the position still migrates from the anchor.
-        // AppSettings.Defaults is where the new-install 0.89 lives.
+        // AppSettings.Defaults is where the new-install 0.87 and the shipped Spider-Man's
+        // place size live.
         Assert.Null(overlay.HorizontalPosition);
-        Assert.Equal(0.85, AppSettings.Defaults.Overlay.Position);
+        Assert.Equal(0.87, AppSettings.Defaults.Overlay.Position);
+        Assert.Equal([new RopeCharm("spiderMan", 1.38)], AppSettings.Defaults.Overlay.Stack.Places);
+        Assert.Equal(0, AppSettings.Defaults.Overlay.OffsetY);
 
         // The fallback is a different question from the first-run charm, and stays the
         // plain bead: a deleted import must not silently become somebody else's charm.
@@ -70,7 +80,7 @@ public class SettingsCodingTests
         Assert.Equal(0.5, settings.Overlay.Opacity);
 
         // A new field in a future release must not discard every existing preference.
-        Assert.Equal(1.8, settings.Overlay.CharmSize);
+        Assert.Equal(1.4525, settings.Overlay.CharmSize);
         Assert.True(settings.Overlay.IsEnabled);
     }
 
@@ -228,7 +238,7 @@ public class SettingsStoreTests : IDisposable
         Assert.Equal(AppSettings.Defaults.Overlay, store.Settings.Overlay);
         Assert.Equal(["spiderMan"], store.Settings.Overlay.CharmIds);
         Assert.Equal(1, store.Settings.Overlay.Stack.Count);
-        Assert.Equal(0.85, store.Settings.Overlay.Position);
+        Assert.Equal(0.87, store.Settings.Overlay.Position);
     }
 
     [Fact(DisplayName = "A corrupt file on disk is recovered from, not fatal")]

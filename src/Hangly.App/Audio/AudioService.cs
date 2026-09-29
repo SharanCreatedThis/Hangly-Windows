@@ -81,6 +81,63 @@ public sealed class AudioService : IDisposable
         }
     }
 
+    /// <summary>The Spider-Man entrance's sound, from the asset slot; silent when the slot is empty.</summary>
+    /// <remarks>
+    /// Under the same rules as every other sound — Play sound effects, the volume, and the
+    /// system's quiet state — and played once, from samples prepared for this call and let go
+    /// when it ends: nothing is kept. The entrance itself never plays under reduced motion, so
+    /// neither does this.
+    /// </remarks>
+    public void PlayEntrance()
+    {
+        AppSettings settings = store.Settings;
+        if (!isAvailable || !settings.SoundEffectsEnabled)
+        {
+            return;
+        }
+
+        string path = Path.Combine(AppContext.BaseDirectory, "Assets", "Sounds", EntranceSound.FileName);
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        double? volume = SoundPolicy.Volume(true, settings.SoundVolume, 1, double.MaxValue, QuietState.IsQuiet());
+        if (volume is not double level)
+        {
+            return;
+        }
+
+        try
+        {
+            if (WavReader.MonoSamples(File.ReadAllBytes(path)) is not (float[] samples, int rate))
+            {
+                Diagnostics.Log("audio: the entrance sound is not a WAV this build can read; silent");
+                return;
+            }
+
+            float[] prepared = EntranceSound.Prepare(samples, rate, SoundSynthesizer.SampleRate);
+            if (prepared.Length > 0)
+            {
+                Interlocked.Exchange(ref lastPlayTicks, Environment.TickCount64);
+                Start(Scaled(prepared, (float)level));
+                if (LogsEachSound)
+                {
+                    Diagnostics.Log($"audio: entrance at {level:0.000}, {prepared.Length / SoundSynthesizer.SampleRate:0.00} s");
+                }
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Diagnostics.Log($"audio: could not read the entrance sound: {exception.Message}");
+        }
+        catch (Exception exception) when (exception is ExternalException or InvalidOperationException)
+        {
+            isAvailable = false;
+            Diagnostics.Log($"audio unavailable; sounds off for this session: {exception.Message}");
+        }
+    }
+
     /// <summary>For audits only: <c>HANGLY_AUDIT_SOUND</c> logs every sound played.</summary>
     private static readonly bool LogsEachSound = Environment.GetEnvironmentVariable("HANGLY_AUDIT_SOUND") is { Length: > 0 };
 

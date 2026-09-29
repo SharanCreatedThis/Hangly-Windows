@@ -77,10 +77,10 @@ internal static class Program
             return;
         }
 
-        if (args.Contains("--check-analytics", StringComparer.Ordinal))
+        if (args.Contains("--check-registry", StringComparer.Ordinal))
         {
             Diagnostics.StartLog();
-            Diagnostics.CheckAnalytics();
+            Diagnostics.CheckRegistry();
             return;
         }
 

@@ -27,8 +27,9 @@ is left.
 - [x] **Create** — a PNG, a JPG or an SVG becomes a charm through the existing import path. **[LIVE]**
 - [x] **Import security** — a 42-file hostile corpus, two real defects found and fixed. **[MEAS]**
 - [x] **Onboarding** — welcome with a mandatory display name, follow card. **[LIVE]**
-- [x] **Analytics** — the shared PostHog project, macOS event names kept exactly, HTTP 200
-      verified against production. **[LIVE]**
+- [ ] **Registry and analytics (2.1.0)** — Firebase registry, GA4 events and crash reports
+      built and tested against a local stand-in; the live Firebase project, CI secrets and
+      the PostHog import are still to do. (0.9.x shipped PostHog, verified live.)
 - [x] **Persistence across an upgrade** — settings, favourites, recents, imported artwork and
       milestones all survive an install over the top. **[LIVE]**
 - [x] **Packaging** — both architectures pack; install, upgrade and uninstall all run. **[LIVE]**

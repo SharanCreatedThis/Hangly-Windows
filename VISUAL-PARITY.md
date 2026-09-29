@@ -311,7 +311,7 @@ repository.
 | Multi-charm layout | Dynamic | **Dynamic, measured** | None found |
 | Library UI | Detail pane, pack cards, reorder, per-charm size | Grid, chips, search, favourites, recents | **Large** |
 | About | Statistics, Secrets, UPI coffee, release notes | Links, analytics inspector | **Large** |
-| Analytics | PostHog, 25 events | PostHog, 25 events, + inspector | None (Windows ahead) |
+| Analytics | Firebase registry, Analytics (6 events), Crashlytics | Firebase registry, GA4 (6 events), crash reports to the registry | None (2.1.0) |
 | Sound | Plays | Settings only, no playback | **Broken control** |
 | Photo import | Vision subject extraction | None | **Missing** |
 | Studio | Full staged pipeline | None | **Missing** |

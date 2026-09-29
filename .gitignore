@@ -29,3 +29,14 @@ Generated Files/
 # Windows
 Thumbs.db
 desktop.ini
+
+# The Spider-Man entrance sound used in development is a temporary stand-in and must
+# not be committed; see src/Hangly.App/Assets/Sounds/README.md.
+src/Hangly.App/Assets/Sounds/SpiderManEntrance.wav
+
+# Firebase configuration is injected by CI from secrets and never committed.
+GoogleService-Info.plist
+google-services.json
+firebase-config*.json
+.firebaserc
+*.mmdb
