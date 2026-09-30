@@ -409,10 +409,17 @@ public sealed class AppEnvironment : IDisposable
         // sign-in launch cannot say so, and LaunchIntent needs to know it was there.
         legacyLoginEntry = launchAtLogin.HasLegacyEntry;
 
-        if (Onboarding.WelcomeWindow.IsNeeded(store.Settings) && !launchAtLogin.IsEnabled)
+        // On for everyone, once (Core.Lifecycle.LaunchAtLoginDefault): a new install, and every installation that
+        // reached 2.x without the entry. After that the setting follows the entry, so turning it off is respected.
+        if (Hangly.Core.Lifecycle.LaunchAtLoginDefault.IsDue(store.Settings))
         {
-            launchAtLogin.SetEnabled(true);
-            Diagnostics.Log($"first run: launch at login switched on ({launchAtLogin.IsEnabled})");
+            if (!launchAtLogin.IsEnabled)
+            {
+                launchAtLogin.SetEnabled(true);
+            }
+
+            store.Update(Hangly.Core.Lifecycle.LaunchAtLoginDefault.Applied);
+            Diagnostics.Log($"launch at login switched on by default ({launchAtLogin.IsEnabled})");
         }
 
         // An entry naming another copy is this person's choice to start Hangly, pointing at

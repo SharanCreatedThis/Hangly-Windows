@@ -6,6 +6,15 @@ pulls the section out and the release workflow hands it to both.
 
 Headings are `## <version> — <date>`. Nothing else is a version heading.
 
+## 2.1.2 — 2026-09-30
+
+**Fixed**
+
+- **Launch at login is on by default, for everyone.** Only a brand-new install ever switched it
+  on, so installing or reinstalling over existing settings — or an entry the uninstaller had
+  removed — left Hangly off at sign-in. 2.1.2 turns it on once for every installation; after that,
+  turning off Launch at login in Customize, or Hangly in Task Manager → Startup apps is respected.
+
 ## 2.1.1 — 2026-09-29
 
 **Fixed**
