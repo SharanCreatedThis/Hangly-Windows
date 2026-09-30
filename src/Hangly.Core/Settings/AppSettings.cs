@@ -397,6 +397,9 @@ public sealed record MilestoneSettings
     /// <summary>While the Spider-Man introduction has lent the shipped look: what to give back, and when. See <see cref="EntranceIntroduction"/>.</summary>
     public EntranceShowcase? EntranceShowcase { get; init; }
 
+    /// <summary>Whether 2.1.2's one-time "start Hangly at sign-in" has been applied (<see cref="Lifecycle.LaunchAtLoginDefault"/>).</summary>
+    public bool LaunchAtLoginDefaulted { get; init; }
+
     public bool IsFirstLaunch => LaunchCount <= 1;
 }
 
