@@ -6,6 +6,14 @@ pulls the section out and the release workflow hands it to both.
 
 Headings are `## <version> — <date>`. Nothing else is a version heading.
 
+## 2.1.3 — 2026-10-01
+
+**Fixed**
+
+- **Creator Studio no longer reports a cancelled cut-out as an error.** Opening another image
+  (or closing the studio) while the subject was still being found stopped the model, and Hangly
+  logged and reported that as a failure. It is now treated as the cancellation it is.
+
 ## 2.1.2 — 2026-09-30
 
 **Fixed**

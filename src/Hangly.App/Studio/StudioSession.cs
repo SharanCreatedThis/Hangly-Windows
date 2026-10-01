@@ -205,8 +205,9 @@ internal sealed class StudioSession : IDisposable
             SubjectMask? mask = await segmenter!.SegmentAsync(image, cancel.Token).ConfigureAwait(true);
             found = await Task.Run(() => StudioPipeline.Detect(image, mask), cancel.Token).ConfigureAwait(true);
         }
-        catch (OperationCanceledException)
+        catch (Exception exception) when (exception is OperationCanceledException || cancel.IsCancellationRequested)
         {
+            // A newer image, or closing the studio, stopped this run; whatever it threw is not a failure.
             return;
         }
         catch (Exception exception)
