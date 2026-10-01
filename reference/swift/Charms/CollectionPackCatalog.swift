@@ -143,7 +143,7 @@ extension CollectionCharmCatalog {
         ),
         Entry(
             kind: .wonderWomanEmblem,
-            sourceFileName: "DC/Wonder Women.svg",
+            sourceFileName: "DC/Wonder Woman.svg",
             mass: 3.21,
             radiusRatio: 0.1605,
             palette: CharmPalette(

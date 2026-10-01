@@ -418,7 +418,7 @@ public static partial class CharmCatalog
         new(
             Id: "wonderWomanEmblem",
             DisplayName: "Wonder Woman Emblem",
-            FileName: "DC/Wonder Women.svg",
+            FileName: "DC/Wonder Woman.svg",
             Mass: 3.21,
             RadiusRatio: 0.1605,
             Palette: new CharmPalette(
