@@ -10,7 +10,6 @@ using Hangly.Core.Models;
 using Hangly.Core.Physics;
 using Microsoft.Graphics.Canvas;
 using SkiaSharp;
-using Svg.Skia;
 
 namespace Hangly.App.Overlay;
 
@@ -82,7 +81,7 @@ public readonly record struct CharmHang(Vec2 Center, double Radius, double Rotat
 public sealed class CharmArtworkCache : IDisposable
 {
     private readonly string directory;
-    private readonly Dictionary<string, SKSvg> documents = [];
+    private readonly Dictionary<string, SKPicture?> documents = [];
     private readonly Dictionary<string, SKImage?> naturals = [];
     private readonly Dictionary<(string File, int Level), SKImage?> levels = [];
     private readonly Dictionary<(string File, int Size, Rect Region), CanvasBitmap> rasters = [];
@@ -375,14 +374,14 @@ public sealed class CharmArtworkCache : IDisposable
     }
 
     /// <summary>The measurement itself, with no cache and no device behind it.</summary>
-    private static CharmArtworkRegions? MeasureDocument(SKSvg? document, CharmCatalogEntry entry)
+    private static CharmArtworkRegions? MeasureDocument(SKPicture? document, CharmCatalogEntry entry)
     {
-        if (document?.Picture is null)
+        if (document is null)
         {
             return null;
         }
 
-        SKRect bounds = document.Picture.CullRect;
+        SKRect bounds = document.CullRect;
         if (bounds.Width <= 0 || bounds.Height <= 0)
         {
             return null;
@@ -434,14 +433,10 @@ public sealed class CharmArtworkCache : IDisposable
                 continue;
             }
 
-            using var document = new SKSvg();
-            try
+            using SKPicture? document = ImageSvgPicture.Load(path);
+            if (document is null)
             {
-                document.Load(path);
-            }
-            catch (Exception exception)
-            {
-                missing.Add($"{entry.Id} ({entry.FileName}): {exception.GetType().Name}");
+                missing.Add($"{entry.Id} ({entry.FileName}): not pictures in a wrapper");
                 continue;
             }
 
@@ -459,7 +454,7 @@ public sealed class CharmArtworkCache : IDisposable
     }
 
     /// <summary>One byte of alpha per pixel of the fitted square, top row first.</summary>
-    private static byte[]? AlphaMask(SKSvg document, SKRect bounds, float scale, int side)
+    private static byte[]? AlphaMask(SKPicture document, SKRect bounds, float scale, int side)
     {
         using var surface = SKSurface.Create(new SKImageInfo(
             side,
@@ -471,7 +466,7 @@ public sealed class CharmArtworkCache : IDisposable
         canvas.Clear(SKColors.Transparent);
         canvas.Translate((side - (bounds.Width * scale)) / 2, (side - (bounds.Height * scale)) / 2);
         canvas.Scale(scale);
-        canvas.DrawPicture(document.Picture);
+        canvas.DrawPicture(document);
         canvas.Flush();
 
         using SKImage image = surface.Snapshot();
@@ -502,13 +497,13 @@ public sealed class CharmArtworkCache : IDisposable
             return cached;
         }
 
-        SKSvg? document = Document(fileName);
-        if (document?.Picture is null)
+        SKPicture? document = Document(fileName);
+        if (document is null)
         {
             return null;
         }
 
-        SKRect bounds = document.Picture.CullRect;
+        SKRect bounds = document.CullRect;
         if (bounds.Width <= 0 || bounds.Height <= 0)
         {
             return null;
@@ -555,7 +550,7 @@ public sealed class CharmArtworkCache : IDisposable
             (square - (bounds.Width * scale)) / 2,
             (square - (bounds.Height * scale)) / 2);
         canvas.Scale(scale);
-        DrawSource(canvas, fileName, document.Picture, bounds, scale);
+        DrawSource(canvas, fileName, document, bounds, scale);
         canvas.Flush();
 
         using SKImage image = surface.Snapshot();
@@ -596,13 +591,13 @@ public sealed class CharmArtworkCache : IDisposable
             return cached;
         }
 
-        SKSvg? document = Document(fileName);
-        if (document?.Picture is null)
+        SKPicture? document = Document(fileName);
+        if (document is null)
         {
             return null;
         }
 
-        SKRect bounds = document.Picture.CullRect;
+        SKRect bounds = document.CullRect;
         if (bounds.Width <= 0 || bounds.Height <= 0)
         {
             return null;
@@ -618,7 +613,7 @@ public sealed class CharmArtworkCache : IDisposable
         canvas.Translate(-(float)(region.Left * unit), -(float)(region.Top * unit));
         canvas.Translate((float)((unit - (bounds.Width * scale)) / 2), (float)((unit - (bounds.Height * scale)) / 2));
         canvas.Scale(scale);
-        DrawSource(canvas, fileName, document.Picture, bounds, scale);
+        DrawSource(canvas, fileName, document, bounds, scale);
         canvas.Flush();
 
         using SKImage image = surface.Snapshot();
@@ -742,7 +737,7 @@ public sealed class CharmArtworkCache : IDisposable
         {
             foreach (string file in documents.Keys.Where(file => !keep.Contains(file)).ToList())
             {
-                documents[file].Dispose();
+                documents[file]?.Dispose();
                 documents.Remove(file);
             }
         }
@@ -920,11 +915,12 @@ public sealed class CharmArtworkCache : IDisposable
     /// </remarks>
     private static readonly SKSamplingOptions Downscale = new(SKCubicResampler.Mitchell);
 
-    private SKSvg? Document(string fileName)
+    /// <summary>The artwork as a picture, read once per file; see <see cref="ImageSvgPicture"/>.</summary>
+    private SKPicture? Document(string fileName)
     {
         lock (gate)
         {
-            if (documents.TryGetValue(fileName, out SKSvg? cached))
+            if (documents.TryGetValue(fileName, out SKPicture? cached))
             {
                 return cached;
             }
@@ -935,10 +931,9 @@ public sealed class CharmArtworkCache : IDisposable
                 return null;
             }
 
-            var svg = new SKSvg();
-            svg.Load(path);
-            documents[fileName] = svg;
-            return svg;
+            SKPicture? picture = ImageSvgPicture.Load(path);
+            documents[fileName] = picture;
+            return picture;
         }
     }
 
@@ -963,9 +958,9 @@ public sealed class CharmArtworkCache : IDisposable
             bitmap.Dispose();
         }
 
-        foreach (SKSvg document in documents.Values)
+        foreach (SKPicture? document in documents.Values)
         {
-            document.Dispose();
+            document?.Dispose();
         }
 
         rasters.Clear();

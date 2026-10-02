@@ -383,6 +383,9 @@ public sealed class AppEnvironment : IDisposable
         // the system before anything reads it.
         Diagnostics.Log($"bootstrap starting; settings at {SettingsStore.DefaultPath}");
 
+        // Before the overlay reads the rope: a charm it can no longer draw must not be on it.
+        RemoveVectorImports();
+
         // Before the overlay reads the rope, and before the launch is counted: a launch
         // count of zero is how a new install is told from somebody updating. Marked done
         // at the end of bootstrap, once the overlay is up.
@@ -726,6 +729,55 @@ public sealed class AppEnvironment : IDisposable
 
         Diagnostics.Log($"imported a charm; {CustomCharmsStore.Entries.Count} now");
         return outcome;
+    }
+
+    /// <summary>
+    /// Deletes every imported charm that is a vector drawing rather than pictures in a wrapper.
+    /// </summary>
+    /// <remarks>
+    /// Windows no longer draws SVG drawings (<see cref="Core.Import.ImageSvg"/> says why), so
+    /// these would show as the plain bead. Charms made in Create or from a photograph are
+    /// pictures in a wrapper and are kept. Each goes the way a delete from the Library goes —
+    /// off the rope, out of favourites and recents — and only once: after this there are none.
+    /// </remarks>
+    private void RemoveVectorImports()
+    {
+        List<CustomCharmEntry> drawings = [.. CustomCharmsStore.Entries.Where(IsVectorDrawing)];
+
+        foreach (CustomCharmEntry drawing in drawings)
+        {
+            DeleteCharm(drawing.Id);
+        }
+
+        if (drawings.Count > 0)
+        {
+            Diagnostics.Log($"removed {drawings.Count} imported SVG drawing(s) this build cannot draw");
+        }
+    }
+
+    /// <summary>Whether this import is, beyond doubt, a vector drawing.</summary>
+    /// <remarks>
+    /// Only a file that was read and found not to be pictures in a wrapper. One that could not
+    /// be read — missing, locked, unreadable — is left alone: nothing is deleted on a guess.
+    /// </remarks>
+    private bool IsVectorDrawing(CustomCharmEntry entry)
+    {
+        if (CustomCharmsStore.PathFor(entry) is not string path)
+        {
+            return false;
+        }
+
+        string markup;
+        try
+        {
+            markup = File.ReadAllText(path);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+
+        return markup.Length > 0 && Core.Import.ImageSvg.Parse(markup) is null;
     }
 
     /// <summary>

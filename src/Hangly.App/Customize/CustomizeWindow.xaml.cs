@@ -1573,7 +1573,7 @@ public sealed partial class CustomizeWindow : Window
         string? path = Interop.FileDialog.OpenFile(
             WinRT.Interop.WindowNative.GetWindowHandle(this),
             "Import a charm",
-            ("SVG drawings", "*.svg"));
+            ("Pictures", "*.png;*.jpg;*.jpeg;*.webp"));
 
         Services.Diagnostics.Log($"import: chose {path ?? "nothing"}");
         if (path is null)

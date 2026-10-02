@@ -70,7 +70,7 @@
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14" MaxWidth="400">
                 <FontIcon Glyph="&#xEB9F;" FontSize="44" Opacity="0.6" />
                 <TextBlock HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" Text="Drop an image to make a charm" />
-                <TextBlock HorizontalAlignment="Center" Opacity="0.7" TextAlignment="Center" TextWrapping="Wrap" Text="PNG, JPEG, WebP, HEIC or SVG. The background is removed and the subject found for you. You can also paste an image." />
+                <TextBlock HorizontalAlignment="Center" Opacity="0.7" TextAlignment="Center" TextWrapping="Wrap" Text="PNG, JPEG, WebP or HEIC. The background is removed and the subject found for you. You can also paste an image." />
                 <Button x:Name="ChooseButton" HorizontalAlignment="Center" AutomationProperties.AutomationId="StudioChoose" Content="Choose Image…" Click="OnOpen" />
                 <StackPanel x:Name="LoadingPanel" HorizontalAlignment="Center" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
                     <muxc:ProgressRing IsActive="True" Width="16" Height="16" />

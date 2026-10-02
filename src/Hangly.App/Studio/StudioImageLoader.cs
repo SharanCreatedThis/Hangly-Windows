@@ -8,7 +8,6 @@
 using Hangly.Core.Import;
 using Hangly.Core.Studio;
 using SkiaSharp;
-using Svg.Skia;
 using Windows.Graphics.Imaging;
 using Windows.Storage;
 using Windows.Storage.Streams;
@@ -42,10 +41,15 @@ internal static class StudioImageLoader
     /// <summary>The side an SVG is drawn at, which is past anything the charm is shown at.</summary>
     public const int VectorSide = 1024;
 
-    public static IReadOnlyList<string> Extensions { get; } = [".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".svg"];
+    /// <remarks>
+    /// No SVG. Drawing one needed an SVG library that Windows' Smart App Control blocks
+    /// (it was unsigned), which stopped Hangly working on those PCs; pictures are decoded
+    /// by SkiaSharp and Windows itself, which it does not.
+    /// </remarks>
+    public static IReadOnlyList<string> Extensions { get; } = [".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif"];
 
     /// <summary>For the Open dialog.</summary>
-    public const string DialogPattern = "*.png;*.jpg;*.jpeg;*.webp;*.heic;*.heif;*.svg";
+    public const string DialogPattern = "*.png;*.jpg;*.jpeg;*.webp;*.heic;*.heif";
 
     /// <summary>The Microsoft Store page for HEIF Image Extensions.</summary>
     public static Uri HeifExtension { get; } = new("ms-windows-store://pdp/?ProductId=9PMMSR1CGPWG");
@@ -57,7 +61,7 @@ internal static class StudioImageLoader
     {
         if (!Handles(path))
         {
-            throw new StudioLoadException($"Hangly can use PNG, JPEG, WebP, HEIC and SVG. “{Path.GetFileName(path)}” isn't one of those.");
+            throw new StudioLoadException($"Hangly can use PNG, JPEG, WebP and HEIC pictures. “{Path.GetFileName(path)}” isn't one of those.");
         }
 
         if (!File.Exists(path))
@@ -68,7 +72,6 @@ internal static class StudioImageLoader
         return Path.GetExtension(path).ToLowerInvariant() switch
         {
             ".heic" or ".heif" => await LoadHeifAsync(path).ConfigureAwait(false),
-            ".svg" => await Task.Run(() => LoadSvg(path)).ConfigureAwait(false),
             _ => await Task.Run(() => LoadRaster(path)).ConfigureAwait(false),
         };
     }
@@ -183,47 +186,5 @@ internal static class StudioImageLoader
                 "Windows couldn't read that HEIC photo. Photos from phones usually also need HEVC Video Extensions from the Microsoft Store.",
                 new Uri("ms-windows-store://pdp/?ProductId=9NMZLZ57R3T7"));
         }
-    }
-
-    /// <summary>A drawing, cleaned by the same sanitiser imports use, drawn onto transparency.</summary>
-    private static StudioImage LoadSvg(string path)
-    {
-        var file = new FileInfo(path);
-        if (file.Length > SvgSanitizer.MaximumBytes)
-        {
-            throw new StudioLoadException($"That drawing is {file.Length / (1024 * 1024)} MB. Hangly accepts SVG files up to {SvgSanitizer.MaximumBytes / (1024 * 1024)} MB.");
-        }
-
-        SvgSanitizeResult cleaned = SvgSanitizer.Sanitize(File.ReadAllText(path));
-        if (!cleaned.IsAccepted)
-        {
-            throw new StudioLoadException("That file isn't a drawing Hangly can use.");
-        }
-
-        using var document = new SKSvg();
-        using (var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(cleaned.Markup!)))
-        {
-            document.Load(stream);
-        }
-
-        SKRect bounds = document.Picture?.CullRect ?? SKRect.Empty;
-        if (document.Picture is null || bounds.Width <= 0 || bounds.Height <= 0)
-        {
-            throw new StudioLoadException("There's nothing to draw in that file.");
-        }
-
-        float scale = VectorSide / Math.Max(bounds.Width, bounds.Height);
-        int width = Math.Max(1, (int)Math.Round(bounds.Width * scale));
-        int height = Math.Max(1, (int)Math.Round(bounds.Height * scale));
-        using var target = new SKBitmap(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul));
-        using (var canvas = new SKCanvas(target))
-        {
-            canvas.Clear(SKColors.Transparent);
-            canvas.Scale(scale);
-            canvas.Translate(-bounds.Left, -bounds.Top);
-            canvas.DrawPicture(document.Picture);
-        }
-
-        return new StudioImage(width, height, target.Bytes);
     }
 }

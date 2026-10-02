@@ -6,6 +6,29 @@ pulls the section out and the release workflow hands it to both.
 
 Headings are `## <version> — <date>`. Nothing else is a version heading.
 
+## 2.2.1 — 2026-10-03
+
+**Fixed**
+
+- **Hangly works on PCs with Smart App Control.** Windows 11's Smart App Control, and the App
+  Control policies many companies set, block unsigned program files. Hangly drew SVG through a
+  set of unsigned libraries, so on those PCs the charms could not be drawn, the overlay did not
+  start, and Setup ended with "Install Partially Succeeded". Hangly no longer uses them: charm
+  artwork is read and drawn with Microsoft's own signed graphics library.
+- **The Library opens without freezing.** Charm thumbnails are made in the background instead of
+  while the window waits, and kept where Windows' clean-up does not delete them, so the first
+  Library open after an update no longer locks up for seconds.
+- **Installing an update while one is downloading works.** Install now waits for the download
+  already under way instead of failing with "That update couldn't be installed".
+- **Smaller updates.** From this version, an update downloads only what changed — under a
+  megabyte instead of 300 MB.
+
+**Changed**
+
+- **Charms are made from pictures on Windows: PNG, JPEG, WebP or HEIC.** SVG drawings can no
+  longer be imported or opened in Create. Charms imported from an SVG drawing are removed,
+  because Hangly can no longer draw them; charms made from photos or in Create are kept.
+
 ## 2.2.0 — 2026-10-02
 
 **New**

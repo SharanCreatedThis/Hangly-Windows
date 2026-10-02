@@ -8,7 +8,6 @@
 using Hangly.App.Overlay;
 using Hangly.Core.Models;
 using SkiaSharp;
-using Svg.Skia;
 
 namespace Hangly.App.Customize;
 
@@ -178,14 +177,13 @@ public static class CharmThumbnails
             return false;
         }
 
-        using var document = new SKSvg();
-        document.Load(source);
-        if (document.Picture is null)
+        using SKPicture? document = ImageSvgPicture.Load(source);
+        if (document is null)
         {
             return false;
         }
 
-        SKRect bounds = document.Picture.CullRect;
+        SKRect bounds = document.CullRect;
         if (bounds.Width <= 0 || bounds.Height <= 0)
         {
             return false;
@@ -204,7 +202,7 @@ public static class CharmThumbnails
             (Pixels - (bounds.Width * scale)) / 2,
             (Pixels - (bounds.Height * scale)) / 2);
         canvas.Scale(scale);
-        canvas.DrawPicture(document.Picture);
+        canvas.DrawPicture(document);
         canvas.Flush();
 
         System.IO.Directory.CreateDirectory(Path.GetDirectoryName(target)!);
