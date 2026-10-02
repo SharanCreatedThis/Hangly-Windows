@@ -6,15 +6,25 @@ pulls the section out and the release workflow hands it to both.
 
 Headings are `## <version> — <date>`. Nothing else is a version heading.
 
-## 2.2.1 — 2026-10-03
+## 2.3.0 — 2026-10-03
 
-**Fixed**
+**Added**
 
+- **Notification Center.** News about new charms and collections arrives under your charm, once,
+  and then waits in the Notification Center — open it from the bell, by right-clicking the charm,
+  or from the tray's new Notifications line. Search, mark as read, mark all as read, clear.
+- **Update from the charm.** When a new version is ready, a card under the charm says what is new.
+  Update Now downloads it with live progress, installs it and restarts Hangly; Later asks again in
+  an hour; Skip This Version stops asking until the next one.
 - **Hangly works on PCs with Smart App Control.** Windows 11's Smart App Control, and the App
   Control policies many companies set, block unsigned program files. Hangly drew SVG through a
   set of unsigned libraries, so on those PCs the charms could not be drawn, the overlay did not
   start, and Setup ended with "Install Partially Succeeded". Hangly no longer uses them: charm
   artwork is read and drawn with Microsoft's own signed graphics library.
+- **Right-click the charm** for Notifications, the Library and Hide Charm.
+
+**Fixed**
+
 - **The Library opens without freezing.** Charm thumbnails are made in the background instead of
   while the window waits, and kept where Windows' clean-up does not delete them, so the first
   Library open after an update no longer locks up for seconds.
