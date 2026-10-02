@@ -56,6 +56,23 @@ public static class CharmLibrary
         return charms;
     }
 
+    /// <summary>The margin drawn round a charm's measured body, as a fraction of its artwork.</summary>
+    private const double DrawMargin = 0.02;
+
+    /// <summary>
+    /// The body with a margin, for drawing — none above a charm that has beads or a drawn
+    /// cord over it, which would bring a sliver of them back. macOS's <c>SVGCharm.drawRegion</c>.
+    /// </summary>
+    private static Rect DrawRegionAround(Rect body, CharmCatalogEntry entry)
+    {
+        double above = entry.BeadCount == 0 && !entry.CordDrawn ? DrawMargin : 0;
+        double left = Math.Max(0, body.Left - DrawMargin);
+        double top = Math.Max(0, body.Top - above);
+        double right = Math.Min(1, body.Left + body.Width + DrawMargin);
+        double bottom = Math.Min(1, body.Top + body.Height + DrawMargin);
+        return new Rect(left, top, right - left, bottom - top);
+    }
+
     private static CharmDescriptor Describe(CharmArtworkCache artwork, CharmCatalogEntry entry, double size)
     {
         CharmArtworkRegions? regions = artwork.Measure(entry);
@@ -90,6 +107,12 @@ public static class CharmLibrary
             regions?.Body ?? WholeArtwork,
             regions?.Beads ?? [],
             // The material from the catalogue; a charm somebody made is soft, as on macOS.
-            entry.Sound);
+            entry.Sound,
+            // No cord of ours reaches into a charm that hangs by the rope drawn in it.
+            !entry.HangsByOwnCord && regions is { } measured && measured.CordInset < measured.KnotInset
+                ? measured.CordInset
+                : null,
+            regions is { } body ? DrawRegionAround(body.Body, entry) : null,
+            entry.HangsByOwnCord);
     }
 }

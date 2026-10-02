@@ -706,6 +706,15 @@ public sealed class OverlayWindow : IDisposable
         Hangly.Core.Geometry.Rect? changed = RopeBounds.Union(lastPainted, painted);
         lastPainted = painted;
 
+        // A charm that hangs by its own drawn rope fills the canvas below the anchor,
+        // well past what the snapshot's bounds say a charm reaches, so the whole frame
+        // is presented while one is on the rope.
+        renderer.CanvasHeight = CanvasSize.Height;
+        if (renderer.Charms.Any(charm => charm.HangsByOwnCord))
+        {
+            changed = null;
+        }
+
         surface.Present(
             session => renderer.Draw(session, snapshot, rope.Style),
             new NativeMethods.Point { X = (int)Math.Round(frame.Left), Y = (int)Math.Round(frame.Top) },

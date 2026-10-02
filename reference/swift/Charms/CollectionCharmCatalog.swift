@@ -23,6 +23,10 @@ struct SVGCharm: BuiltInCharm {
     /// How the artwork divides into beads and charm; see `CharmArtworkSplitter`.
     let beadCount: Int
     let bodyRun: Int
+    var cordDrawn = false
+
+    /// Hangs by the rope drawn in its own artwork; see `CollectionCharmCatalog.Entry`.
+    var hangsByOwnCord = false
 
     /// `nil` when the asset is missing; the charm then draws a placeholder bead so
     /// the rope is never bare, and the omission is reported at launch.
@@ -31,7 +35,7 @@ struct SVGCharm: BuiltInCharm {
     /// Measured once per asset and cached by `VectorImage`, so the repeated reads
     /// below cost a dictionary lookup rather than a rasterisation.
     private var regions: CharmArtworkRegions? {
-        vector?.regions(beadCount: beadCount, bodyRun: bodyRun)
+        vector?.regions(beadCount: beadCount, bodyRun: bodyRun, cordDrawn: cordDrawn)
     }
 
     /// The knot sits where the artwork's own loop begins, which is the top of the
@@ -40,8 +44,15 @@ struct SVGCharm: BuiltInCharm {
         CharmMetrics(
             mass: mass,
             radiusRatio: radiusRatio,
-            knotInset: regions?.knotInset ?? CollectionCharmCatalog.fallbackKnotInset
+            knotInset: hangsByOwnCord
+                ? regions?.topInset ?? CollectionCharmCatalog.fallbackKnotInset
+                : regions?.knotInset ?? CollectionCharmCatalog.fallbackKnotInset
         )
+    }
+
+    /// Past the knot when the cord meets the artwork below where it can hang from.
+    var cordInset: Double {
+        regions?.cordInset ?? metrics.knotInset
     }
 
     /// The beads the artwork draws above the charm, described in proportions of the
@@ -83,7 +94,27 @@ struct SVGCharm: BuiltInCharm {
     func hangingArtwork() -> CharmArtwork {
         guard let vector else { return CircleCharm().artwork() }
         guard let regions else { return CharmArtwork(vector: vector) }
-        return CharmArtwork(vector: vector, body: regions.body, beads: regions.beads)
+        return CharmArtwork(
+            vector: vector,
+            body: regions.body,
+            beads: regions.beads,
+            drawRegion: drawRegion(around: regions.body)
+        )
+    }
+
+    /// The body with a margin, for drawing; see `CharmArtwork.drawRegion`. No margin
+    /// above a charm that has beads or a drawn cord over it, which would bring a
+    /// sliver of them back.
+    private func drawRegion(around body: CGRect) -> CGRect {
+        let margin = CollectionCharmCatalog.drawMargin
+        let above = beadCount == 0 && !cordDrawn ? margin : 0
+        let padded = CGRect(
+            x: body.minX - margin,
+            y: body.minY - above,
+            width: body.width + (margin * 2),
+            height: body.height + margin + above
+        )
+        return padded.intersection(CGRect(x: 0, y: 0, width: 1, height: 1))
     }
 }
 
@@ -107,6 +138,14 @@ enum CollectionCharmCatalog {
         /// them.
         let bodyRun: Int
 
+        /// The artwork draws a cord of its own above a charm with no beads, which
+        /// the simulated cord replaces — Spider-Man swinging from his web line.
+        let cordDrawn: Bool
+
+        /// The artwork's own rope is the rope: Hangly draws none, and the charm hangs
+        /// from the anchor by what is drawn — Spider-Man holding Gwen.
+        let hangsByOwnCord: Bool
+
         init(
             kind: CharmKind,
             sourceFileName: String,
@@ -115,7 +154,9 @@ enum CollectionCharmCatalog {
             palette: CharmPalette,
             sound: CharmSound,
             beadCount: Int,
-            bodyRun: Int? = nil
+            bodyRun: Int? = nil,
+            cordDrawn: Bool = false,
+            hangsByOwnCord: Bool = false
         ) {
             self.kind = kind
             self.sourceFileName = sourceFileName
@@ -125,6 +166,8 @@ enum CollectionCharmCatalog {
             self.sound = sound
             self.beadCount = beadCount
             self.bodyRun = bodyRun ?? beadCount
+            self.cordDrawn = cordDrawn
+            self.hangsByOwnCord = hangsByOwnCord
         }
     }
 
@@ -136,14 +179,18 @@ enum CollectionCharmCatalog {
     /// glass or metal; a charm is mostly hollow.
     static let beadDensity = 6.0
 
+    /// The margin drawn round a charm's measured body, as a fraction of its artwork:
+    /// enough for the soft edge the measurement leaves outside it.
+    static let drawMargin = 0.02
+
     /// Floor on a bead's weight, so the smallest still pulls on the cord.
     static let minimumBeadMass = 0.05
 
     /// The hand-drawn collection, the four collections, the five story
-    /// collections, then the classics — the order the charm menu offers
-    /// them in.
+    /// collections, the fandom collections, then the classics — the order the
+    /// charm menu offers them in.
     static let entries: [Entry] =
-        collectionEntries + collectionPackEntries + storyPackEntries + classicEntries
+        collectionEntries + collectionPackEntries + storyPackEntries + fandomPackEntries + classicEntries
 
     private static let collectionEntries: [Entry] = [
         Entry(
@@ -339,6 +386,8 @@ enum CollectionCharmCatalog {
                 sound: entry.sound,
                 beadCount: entry.beadCount,
                 bodyRun: entry.bodyRun,
+                cordDrawn: entry.cordDrawn,
+                hangsByOwnCord: entry.hangsByOwnCord,
                 vector: source.vectorImage(for: entry.kind)
             )
         }

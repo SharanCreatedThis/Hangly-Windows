@@ -8,6 +8,10 @@
 import Foundation
 
 /// Identity of a built-in charm.
+///
+/// The raw values are what a rope and a favourite are saved as, so a case is
+/// never renamed. Its name is in `CharmKind+Names.swift` and its menu symbol in
+/// `CharmKind+Symbols.swift`.
 enum CharmKind: String, CaseIterable, Codable, Sendable, Identifiable {
     // The classics.
     case circle
@@ -45,7 +49,7 @@ enum CharmKind: String, CaseIterable, Codable, Sendable, Identifiable {
     case shazamLightning
     case greenLanternRing
 
-    // The Tamil Spiritual collection.
+    // The Spirituality collection (once Tamil Spiritual).
     case vel
     case vinayagarCoin
     case omSymbol
@@ -101,161 +105,119 @@ enum CharmKind: String, CaseIterable, Codable, Sendable, Identifiable {
     case willByers
     case demogorgon
 
+    // The Marvel collection, added in 2.2.
+    case spiderManGwen
+    case eyeOfAgamotto
+    case stormbreaker
+    case doctorDoom
+    case deadpoolWolverine
+
+    // The Stranger Things collection, added in 2.2.
+    case maxMayfield
+    case steveHarrington
+
+    // The Football Legends collection, added in 2.2.
+    case ronaldoPortugal
+    case ronaldoBicycleKick
+    case ballonDor
+    case championsLeagueTrophy
+
+    // The Spirituality collection, added in 2.2.
+    case rudraksha
+    case shivaLingam
+    case buddha
+    case hanuman
+    case kaaba
+    case greenDome
+    case crescentAndStar
+    case allahPendant
+    case cross
+    case dove
+    case prayingAngel
+    case sacredHeart
+
+    // The One Piece collection.
+    case luffy
+    case zoro
+    case nami
+    case usopp
+    case sanji
+    case chopper
+    case robin
+    case ace
+
+    // The Harry Potter collection.
+    case harryPotter
+    case hermioneGranger
+    case ronWeasley
+    case albusDumbledore
+    case lordVoldemort
+    case hedwig
+    case goldenSnitch
+    case deathlyHallows
+
+    // The Ben 10 collection.
+    case benTennyson
+    case fourArms
+    case heatblast
+    case xlr8
+    case diamondhead
+    case cannonbolt
+    case upgrade
+    case wildmutt
+    case omnitrix
+
+    // The Attack on Titan collection.
+    case erenYeager
+    case mikasaAckerman
+    case leviAckerman
+    case arminArlert
+    case colossalTitan
+    case attackTitan
+    case surveyCorpsEmblem
+    case cadetCorpsEmblem
+
+    // The Naruto collection.
+    case narutoUzumaki
+    case sasukeUchiha
+    case kakashiHatake
+    case itachiUchiha
+    case minatoNamikaze
+    case kurama
+    case akatsukiCloud
+    case sharingan
+
+    // The Game of Thrones collection.
+    case jonSnow
+    case daenerysTargaryen
+    case tyrionLannister
+    case nightKing
+    case houseStark
+    case houseTargaryen
+    case houseLannister
+    case ironThrone
+
+    // The Air Jordan collection.
+    case airJordan1Chicago
+    case airJordan1Bred
+    case airJordan4FireRed
+    case airJordan11Concord
+    case airJordan3
+    case airJordan6Carmine
+    case airJordan5
+    case offWhiteJordan1
+
+    // The Pokémon collection.
+    case pikachu
+    case charmander
+    case squirtle
+    case bulbasaur
+    case charizard
+    case dragonair
+    case mewtwo
+    case umbreon
+    case ashAndPikachu
+    case pokeBall
+
     var id: String { rawValue }
-}
-
-/// The two long lookups, held apart from the declaration so that the list of
-/// charms stays something you can read in one screen.
-extension CharmKind {
-    /// Must match the `name` in `CharmLibrary.json`; a test enforces it.
-    var displayName: String {
-        switch self {
-        case .circle: "Bead"
-        case .camera: "Camera"
-        case .star: "Star"
-        case .heart: "Heart"
-        case .diamond: "Diamond"
-        case .nazar: "Nazar boncuğu"
-        case .hamsa: "Hamsa"
-        case .nimbuMirchi: "Nimbu-mirchi"
-        case .ghanta: "Ghanta"
-        case .drishtiBommai: "Drishti bommai"
-        case .panchangJie: "Pánchángjié"
-        case .daruma: "Daruma"
-        case .manekiNeko: "Maneki-neko"
-        case .horseshoe: "Horseshoe"
-        case .scarab: "Scarab"
-        case .himmeli: "Himmeli"
-        case .dreamCatcher: "Dream Catcher"
-        case .spiderMan: "Spider-Man"
-        case .captainAmericaShield: "Captain America Shield"
-        case .ironManHelmet: "Iron Man Helmet"
-        case .thorHammer: "Thor Hammer"
-        case .hulkFist: "Hulk Fist"
-        case .spiderManSwinging: "Spider-Man Swinging"
-        case .batmanSymbol: "Batman Symbol"
-        case .supermanShield: "Superman Shield"
-        case .wonderWomanEmblem: "Wonder Woman Emblem"
-        case .shazamLightning: "Shazam Lightning"
-        case .greenLanternRing: "Green Lantern Ring"
-        case .vel: "Vel"
-        case .vinayagarCoin: "Vinayagar Coin"
-        case .omSymbol: "OM Symbol"
-        case .karuppuStatue: "Karuppu Statue"
-        case .templeBell: "Temple Bell"
-        case .btsMemberOne: "RM"
-        case .btsMemberTwo: "Jin"
-        case .btsMemberThree: "SUGA"
-        case .btsMemberFour: "j-hope"
-        case .btsMemberFive: "Jimin"
-        case .btsMemberSix: "V"
-        case .btsMemberSeven: "Jungkook"
-        case .ronaldoJersey: "Ronaldo 7"
-        case .messiJersey: "Messi 10"
-        case .neymarJersey: "Neymar 10"
-        case .realMadridCrest: "Real Madrid"
-        case .fcBarcelonaCrest: "FC Barcelona"
-        case .billieEilish: "Billie Eilish"
-        case .xxxtentacion: "XXXTentacion"
-        case .michaelJackson: "Michael Jackson"
-        case .taylorSwift: "Taylor Swift"
-        case .juiceWrld: "Juice WRLD"
-        case .theWeeknd: "The Weeknd"
-        case .rachelGreen: "Rachel Green"
-        case .monicaGeller: "Monica Geller"
-        case .rossGeller: "Ross Geller"
-        case .joeyTribbiani: "Joey Tribbiani"
-        case .chandlerBing: "Chandler Bing"
-        case .phoebeBuffay: "Phoebe Buffay"
-        case .walterWhite: "Walter White"
-        case .jessePinkman: "Jesse Pinkman"
-        case .saulGoodman: "Saul Goodman"
-        case .gusFring: "Gus Fring"
-        case .mikeEhrmantraut: "Mike Ehrmantraut"
-        case .heisenberg: "Heisenberg"
-        case .rv: "RV"
-        case .eleven: "Eleven"
-        case .mikeWheeler: "Mike Wheeler"
-        case .dustinHenderson: "Dustin Henderson"
-        case .lucasSinclair: "Lucas Sinclair"
-        case .willByers: "Will Byers"
-        case .demogorgon: "Demogorgon"
-        }
-    }
-
-    /// SF Symbol used for the menu bar item.
-    var symbolName: String {
-        switch self {
-        case .circle: "circle.fill"
-        case .camera: "camera.fill"
-        case .star: "star.fill"
-        case .heart: "heart.fill"
-        case .diamond: "diamond.fill"
-        case .nazar: "eye.fill"
-        case .hamsa: "hand.raised.fill"
-        case .nimbuMirchi: "leaf.fill"
-        case .ghanta: "bell.fill"
-        case .drishtiBommai: "theatermasks.fill"
-        case .panchangJie: "seal.fill"
-        case .daruma: "face.smiling.fill"
-        case .manekiNeko: "cat.fill"
-        case .horseshoe: "u.circle.fill"
-        case .scarab: "ant.fill"
-        case .himmeli: "pyramid.fill"
-        case .dreamCatcher: "circle.hexagongrid.fill"
-        case .spiderMan: "figure.climbing"
-        case .captainAmericaShield: "shield.fill"
-        case .ironManHelmet: "faceid"
-        case .thorHammer: "hammer.fill"
-        case .hulkFist: "hand.raised.fill"
-        case .spiderManSwinging: "figure.climbing"
-        case .batmanSymbol: "moon.fill"
-        case .supermanShield: "diamond.fill"
-        case .wonderWomanEmblem: "seal.fill"
-        case .shazamLightning: "bolt.fill"
-        case .greenLanternRing: "circle.circle.fill"
-        case .vel: "location.north.fill"
-        case .vinayagarCoin: "centsign.circle.fill"
-        case .omSymbol: "circle.hexagonpath.fill"
-        case .karuppuStatue: "figure.stand"
-        case .templeBell: "bell.circle.fill"
-        case .btsMemberOne: "1.circle.fill"
-        case .btsMemberTwo: "2.circle.fill"
-        case .btsMemberThree: "3.circle.fill"
-        case .btsMemberFour: "4.circle.fill"
-        case .btsMemberFive: "5.circle.fill"
-        case .btsMemberSix: "6.circle.fill"
-        case .btsMemberSeven: "7.circle.fill"
-        case .ronaldoJersey: "tshirt.fill"
-        case .messiJersey: "tshirt.fill"
-        case .neymarJersey: "tshirt.fill"
-        case .realMadridCrest: "crown.fill"
-        case .fcBarcelonaCrest: "shield.fill"
-        case .billieEilish: "music.mic"
-        case .xxxtentacion: "music.note"
-        case .michaelJackson: "music.note.list"
-        case .taylorSwift: "guitars.fill"
-        case .juiceWrld: "headphones"
-        case .theWeeknd: "music.quarternote.3"
-        case .rachelGreen: "cup.and.saucer.fill"
-        case .monicaGeller: "fork.knife"
-        case .rossGeller: "book.fill"
-        case .joeyTribbiani: "hand.thumbsup.fill"
-        case .chandlerBing: "briefcase.fill"
-        case .phoebeBuffay: "guitars.fill"
-        case .walterWhite: "testtube.2"
-        case .jessePinkman: "flame.fill"
-        case .saulGoodman: "doc.text.fill"
-        case .gusFring: "fork.knife.circle.fill"
-        case .mikeEhrmantraut: "shield.lefthalf.filled"
-        case .heisenberg: "eyeglasses"
-        case .rv: "bus.fill"
-        case .eleven: "bolt.fill"
-        case .mikeWheeler: "antenna.radiowaves.left.and.right"
-        case .dustinHenderson: "radio.fill"
-        case .lucasSinclair: "scope"
-        case .willByers: "lightbulb.fill"
-        case .demogorgon: "hurricane"
-        }
-    }
 }

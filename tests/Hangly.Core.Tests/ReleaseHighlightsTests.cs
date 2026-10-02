@@ -9,24 +9,24 @@ public sealed class ReleaseHighlightsTests
     [Fact]
     public void OnceAfterAnUpdateToANewFeatureVersion()
     {
-        Assert.True(ReleaseHighlights.ShouldShow("2.0.0", "2.1.0", updatedBefore: true));
-        Assert.True(ReleaseHighlights.ShouldShow("0.9.4", "2.1.0", updatedBefore: true));
+        Assert.True(ReleaseHighlights.ShouldShow("2.1.2", "2.2.0", updatedBefore: true));
+        Assert.True(ReleaseHighlights.ShouldShow("0.9.4", "2.2.0", updatedBefore: true));
         // Recorded now, so the next launch does not show them again.
-        Assert.False(ReleaseHighlights.ShouldShow("2.1.0", "2.1.0", updatedBefore: true));
+        Assert.False(ReleaseHighlights.ShouldShow("2.2.0", "2.2.0", updatedBefore: true));
     }
 
     [Fact]
     public void ZeroNineDidNotRecordItsVersionSoAnInstallThatRanBeforeCounts()
     {
-        Assert.True(ReleaseHighlights.ShouldShow(null, "2.1.0", updatedBefore: true));
-        Assert.False(ReleaseHighlights.ShouldShow(null, "2.1.0", updatedBefore: false));
+        Assert.True(ReleaseHighlights.ShouldShow(null, "2.2.0", updatedBefore: true));
+        Assert.False(ReleaseHighlights.ShouldShow(null, "2.2.0", updatedBefore: false));
     }
 
     [Fact]
     public void APatchStaysSilentAndAVersionWithoutWordsShowsNothing()
     {
-        Assert.False(ReleaseHighlights.ShouldShow("2.1.0", "2.1.1", updatedBefore: true));
-        Assert.False(ReleaseHighlights.ShouldShow("2.1.1", "2.2.0", updatedBefore: true));
+        Assert.False(ReleaseHighlights.ShouldShow("2.2.0", "2.2.1", updatedBefore: true));
+        Assert.False(ReleaseHighlights.ShouldShow("2.2.1", "2.3.0", updatedBefore: true));
     }
 
     [Fact]

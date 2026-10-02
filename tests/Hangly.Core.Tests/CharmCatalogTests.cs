@@ -15,15 +15,15 @@ namespace Hangly.Core.Tests;
 /// </summary>
 public class CharmCatalogTests
 {
-    /// <summary>Seventy charms ship — the same seventy as macOS.</summary>
+    /// <summary>A hundred and sixty charms ship — the same as macOS.</summary>
     /// <remarks>
-    /// Windows once carried eleven fewer than macOS, because the seasonal packs were cut
-    /// here first. They have since been removed from macOS too, so the Swift in
-    /// <c>reference/</c> and this catalogue agree, and the generator no longer leaves
-    /// anything out.
+    /// Seventy until 2.2, which added ninety. Windows once carried eleven fewer than
+    /// macOS, because the seasonal packs were cut here first; they have since been
+    /// removed from macOS too, so the Swift in <c>reference/</c> and this catalogue
+    /// agree, and the generator leaves nothing out.
     /// </remarks>
-    [Fact(DisplayName = "Seventy charms ship, the same as macOS")]
-    public void CountMatchesTheOriginal() => Assert.Equal(70, CharmCatalog.All.Count);
+    [Fact(DisplayName = "A hundred and sixty charms ship, the same as macOS")]
+    public void CountMatchesTheOriginal() => Assert.Equal(160, CharmCatalog.All.Count);
 
     [Fact(DisplayName = "No charm is filed under a category the chips do not offer")]
     public void EveryCharmHasAnOfferedCategory()

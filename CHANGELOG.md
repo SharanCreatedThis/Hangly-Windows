@@ -6,6 +6,40 @@ pulls the section out and the release workflow hands it to both.
 
 Headings are `## <version> — <date>`. Nothing else is a version heading.
 
+## 2.2.0 — 2026-10-02
+
+**New**
+
+- **Ninety new charms and eight new collections:** One Piece, Harry Potter, Ben 10, Attack on
+  Titan, Naruto, Game of Thrones, Air Jordan and Pokémon. Marvel gains Doctor Strange's Eye of
+  Agamotto, Stormbreaker, Doctor Doom, Deadpool and Wolverine, and Spider-Man holding Gwen;
+  Stranger Things gains Max and Steve; Football Legends gains two more Ronaldos, the Ballon d'Or
+  and the Champions League trophy. 160 charms in all.
+- **Spirituality.** Tamil Spiritual is now Spirituality and holds every faith: the rudraksha,
+  Shiva lingam, Hanuman and Buddha beside the Kaaba, the Green Dome, the crescent and star and
+  an Allah pendant, and a cross, a dove, a praying angel and the Sacred Heart.
+- **Every collection has a card.** The collection cards are one row that scrolls sideways, so
+  all seventeen fit without pushing the charms down the page.
+- **Delete your own charms from the Library.** Right-click a charm you imported or made in
+  Create and choose Delete Charm…. Hangly now asks before it deletes one.
+- **Remove an image from Create.** A ✕ next to Open drops an image you do not want to keep,
+  without saving it.
+
+**Changed**
+
+- **The cord meets every charm where it actually is.** Where the cord arrives is measured on
+  the charm's own centre line, so it no longer stops short above a charm whose top is two
+  ears or a raised sword, and where a charm has its own loop the cord's end is tucked into it
+  rather than butting against it. Nothing is added to the artwork: a charm drawn without a
+  loop hangs as it was drawn. Sneakers hang tilted from the loop at their heel, and the
+  Golden Snitch's cord runs between its wings to the ball.
+
+**Fixed**
+
+- **Creator Studio no longer reports a cancelled cut-out as an error.** Opening another image
+  (or closing the studio) while the subject was still being found stopped the model, and Hangly
+  logged and reported that as a failure. It is now treated as the cancellation it is.
+
 ## 2.1.2 — 2026-09-30
 
 **Fixed**

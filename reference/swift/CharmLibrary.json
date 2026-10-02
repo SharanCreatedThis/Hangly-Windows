@@ -27,7 +27,7 @@
     },
     {
       "id": "tamilSpiritual",
-      "name": "Tamil Spiritual"
+      "name": "Spirituality"
     },
     {
       "id": "bts",
@@ -52,6 +52,38 @@
     {
       "id": "strangerThings",
       "name": "Stranger Things"
+    },
+    {
+      "id": "onePiece",
+      "name": "One Piece"
+    },
+    {
+      "id": "harryPotter",
+      "name": "Harry Potter"
+    },
+    {
+      "id": "ben10",
+      "name": "Ben 10"
+    },
+    {
+      "id": "attackOnTitan",
+      "name": "Attack on Titan"
+    },
+    {
+      "id": "naruto",
+      "name": "Naruto"
+    },
+    {
+      "id": "gameOfThrones",
+      "name": "Game of Thrones"
+    },
+    {
+      "id": "airJordan",
+      "name": "Air Jordan"
+    },
+    {
+      "id": "pokemon",
+      "name": "Pokémon"
     }
   ],
   "charms": [
@@ -1056,6 +1088,1266 @@
         "Stranger Things"
       ],
       "previewImage": "charm-preview-demogorgon"
+    },
+    {
+      "id": "spiderManGwen",
+      "name": "Spider-Man and Gwen",
+      "region": "New York",
+      "category": "marvel",
+      "description": "Spider-Man holds the line with Gwen Stacy hanging below him: the rope is drawn into the charm, so it hangs from his grip.",
+      "tags": [
+        "Spider-Man",
+        "Gwen Stacy",
+        "rope",
+        "Marvel"
+      ],
+      "previewImage": "charm-preview-spiderManGwen"
+    },
+    {
+      "id": "eyeOfAgamotto",
+      "name": "Eye of Agamotto",
+      "region": "Kamar-Taj",
+      "category": "marvel",
+      "description": "Doctor Strange's amulet: carved bronze bands closed over a green stone that glows from inside.",
+      "tags": [
+        "Doctor Strange",
+        "amulet",
+        "Time Stone",
+        "Marvel"
+      ],
+      "previewImage": "charm-preview-eyeOfAgamotto"
+    },
+    {
+      "id": "stormbreaker",
+      "name": "Stormbreaker",
+      "region": "Nidavellir",
+      "category": "marvel",
+      "description": "Thor's axe, rune-cut and bound in leather. The head is heavy, so it hangs blade-down and turns slowly.",
+      "tags": [
+        "Thor",
+        "axe",
+        "runes",
+        "Marvel"
+      ],
+      "previewImage": "charm-preview-stormbreaker"
+    },
+    {
+      "id": "doctorDoom",
+      "name": "Doctor Doom",
+      "region": "Latveria",
+      "category": "marvel",
+      "description": "Green hood, iron mask, plate armour. The monarch of Latveria, standing as though the room belongs to him.",
+      "tags": [
+        "Doctor Doom",
+        "Latveria",
+        "armour",
+        "Marvel"
+      ],
+      "previewImage": "charm-preview-doctorDoom"
+    },
+    {
+      "id": "deadpoolWolverine",
+      "name": "Deadpool and Wolverine",
+      "region": "Marvel",
+      "category": "marvel",
+      "description": "Best friends, mid-fight, inside a heart. Five small charms dangle beneath it, from the mask to the claws.",
+      "tags": [
+        "Deadpool",
+        "Wolverine",
+        "best friends",
+        "Marvel"
+      ],
+      "previewImage": "charm-preview-deadpoolWolverine"
+    },
+    {
+      "id": "luffy",
+      "name": "Monkey D. Luffy",
+      "region": "East Blue",
+      "category": "onePiece",
+      "description": "Straw hat, open shirt, fist already on its way. The captain of the Straw Hat Pirates.",
+      "tags": [
+        "Luffy",
+        "Straw Hat",
+        "captain",
+        "One Piece"
+      ],
+      "previewImage": "charm-preview-luffy"
+    },
+    {
+      "id": "zoro",
+      "name": "Roronoa Zoro",
+      "region": "East Blue",
+      "category": "onePiece",
+      "description": "Three swords, one of them in his teeth. The crew's swordsman, low and ready.",
+      "tags": [
+        "Zoro",
+        "swordsman",
+        "three swords",
+        "One Piece"
+      ],
+      "previewImage": "charm-preview-zoro"
+    },
+    {
+      "id": "nami",
+      "name": "Nami",
+      "region": "East Blue",
+      "category": "onePiece",
+      "description": "The navigator, with her weather staff over her shoulder and a map of the world in her head.",
+      "tags": [
+        "Nami",
+        "navigator",
+        "Clima-Tact",
+        "One Piece"
+      ],
+      "previewImage": "charm-preview-nami"
+    },
+    {
+      "id": "usopp",
+      "name": "Usopp",
+      "region": "East Blue",
+      "category": "onePiece",
+      "description": "Slingshot drawn, grin wider than his courage. The sniper who tells the best stories on the ship.",
+      "tags": [
+        "Usopp",
+        "sniper",
+        "slingshot",
+        "One Piece"
+      ],
+      "previewImage": "charm-preview-usopp"
+    },
+    {
+      "id": "sanji",
+      "name": "Sanji",
+      "region": "East Blue",
+      "category": "onePiece",
+      "description": "Black suit, one leg up and on fire. The cook fights with his feet so his hands stay fit for the kitchen.",
+      "tags": [
+        "Sanji",
+        "cook",
+        "Diable Jambe",
+        "One Piece"
+      ],
+      "previewImage": "charm-preview-sanji"
+    },
+    {
+      "id": "chopper",
+      "name": "Tony Tony Chopper",
+      "region": "Drum Island",
+      "category": "onePiece",
+      "description": "The ship's doctor: a reindeer in a blue hat with a white cross, small enough to hang anywhere.",
+      "tags": [
+        "Chopper",
+        "doctor",
+        "reindeer",
+        "One Piece"
+      ],
+      "previewImage": "charm-preview-chopper"
+    },
+    {
+      "id": "robin",
+      "name": "Nico Robin",
+      "region": "Ohara",
+      "category": "onePiece",
+      "description": "The archaeologist, arms crossed and more hands blooming around her than anyone could count.",
+      "tags": [
+        "Robin",
+        "archaeologist",
+        "Hana Hana",
+        "One Piece"
+      ],
+      "previewImage": "charm-preview-robin"
+    },
+    {
+      "id": "ace",
+      "name": "Portgas D. Ace",
+      "region": "Grand Line",
+      "category": "onePiece",
+      "description": "Orange hat, bead necklace, fire running up both arms. Fire Fist, Luffy's older brother.",
+      "tags": [
+        "Ace",
+        "Fire Fist",
+        "Whitebeard Pirates",
+        "One Piece"
+      ],
+      "previewImage": "charm-preview-ace"
+    },
+    {
+      "id": "harryPotter",
+      "name": "Harry Potter",
+      "region": "Hogwarts",
+      "category": "harryPotter",
+      "description": "Round glasses, Gryffindor robes, wand out. The boy who lived.",
+      "tags": [
+        "Harry Potter",
+        "Gryffindor",
+        "wand",
+        "Hogwarts"
+      ],
+      "previewImage": "charm-preview-harryPotter"
+    },
+    {
+      "id": "hermioneGranger",
+      "name": "Hermione Granger",
+      "region": "Hogwarts",
+      "category": "harryPotter",
+      "description": "Books under one arm and a wand in the other hand, which is roughly how she arrived at Hogwarts.",
+      "tags": [
+        "Hermione",
+        "Gryffindor",
+        "books",
+        "Hogwarts"
+      ],
+      "previewImage": "charm-preview-hermioneGranger"
+    },
+    {
+      "id": "ronWeasley",
+      "name": "Ron Weasley",
+      "region": "The Burrow",
+      "category": "harryPotter",
+      "description": "Hand-me-down robes and an owl on his shoulder. Harry's best friend, and the bravest about chess.",
+      "tags": [
+        "Ron",
+        "Weasley",
+        "Gryffindor",
+        "Hogwarts"
+      ],
+      "previewImage": "charm-preview-ronWeasley"
+    },
+    {
+      "id": "albusDumbledore",
+      "name": "Albus Dumbledore",
+      "region": "Hogwarts",
+      "category": "harryPotter",
+      "description": "Long beard, embroidered robes, a staff taller than he is. The headmaster of Hogwarts.",
+      "tags": [
+        "Dumbledore",
+        "headmaster",
+        "wizard",
+        "Hogwarts"
+      ],
+      "previewImage": "charm-preview-albusDumbledore"
+    },
+    {
+      "id": "lordVoldemort",
+      "name": "Lord Voldemort",
+      "region": "Little Hangleton",
+      "category": "harryPotter",
+      "description": "Black robes and dark smoke coiling around him. He Who Must Not Be Named.",
+      "tags": [
+        "Voldemort",
+        "dark lord",
+        "Slytherin",
+        "Harry Potter"
+      ],
+      "previewImage": "charm-preview-lordVoldemort"
+    },
+    {
+      "id": "hedwig",
+      "name": "Hedwig",
+      "region": "Hogwarts",
+      "category": "harryPotter",
+      "description": "A snowy owl on a branch, yellow-eyed and patient. She delivered every letter that mattered.",
+      "tags": [
+        "Hedwig",
+        "owl",
+        "post",
+        "Harry Potter"
+      ],
+      "previewImage": "charm-preview-hedwig"
+    },
+    {
+      "id": "goldenSnitch",
+      "name": "Golden Snitch",
+      "region": "Hogwarts",
+      "category": "harryPotter",
+      "description": "A walnut-sized gold ball with silver-veined wings. Catch it and the match is over.",
+      "tags": [
+        "Snitch",
+        "Quidditch",
+        "gold",
+        "Harry Potter"
+      ],
+      "previewImage": "charm-preview-goldenSnitch"
+    },
+    {
+      "id": "deathlyHallows",
+      "name": "Deathly Hallows",
+      "region": "Godric's Hollow",
+      "category": "harryPotter",
+      "description": "The cloak, the stone and the wand: a triangle, a circle and a line, cut in polished steel.",
+      "tags": [
+        "Deathly Hallows",
+        "symbol",
+        "silver",
+        "Harry Potter"
+      ],
+      "previewImage": "charm-preview-deathlyHallows"
+    },
+    {
+      "id": "benTennyson",
+      "name": "Ben Tennyson",
+      "region": "Bellwood",
+      "category": "ben10",
+      "description": "Ten years old, fists up, the Omnitrix already on his wrist.",
+      "tags": [
+        "Ben",
+        "Omnitrix",
+        "hero",
+        "Ben 10"
+      ],
+      "previewImage": "charm-preview-benTennyson"
+    },
+    {
+      "id": "fourArms",
+      "name": "Four Arms",
+      "region": "Khoros",
+      "category": "ben10",
+      "description": "A Tetramand: red, enormous, and flexing all four arms at once.",
+      "tags": [
+        "Four Arms",
+        "Tetramand",
+        "alien",
+        "Ben 10"
+      ],
+      "previewImage": "charm-preview-fourArms"
+    },
+    {
+      "id": "heatblast",
+      "name": "Heatblast",
+      "region": "Pyros",
+      "category": "ben10",
+      "description": "A Pyronite made of living rock and flame, burning at the hands and feet.",
+      "tags": [
+        "Heatblast",
+        "Pyronite",
+        "fire",
+        "Ben 10"
+      ],
+      "previewImage": "charm-preview-heatblast"
+    },
+    {
+      "id": "xlr8",
+      "name": "XLR8",
+      "region": "Kinet",
+      "category": "ben10",
+      "description": "A Kineceleran, blue and black, built for speed with a tail for balance.",
+      "tags": [
+        "XLR8",
+        "Kineceleran",
+        "speed",
+        "Ben 10"
+      ],
+      "previewImage": "charm-preview-xlr8"
+    },
+    {
+      "id": "diamondhead",
+      "name": "Diamondhead",
+      "region": "Petropia",
+      "category": "ben10",
+      "description": "A Petrosapien grown from green crystal, every edge sharp enough to cut.",
+      "tags": [
+        "Diamondhead",
+        "Petrosapien",
+        "crystal",
+        "Ben 10"
+      ],
+      "previewImage": "charm-preview-diamondhead"
+    },
+    {
+      "id": "cannonbolt",
+      "name": "Cannonbolt",
+      "region": "Arburia",
+      "category": "ben10",
+      "description": "An Arburian Pelarota, armoured in yellow plates so he can curl up and roll.",
+      "tags": [
+        "Cannonbolt",
+        "Arburian",
+        "armour",
+        "Ben 10"
+      ],
+      "previewImage": "charm-preview-cannonbolt"
+    },
+    {
+      "id": "upgrade",
+      "name": "Upgrade",
+      "region": "Galvan B",
+      "category": "ben10",
+      "description": "A Galvanic Mechamorph: black, liquid metal traced with green circuitry.",
+      "tags": [
+        "Upgrade",
+        "Mechamorph",
+        "technology",
+        "Ben 10"
+      ],
+      "previewImage": "charm-preview-upgrade"
+    },
+    {
+      "id": "wildmutt",
+      "name": "Wildmutt",
+      "region": "Vulpin",
+      "category": "ben10",
+      "description": "A Vulpimancer: orange fur, claws, and a snarl that does the talking.",
+      "tags": [
+        "Wildmutt",
+        "Vulpimancer",
+        "beast",
+        "Ben 10"
+      ],
+      "previewImage": "charm-preview-wildmutt"
+    },
+    {
+      "id": "omnitrix",
+      "name": "Omnitrix",
+      "region": "Bellwood",
+      "category": "ben10",
+      "description": "The watch itself: a green hourglass under glass in a steel dial.",
+      "tags": [
+        "Omnitrix",
+        "watch",
+        "hourglass",
+        "Ben 10"
+      ],
+      "previewImage": "charm-preview-omnitrix"
+    },
+    {
+      "id": "erenYeager",
+      "name": "Eren Yeager",
+      "region": "Shiganshina",
+      "category": "attackOnTitan",
+      "description": "Green cloak flying, blades drawn, gear firing. The boy who swore to wipe out every Titan.",
+      "tags": [
+        "Eren",
+        "Survey Corps",
+        "ODM gear",
+        "Attack on Titan"
+      ],
+      "previewImage": "charm-preview-erenYeager"
+    },
+    {
+      "id": "mikasaAckerman",
+      "name": "Mikasa Ackerman",
+      "region": "Shiganshina",
+      "category": "attackOnTitan",
+      "description": "Red scarf, both blades out. The strongest soldier of her year, and never far from Eren.",
+      "tags": [
+        "Mikasa",
+        "Survey Corps",
+        "scarf",
+        "Attack on Titan"
+      ],
+      "previewImage": "charm-preview-mikasaAckerman"
+    },
+    {
+      "id": "leviAckerman",
+      "name": "Levi Ackerman",
+      "region": "Paradis",
+      "category": "attackOnTitan",
+      "description": "Humanity's strongest soldier, cloak spread, mid-turn in the air.",
+      "tags": [
+        "Levi",
+        "captain",
+        "Survey Corps",
+        "Attack on Titan"
+      ],
+      "previewImage": "charm-preview-leviAckerman"
+    },
+    {
+      "id": "arminArlert",
+      "name": "Armin Arlert",
+      "region": "Shiganshina",
+      "category": "attackOnTitan",
+      "description": "Blond, blade raised, already three moves ahead. The Survey Corps' strategist.",
+      "tags": [
+        "Armin",
+        "strategist",
+        "Survey Corps",
+        "Attack on Titan"
+      ],
+      "previewImage": "charm-preview-arminArlert"
+    },
+    {
+      "id": "colossalTitan",
+      "name": "Colossal Titan",
+      "region": "Wall Maria",
+      "category": "attackOnTitan",
+      "description": "Skinless, sixty metres tall, and wrapped in its own steam. The Titan that broke the wall.",
+      "tags": [
+        "Colossal Titan",
+        "steam",
+        "Titan",
+        "Attack on Titan"
+      ],
+      "previewImage": "charm-preview-colossalTitan"
+    },
+    {
+      "id": "attackTitan",
+      "name": "Attack Titan",
+      "region": "Paradis",
+      "category": "attackOnTitan",
+      "description": "Long hair, pointed ears, a roar mid-breath. Eren's Titan form.",
+      "tags": [
+        "Attack Titan",
+        "Eren",
+        "Titan",
+        "Attack on Titan"
+      ],
+      "previewImage": "charm-preview-attackTitan"
+    },
+    {
+      "id": "surveyCorpsEmblem",
+      "name": "Survey Corps Emblem",
+      "region": "Paradis",
+      "category": "attackOnTitan",
+      "description": "The Wings of Freedom, blue and white, on an enamel shield.",
+      "tags": [
+        "Survey Corps",
+        "Wings of Freedom",
+        "emblem",
+        "Attack on Titan"
+      ],
+      "previewImage": "charm-preview-surveyCorpsEmblem"
+    },
+    {
+      "id": "cadetCorpsEmblem",
+      "name": "Cadet Corps Emblem",
+      "region": "Paradis",
+      "category": "attackOnTitan",
+      "description": "Two crossed swords on a green shield, the badge every recruit wears first.",
+      "tags": [
+        "Cadet Corps",
+        "Training Corps",
+        "emblem",
+        "Attack on Titan"
+      ],
+      "previewImage": "charm-preview-cadetCorpsEmblem"
+    },
+    {
+      "id": "narutoUzumaki",
+      "name": "Naruto Uzumaki",
+      "region": "Hidden Leaf Village",
+      "category": "naruto",
+      "description": "Orange jumpsuit, kunai in hand, headband on. The ninja who never goes back on his word.",
+      "tags": [
+        "Naruto",
+        "Hidden Leaf",
+        "kunai",
+        "Naruto"
+      ],
+      "previewImage": "charm-preview-narutoUzumaki"
+    },
+    {
+      "id": "sasukeUchiha",
+      "name": "Sasuke Uchiha",
+      "region": "Hidden Leaf Village",
+      "category": "naruto",
+      "description": "Purple rope belt, sword drawn low. The last Uchiha, and Naruto's rival.",
+      "tags": [
+        "Sasuke",
+        "Uchiha",
+        "sword",
+        "Naruto"
+      ],
+      "previewImage": "charm-preview-sasukeUchiha"
+    },
+    {
+      "id": "kakashiHatake",
+      "name": "Kakashi Hatake",
+      "region": "Hidden Leaf Village",
+      "category": "naruto",
+      "description": "Mask up, headband tilted, a little orange book open in one hand. Team 7's sensei.",
+      "tags": [
+        "Kakashi",
+        "sensei",
+        "Copy Ninja",
+        "Naruto"
+      ],
+      "previewImage": "charm-preview-kakashiHatake"
+    },
+    {
+      "id": "itachiUchiha",
+      "name": "Itachi Uchiha",
+      "region": "Hidden Leaf Village",
+      "category": "naruto",
+      "description": "The Akatsuki cloak with its red clouds, two fingers raised. Sasuke's older brother.",
+      "tags": [
+        "Itachi",
+        "Uchiha",
+        "Akatsuki",
+        "Naruto"
+      ],
+      "previewImage": "charm-preview-itachiUchiha"
+    },
+    {
+      "id": "minatoNamikaze",
+      "name": "Minato Namikaze",
+      "region": "Hidden Leaf Village",
+      "category": "naruto",
+      "description": "The Fourth Hokage in his flame-trimmed white coat, three-pronged kunai in hand.",
+      "tags": [
+        "Minato",
+        "Fourth Hokage",
+        "Yellow Flash",
+        "Naruto"
+      ],
+      "previewImage": "charm-preview-minatoNamikaze"
+    },
+    {
+      "id": "kurama",
+      "name": "Kurama",
+      "region": "Hidden Leaf Village",
+      "category": "naruto",
+      "description": "The Nine-Tailed Fox, every tail curling like a flame.",
+      "tags": [
+        "Kurama",
+        "Nine-Tails",
+        "fox",
+        "Naruto"
+      ],
+      "previewImage": "charm-preview-kurama"
+    },
+    {
+      "id": "akatsukiCloud",
+      "name": "Akatsuki Cloud",
+      "region": "Hidden Rain Village",
+      "category": "naruto",
+      "description": "The red cloud with its white edge, set in silver.",
+      "tags": [
+        "Akatsuki",
+        "cloud",
+        "symbol",
+        "Naruto"
+      ],
+      "previewImage": "charm-preview-akatsukiCloud"
+    },
+    {
+      "id": "sharingan",
+      "name": "Mangekyō Sharingan",
+      "region": "Hidden Leaf Village",
+      "category": "naruto",
+      "description": "Itachi's three curved blades, black on red, in a polished silver ring.",
+      "tags": [
+        "Sharingan",
+        "Mangekyō",
+        "Uchiha",
+        "Naruto"
+      ],
+      "previewImage": "charm-preview-sharingan"
+    },
+    {
+      "id": "maxMayfield",
+      "name": "Max Mayfield",
+      "region": "Hawkins, Indiana",
+      "category": "strangerThings",
+      "description": "Headphones on and the Upside Down reaching for her. Running up that hill.",
+      "tags": [
+        "Max",
+        "headphones",
+        "Vecna",
+        "Stranger Things"
+      ],
+      "previewImage": "charm-preview-maxMayfield"
+    },
+    {
+      "id": "steveHarrington",
+      "name": "Steve Harrington",
+      "region": "Hawkins, Indiana",
+      "category": "strangerThings",
+      "description": "Sunglasses, perfect hair, and the nail bat. The best babysitter in Hawkins.",
+      "tags": [
+        "Steve",
+        "nail bat",
+        "babysitter",
+        "Stranger Things"
+      ],
+      "previewImage": "charm-preview-steveHarrington"
+    },
+    {
+      "id": "jonSnow",
+      "name": "Jon Snow",
+      "region": "Winterfell",
+      "category": "gameOfThrones",
+      "description": "Fur cloak, Longclaw drawn. The bastard of Winterfell who went to the Wall.",
+      "tags": [
+        "Jon Snow",
+        "Longclaw",
+        "the North",
+        "Game of Thrones"
+      ],
+      "previewImage": "charm-preview-jonSnow"
+    },
+    {
+      "id": "daenerysTargaryen",
+      "name": "Daenerys Targaryen",
+      "region": "Dragonstone",
+      "category": "gameOfThrones",
+      "description": "Silver braids and a young dragon in her arms. The Mother of Dragons.",
+      "tags": [
+        "Daenerys",
+        "dragon",
+        "Targaryen",
+        "Game of Thrones"
+      ],
+      "previewImage": "charm-preview-daenerysTargaryen"
+    },
+    {
+      "id": "tyrionLannister",
+      "name": "Tyrion Lannister",
+      "region": "Casterly Rock",
+      "category": "gameOfThrones",
+      "description": "A goblet raised and the Hand's pin on his chest. He drinks and he knows things.",
+      "tags": [
+        "Tyrion",
+        "Lannister",
+        "Hand of the Queen",
+        "Game of Thrones"
+      ],
+      "previewImage": "charm-preview-tyrionLannister"
+    },
+    {
+      "id": "nightKing",
+      "name": "Night King",
+      "region": "Beyond the Wall",
+      "category": "gameOfThrones",
+      "description": "Ice-blue skin, a crown of horns, an ice spear raised. The leader of the White Walkers.",
+      "tags": [
+        "Night King",
+        "White Walkers",
+        "ice",
+        "Game of Thrones"
+      ],
+      "previewImage": "charm-preview-nightKing"
+    },
+    {
+      "id": "houseStark",
+      "name": "House Stark",
+      "region": "Winterfell",
+      "category": "gameOfThrones",
+      "description": "The direwolf sigil in silver, every hackle cut sharp. Winter is coming.",
+      "tags": [
+        "Stark",
+        "direwolf",
+        "sigil",
+        "Game of Thrones"
+      ],
+      "previewImage": "charm-preview-houseStark"
+    },
+    {
+      "id": "houseTargaryen",
+      "name": "House Targaryen",
+      "region": "Dragonstone",
+      "category": "gameOfThrones",
+      "description": "The three-headed red dragon on black. Fire and blood.",
+      "tags": [
+        "Targaryen",
+        "dragon",
+        "sigil",
+        "Game of Thrones"
+      ],
+      "previewImage": "charm-preview-houseTargaryen"
+    },
+    {
+      "id": "houseLannister",
+      "name": "House Lannister",
+      "region": "Casterly Rock",
+      "category": "gameOfThrones",
+      "description": "The gold lion rampant on crimson. Hear me roar.",
+      "tags": [
+        "Lannister",
+        "lion",
+        "sigil",
+        "Game of Thrones"
+      ],
+      "previewImage": "charm-preview-houseLannister"
+    },
+    {
+      "id": "ironThrone",
+      "name": "Iron Throne",
+      "region": "King's Landing",
+      "category": "gameOfThrones",
+      "description": "A thousand swords melted into a seat. Heavy, sharp, and never comfortable.",
+      "tags": [
+        "Iron Throne",
+        "swords",
+        "King's Landing",
+        "Game of Thrones"
+      ],
+      "previewImage": "charm-preview-ironThrone"
+    },
+    {
+      "id": "rudraksha",
+      "name": "Rudraksha",
+      "region": "India",
+      "category": "tamilSpiritual",
+      "description": "A rudraksha seed capped in gold filigree. The bead of Shiva's prayer malas.",
+      "tags": [
+        "Rudraksha",
+        "Shiva",
+        "mala",
+        "Hinduism"
+      ],
+      "previewImage": "charm-preview-rudraksha"
+    },
+    {
+      "id": "shivaLingam",
+      "name": "Shiva Lingam",
+      "region": "India",
+      "category": "tamilSpiritual",
+      "description": "Black stone marked with three bands of ash, a cobra rising over it and jasmine at its base.",
+      "tags": [
+        "Shiva",
+        "lingam",
+        "cobra",
+        "Hinduism"
+      ],
+      "previewImage": "charm-preview-shivaLingam"
+    },
+    {
+      "id": "buddha",
+      "name": "Buddha",
+      "region": "Bodh Gaya",
+      "category": "tamilSpiritual",
+      "description": "Seated on a lotus in gold robes, one hand raised in blessing.",
+      "tags": [
+        "Buddha",
+        "lotus",
+        "meditation",
+        "Buddhism"
+      ],
+      "previewImage": "charm-preview-buddha"
+    },
+    {
+      "id": "hanuman",
+      "name": "Hanuman",
+      "region": "India",
+      "category": "tamilSpiritual",
+      "description": "In flight, mace in one hand, the other held out. The devotee of Rama who carried a mountain.",
+      "tags": [
+        "Hanuman",
+        "mace",
+        "devotion",
+        "Hinduism"
+      ],
+      "previewImage": "charm-preview-hanuman"
+    },
+    {
+      "id": "kaaba",
+      "name": "Kaaba",
+      "region": "Mecca",
+      "category": "tamilSpiritual",
+      "description": "The black cube draped in the kiswah, its band of gold calligraphy catching the light.",
+      "tags": [
+        "Kaaba",
+        "Mecca",
+        "Hajj",
+        "Islam"
+      ],
+      "previewImage": "charm-preview-kaaba"
+    },
+    {
+      "id": "greenDome",
+      "name": "Green Dome",
+      "region": "Medina",
+      "category": "tamilSpiritual",
+      "description": "The green dome and white minaret of the Prophet's Mosque.",
+      "tags": [
+        "Green Dome",
+        "Medina",
+        "mosque",
+        "Islam"
+      ],
+      "previewImage": "charm-preview-greenDome"
+    },
+    {
+      "id": "crescentAndStar",
+      "name": "Crescent and Star",
+      "region": "Middle East",
+      "category": "tamilSpiritual",
+      "description": "A gold crescent filled with green geometric lattice, a small star hanging inside its curve.",
+      "tags": [
+        "crescent",
+        "star",
+        "Ramadan",
+        "Islam"
+      ],
+      "previewImage": "charm-preview-crescentAndStar"
+    },
+    {
+      "id": "allahPendant",
+      "name": "Allah Pendant",
+      "region": "Middle East",
+      "category": "tamilSpiritual",
+      "description": "The name of God in raised gold calligraphy on deep green enamel.",
+      "tags": [
+        "Allah",
+        "calligraphy",
+        "pendant",
+        "Islam"
+      ],
+      "previewImage": "charm-preview-allahPendant"
+    },
+    {
+      "id": "cross",
+      "name": "Cross",
+      "region": "Jerusalem",
+      "category": "tamilSpiritual",
+      "description": "A gold and white enamel cross with a burst of rays behind it and a crystal at every end.",
+      "tags": [
+        "cross",
+        "crystal",
+        "faith",
+        "Christianity"
+      ],
+      "previewImage": "charm-preview-cross"
+    },
+    {
+      "id": "dove",
+      "name": "Dove of Peace",
+      "region": "Jerusalem",
+      "category": "tamilSpiritual",
+      "description": "A white dove with gold-edged wings and an olive branch in its beak.",
+      "tags": [
+        "dove",
+        "peace",
+        "olive branch",
+        "Christianity"
+      ],
+      "previewImage": "charm-preview-dove"
+    },
+    {
+      "id": "prayingAngel",
+      "name": "Praying Angel",
+      "region": "Europe",
+      "category": "tamilSpiritual",
+      "description": "A kneeling angel, wings folded, hands together under a gold halo.",
+      "tags": [
+        "angel",
+        "prayer",
+        "halo",
+        "Christianity"
+      ],
+      "previewImage": "charm-preview-prayingAngel"
+    },
+    {
+      "id": "sacredHeart",
+      "name": "Sacred Heart",
+      "region": "Europe",
+      "category": "tamilSpiritual",
+      "description": "A red heart bound in thorns, crowned with flame and a cross, in a burst of gold rays.",
+      "tags": [
+        "Sacred Heart",
+        "thorns",
+        "devotion",
+        "Christianity"
+      ],
+      "previewImage": "charm-preview-sacredHeart"
+    },
+    {
+      "id": "airJordan1Chicago",
+      "name": "Air Jordan 1 Chicago",
+      "region": "Chicago",
+      "category": "airJordan",
+      "description": "Red, white and black, Wings logo on the collar. The colourway that started it.",
+      "tags": [
+        "Jordan 1",
+        "Chicago",
+        "sneaker",
+        "Air Jordan"
+      ],
+      "previewImage": "charm-preview-airJordan1Chicago"
+    },
+    {
+      "id": "airJordan1Bred",
+      "name": "Air Jordan 1 Bred Patent",
+      "region": "Chicago",
+      "category": "airJordan",
+      "description": "Black and red in mirror-shine patent leather.",
+      "tags": [
+        "Jordan 1",
+        "Bred",
+        "patent",
+        "Air Jordan"
+      ],
+      "previewImage": "charm-preview-airJordan1Bred"
+    },
+    {
+      "id": "airJordan4FireRed",
+      "name": "Air Jordan 4 Fire Red",
+      "region": "Chicago",
+      "category": "airJordan",
+      "description": "White leather, mesh panels and fire-red wings at the laces.",
+      "tags": [
+        "Jordan 4",
+        "Fire Red",
+        "sneaker",
+        "Air Jordan"
+      ],
+      "previewImage": "charm-preview-airJordan4FireRed"
+    },
+    {
+      "id": "airJordan11Concord",
+      "name": "Air Jordan 11 Concord",
+      "region": "Chicago",
+      "category": "airJordan",
+      "description": "White upper, black patent mudguard, icy translucent sole.",
+      "tags": [
+        "Jordan 11",
+        "Concord",
+        "patent",
+        "Air Jordan"
+      ],
+      "previewImage": "charm-preview-airJordan11Concord"
+    },
+    {
+      "id": "airJordan3",
+      "name": "Air Jordan 3",
+      "region": "Chicago",
+      "category": "airJordan",
+      "description": "Tumbled white leather with the elephant print at the toe and heel.",
+      "tags": [
+        "Jordan 3",
+        "elephant print",
+        "sneaker",
+        "Air Jordan"
+      ],
+      "previewImage": "charm-preview-airJordan3"
+    },
+    {
+      "id": "airJordan6Carmine",
+      "name": "Air Jordan 6 Carmine",
+      "region": "Chicago",
+      "category": "airJordan",
+      "description": "White and carmine red, with the perforated toe and the spoiler at the heel.",
+      "tags": [
+        "Jordan 6",
+        "Carmine",
+        "sneaker",
+        "Air Jordan"
+      ],
+      "previewImage": "charm-preview-airJordan6Carmine"
+    },
+    {
+      "id": "airJordan5",
+      "name": "Air Jordan 5",
+      "region": "Chicago",
+      "category": "airJordan",
+      "description": "Black leather, mesh side panels and the red shark teeth on the midsole.",
+      "tags": [
+        "Jordan 5",
+        "shark teeth",
+        "sneaker",
+        "Air Jordan"
+      ],
+      "previewImage": "charm-preview-airJordan5"
+    },
+    {
+      "id": "offWhiteJordan1",
+      "name": "Off-White Air Jordan 1",
+      "region": "Chicago",
+      "category": "airJordan",
+      "description": "The Chicago 1 taken apart: exposed foam, a red zip tie and “AIR” printed on the midsole.",
+      "tags": [
+        "Jordan 1",
+        "Off-White",
+        "zip tie",
+        "Air Jordan"
+      ],
+      "previewImage": "charm-preview-offWhiteJordan1"
+    },
+    {
+      "id": "pikachu",
+      "name": "Pikachu",
+      "region": "Kanto",
+      "category": "pokemon",
+      "description": "Yellow, round-cheeked and charged, with the lightning-bolt tail.",
+      "tags": [
+        "Pikachu",
+        "Electric",
+        "Kanto",
+        "Pokémon"
+      ],
+      "previewImage": "charm-preview-pikachu"
+    },
+    {
+      "id": "charmander",
+      "name": "Charmander",
+      "region": "Kanto",
+      "category": "pokemon",
+      "description": "An orange lizard with a flame at the tip of its tail that never goes out.",
+      "tags": [
+        "Charmander",
+        "Fire",
+        "starter",
+        "Pokémon"
+      ],
+      "previewImage": "charm-preview-charmander"
+    },
+    {
+      "id": "squirtle",
+      "name": "Squirtle",
+      "region": "Kanto",
+      "category": "pokemon",
+      "description": "A blue turtle in a polished shell, ready to spray.",
+      "tags": [
+        "Squirtle",
+        "Water",
+        "starter",
+        "Pokémon"
+      ],
+      "previewImage": "charm-preview-squirtle"
+    },
+    {
+      "id": "bulbasaur",
+      "name": "Bulbasaur",
+      "region": "Kanto",
+      "category": "pokemon",
+      "description": "Green and spotted, with the bulb on its back still closed.",
+      "tags": [
+        "Bulbasaur",
+        "Grass",
+        "starter",
+        "Pokémon"
+      ],
+      "previewImage": "charm-preview-bulbasaur"
+    },
+    {
+      "id": "charizard",
+      "name": "Charizard",
+      "region": "Kanto",
+      "category": "pokemon",
+      "description": "Wings spread, claws out, tail curled round. Charmander, all grown up.",
+      "tags": [
+        "Charizard",
+        "Fire",
+        "dragon",
+        "Pokémon"
+      ],
+      "previewImage": "charm-preview-charizard"
+    },
+    {
+      "id": "dragonair",
+      "name": "Dragonair",
+      "region": "Kanto",
+      "category": "pokemon",
+      "description": "A blue serpent with wing-like ears, coiled in a splash of water.",
+      "tags": [
+        "Dragonair",
+        "Dragon",
+        "water",
+        "Pokémon"
+      ],
+      "previewImage": "charm-preview-dragonair"
+    },
+    {
+      "id": "mewtwo",
+      "name": "Mewtwo",
+      "region": "Kanto",
+      "category": "pokemon",
+      "description": "Pale violet and poised to strike. The Pokémon made in a laboratory.",
+      "tags": [
+        "Mewtwo",
+        "Psychic",
+        "legendary",
+        "Pokémon"
+      ],
+      "previewImage": "charm-preview-mewtwo"
+    },
+    {
+      "id": "umbreon",
+      "name": "Umbreon",
+      "region": "Johto",
+      "category": "pokemon",
+      "description": "Black, red-eyed, its rings glowing blue. An Eevee that evolved by moonlight.",
+      "tags": [
+        "Umbreon",
+        "Dark",
+        "Eevee",
+        "Pokémon"
+      ],
+      "previewImage": "charm-preview-umbreon"
+    },
+    {
+      "id": "ashAndPikachu",
+      "name": "Ash and Pikachu",
+      "region": "Pallet Town",
+      "category": "pokemon",
+      "description": "Cap on, Poké Ball out, Pikachu on his shoulder. I choose you.",
+      "tags": [
+        "Ash",
+        "Pikachu",
+        "trainer",
+        "Pokémon"
+      ],
+      "previewImage": "charm-preview-ashAndPikachu"
+    },
+    {
+      "id": "pokeBall",
+      "name": "Poké Ball",
+      "region": "Kanto",
+      "category": "pokemon",
+      "description": "Red over white, with the button in the middle. Gotta catch 'em all.",
+      "tags": [
+        "Poké Ball",
+        "trainer",
+        "catch",
+        "Pokémon"
+      ],
+      "previewImage": "charm-preview-pokeBall"
+    },
+    {
+      "id": "ronaldoPortugal",
+      "name": "Ronaldo Portugal",
+      "region": "Portugal",
+      "category": "footballLegends",
+      "description": "Back to us in Portugal red, feet planted wide: the stance before the celebration.",
+      "tags": [
+        "Ronaldo",
+        "Portugal",
+        "CR7",
+        "football"
+      ],
+      "previewImage": "charm-preview-ronaldoPortugal"
+    },
+    {
+      "id": "ronaldoBicycleKick",
+      "name": "Ronaldo Bicycle Kick",
+      "region": "Madrid",
+      "category": "footballLegends",
+      "description": "Upside down in white, boot meeting the ball overhead.",
+      "tags": [
+        "Ronaldo",
+        "bicycle kick",
+        "Real Madrid",
+        "football"
+      ],
+      "previewImage": "charm-preview-ronaldoBicycleKick"
+    },
+    {
+      "id": "ballonDor",
+      "name": "Ballon d'Or",
+      "region": "Paris",
+      "category": "footballLegends",
+      "description": "A golden ball on a golden base: the year's best player, in one object.",
+      "tags": [
+        "Ballon d'Or",
+        "trophy",
+        "gold",
+        "football"
+      ],
+      "previewImage": "charm-preview-ballonDor"
+    },
+    {
+      "id": "championsLeagueTrophy",
+      "name": "Champions League Trophy",
+      "region": "Europe",
+      "category": "footballLegends",
+      "description": "Silver, with the handles that give it its nickname: Big Ears.",
+      "tags": [
+        "Champions League",
+        "trophy",
+        "Big Ears",
+        "football"
+      ],
+      "previewImage": "charm-preview-championsLeagueTrophy"
     }
   ]
 }

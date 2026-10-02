@@ -46,6 +46,9 @@ public sealed class CharmTile : INotifyPropertyChanged
 
     public string DisplayName => Entry.DisplayName;
 
+    /// <summary>Whether this is one of the user's own charms, which the tile's menu can delete.</summary>
+    public bool IsCustom => CharmId.IsCustom(Entry.Id);
+
     public ImageSource? Image { get; }
 
     /// <summary>Whether this charm is currently hanging.</summary>

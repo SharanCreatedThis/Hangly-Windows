@@ -21,6 +21,30 @@
                     Padding="3"
                     AutomationProperties.Name="{x:Bind DisplayName, Mode=OneTime}"
                     ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneTime}">
+                    <!--
+                        Right-click: the star, and Delete for the user's own charms. Delete
+                        was only the toolbar button, shown once a custom charm was selected,
+                        so a charm you had made could be removed only once you had found it.
+                    -->
+                    <Grid.ContextFlyout>
+                        <MenuFlyout>
+                            <MenuFlyoutItem
+                                Click="OnFavouriteMenuClicked"
+                                Tag="{x:Bind Id, Mode=OneTime}"
+                                Text="{x:Bind FavouriteLabel, Mode=OneWay}" />
+                            <MenuFlyoutSeparator Visibility="{x:Bind IsCustom, Mode=OneTime}" />
+                            <MenuFlyoutItem
+                                AutomationProperties.AutomationId="DeleteCharmMenu"
+                                Click="OnDeleteMenuClicked"
+                                Tag="{x:Bind Id, Mode=OneTime}"
+                                Text="Delete Charm…"
+                                Visibility="{x:Bind IsCustom, Mode=OneTime}">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon Glyph="&#xE74D;" />
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                        </MenuFlyout>
+                    </Grid.ContextFlyout>
                     <Border
                         BorderBrush="{x:Bind Outline, Mode=OneWay}"
                         BorderThickness="2"
@@ -527,7 +551,7 @@
                                 x:Name="DeleteButton"
                                 AutomationProperties.Name="Delete the selected imported charm"
                                 Click="OnDeleteImportClicked"
-                                Content="Delete"
+                                Content="Delete…"
                                 Visibility="Collapsed" />
                             <TextBlock
                                 x:Name="ImportMessage"
@@ -552,17 +576,30 @@
                             <StackPanel>
                             <!-- Collections, as cards. Shown only when nothing is
                                  filtering the view: they are a way in, and a way in is
-                                 noise once you have already narrowed to six charms. -->
-                            <ItemsControl
-                                x:Name="Collections"
+                                 noise once you have already narrowed to six charms.
+
+                                 One row that scrolls sideways, as on macOS. They used to
+                                 wrap, which was two rows at nine collections and would be
+                                 six at seventeen — the charms below the fold. A row costs
+                                 one card's height however many there are, and the card cut
+                                 off at the edge says there are more. -->
+                            <ScrollViewer
+                                x:Name="CollectionsScroller"
                                 Margin="0,0,0,10"
-                                ItemTemplate="{StaticResource CollectionTemplate}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <muxc:ItemsWrapGrid Orientation="Horizontal" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                            </ItemsControl>
+                                HorizontalScrollBarVisibility="Auto"
+                                HorizontalScrollMode="Enabled"
+                                VerticalScrollBarVisibility="Disabled"
+                                VerticalScrollMode="Disabled">
+                                <ItemsControl
+                                    x:Name="Collections"
+                                    ItemTemplate="{StaticResource CollectionTemplate}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                            </ScrollViewer>
                             <ItemsControl x:Name="Packs">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="local:CharmGroup">

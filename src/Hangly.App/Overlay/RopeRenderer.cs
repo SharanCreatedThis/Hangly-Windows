@@ -77,6 +77,16 @@ public sealed class RopeRenderer
 
     private GlowLevel glow = GlowLevel.Soft;
 
+    /// <summary>
+    /// The canvas's height in points, which a charm that hangs by its own drawn rope fills
+    /// down from its top. Zero — the default, for the Library's and the Studio's small
+    /// canvases — hangs it to the rope's end and its own radius.
+    /// </summary>
+    public double CanvasHeight { get; set; }
+
+    /// <summary>How much of the canvas below its top such a charm fills, leaving room for its shadow.</summary>
+    private const double OwnCordFill = 0.96;
+
     public void Draw(CanvasDrawingSession session, RopeSnapshot snapshot, RopeStyle style)
     {
         if (snapshot.Points.Count < 2)
@@ -107,10 +117,9 @@ public sealed class RopeRenderer
         // One piece of cord per gap the charms leave, so a charm's own loop is where the
         // cord ends rather than something the cord is drawn through.
         List<List<Vec2>> runs = VisibleRuns(snapshot.Points, snapshot.Charms);
-        for (int index = 0; index < runs.Count; index++)
-        {
-            DrawCord(session, runs[index], appearance, width, charmRadius, head: index == 0);
-        }
+        DropOwnCordRuns(runs);
+        AddCordReaches(runs, snapshot.Charms);
+        DrawRopeLayer(session, snapshot, runs, appearance, width, charmRadius);
         DrawBeads(session, snapshot, appearance);
         DrawCharms(session, snapshot);
         artwork.EndFrame();
@@ -535,6 +544,159 @@ public sealed class RopeRenderer
         return runs;
     }
 
+    /// <summary>
+    /// The cord on past the knot, for a charm whose cord meets its artwork lower than it
+    /// can be hung from — straight down the charm's axis and behind it, so it shows only
+    /// through what the artwork leaves open: between a Snitch's wings, to the ball. macOS's
+    /// <c>RopeCanvasView.cordReach</c>.
+    /// </summary>
+    private void AddCordReaches(List<List<Vec2>> runs, IReadOnlyList<CharmPlacement> placements)
+    {
+        for (int slot = 0; slot < placements.Count && slot < charms.Count; slot++)
+        {
+            CharmPlacement placement = placements[slot];
+            if (charms[slot].CordInset is not double inset || inset >= placement.KnotInset)
+            {
+                continue;
+            }
+
+            var direction = new Vec2(Math.Cos(placement.Angle), Math.Sin(placement.Angle));
+            runs.Add(
+            [
+                placement.Center - (direction * (placement.Radius * placement.KnotInset)),
+                placement.Center - (direction * (placement.Radius * inset)),
+            ]);
+        }
+    }
+
+    /// <summary>
+    /// The cord in a layer of its own, with every charm's silhouette taken out of it before
+    /// it is laid down: not one rope pixel shows through a charm or rings its edge, and it
+    /// is seen only where a charm is open — through a hook, between a Snitch's wings.
+    /// </summary>
+    /// <remarks>
+    /// The layer covers the cord and nothing more, so it costs what the cord does rather
+    /// than a full-canvas pass, and it is kept from frame to frame while it is big enough.
+    /// </remarks>
+    private void DrawRopeLayer(
+        CanvasDrawingSession session,
+        RopeSnapshot snapshot,
+        List<List<Vec2>> runs,
+        RopeAppearance appearance,
+        double width,
+        double charmRadius)
+    {
+        double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
+        foreach (List<Vec2> run in runs)
+        {
+            foreach (Vec2 point in run)
+            {
+                minX = Math.Min(minX, point.X);
+                minY = Math.Min(minY, point.Y);
+                maxX = Math.Max(maxX, point.X);
+                maxY = Math.Max(maxY, point.Y);
+            }
+        }
+
+        if (minX > maxX)
+        {
+            return;
+        }
+
+        // Room for the cord's glow and shadow either side of its line.
+        double margin = (width * 6) + 4;
+        var origin = new Vec2(Math.Floor(minX - margin), Math.Floor(minY - margin));
+        float layerWidth = (float)Math.Ceiling(maxX + margin - origin.X);
+        float layerHeight = (float)Math.Ceiling(maxY + margin - origin.Y);
+
+        if (ropeLayer is null
+            || ropeLayer.Device != session.Device
+            || ropeLayer.Size.Width < layerWidth
+            || ropeLayer.Size.Height < layerHeight
+            || !ropeLayer.Dpi.Equals(session.Dpi))
+        {
+            // Grown, never shrunk, so a swinging rope settles on one layer size.
+            float keepWidth = ropeLayer is not null && ropeLayer.Device == session.Device ? (float)ropeLayer.Size.Width : 0;
+            float keepHeight = ropeLayer is not null && ropeLayer.Device == session.Device ? (float)ropeLayer.Size.Height : 0;
+            ropeLayer?.Dispose();
+            ropeLayer = new CanvasRenderTarget(session, Math.Max(layerWidth, keepWidth), Math.Max(layerHeight, keepHeight));
+        }
+
+        using (CanvasDrawingSession layer = ropeLayer.CreateDrawingSession())
+        {
+            layer.Clear(Microsoft.UI.Colors.Transparent);
+            layer.Antialiasing = CanvasAntialiasing.Antialiased;
+            layer.Transform = System.Numerics.Matrix3x2.CreateTranslation(-(float)origin.X, -(float)origin.Y);
+            for (int index = 0; index < runs.Count; index++)
+            {
+                DrawCord(layer, runs[index], appearance, width, charmRadius, head: index == 0);
+            }
+
+            for (int index = 0; index < snapshot.Charms.Count && index < Charms.Count; index++)
+            {
+                artwork.EraseBehind(layer, Charms[index], HangFor(snapshot, index));
+            }
+        }
+
+        session.DrawImage(
+            ropeLayer,
+            new Windows.Foundation.Rect(origin.X, origin.Y, ropeLayer.Size.Width, ropeLayer.Size.Height),
+            new Windows.Foundation.Rect(0, 0, ropeLayer.Size.Width, ropeLayer.Size.Height));
+    }
+
+    /// <summary>The offscreen layer the cord is drawn in; see <see cref="DrawRopeLayer"/>.</summary>
+    private CanvasRenderTarget? ropeLayer;
+
+    /// <summary>
+    /// Where a charm is drawn: at its place on the rope, turned with the cord that meets it
+    /// — or, for a charm that hangs by its own drawn rope, from where our cord would have
+    /// started, down past its place by its radius, as macOS's <c>RopeCanvasView.hang</c>.
+    /// </summary>
+    private CharmHang HangFor(RopeSnapshot snapshot, int slot)
+    {
+        CharmPlacement placement = snapshot.Charms[slot];
+        var resting = new CharmHang(placement.Center, placement.Radius, placement.Angle - (Math.PI / 2));
+        if (slot >= Charms.Count || !Charms[slot].HangsByOwnCord || Charms[slot].Body.Height <= 0)
+        {
+            return resting;
+        }
+
+        Rect body = Charms[slot].Body;
+        Vec2 top = slot == 0 ? snapshot.Points[0] : snapshot.Charms[slot - 1].Center;
+        Vec2 reach = placement.Center - top;
+        double distance = reach.Magnitude;
+        if (distance <= 1)
+        {
+            return resting;
+        }
+
+        Vec2 direction = reach / distance;
+
+        // Down as far as the canvas allows: it is one tall picture, five times taller than
+        // wide, so stopping at the rope's end left both figures a few dozen points across.
+        double height = Math.Max(distance + placement.Radius, (CanvasHeight - top.Y) * OwnCordFill);
+        double longest = Math.Max(body.Width, body.Height);
+        return new CharmHang(
+            top + (direction * (height / 2)),
+            height / 2 * longest / body.Height,
+            Math.Atan2(direction.Y, direction.X) - (Math.PI / 2));
+    }
+
+    /// <summary>
+    /// No cord of ours into a charm that hangs by the rope in its own artwork: the run that
+    /// leads to it — the first for the first charm, the next for the next — is dropped.
+    /// </summary>
+    private void DropOwnCordRuns(List<List<Vec2>> runs)
+    {
+        for (int slot = Math.Min(Charms.Count, runs.Count) - 1; slot >= 0; slot--)
+        {
+            if (Charms[slot].HangsByOwnCord)
+            {
+                runs.RemoveAt(slot);
+            }
+        }
+    }
+
     /// <summary>Closes off the run being built, keeping it only if it is worth stroking.</summary>
     private static void Finish(List<List<Vec2>> runs, ref List<Vec2> current)
     {
@@ -767,7 +929,7 @@ public sealed class RopeRenderer
             // CharmHaloExtent still sizes the canvas. That is a separate job: it is the
             // headroom the layout reserves below the lowest charm, and the shadow and the
             // swing both need it.
-            artwork.Draw(session, descriptor, placement);
+            artwork.Draw(session, descriptor, HangFor(snapshot, index));
         }
     }
 

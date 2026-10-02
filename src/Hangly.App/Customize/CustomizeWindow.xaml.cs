@@ -384,7 +384,7 @@ public sealed partial class CustomizeWindow : Window
         }
 
         Packs.ItemsSource = groups;
-        Collections.Visibility = filter is CharmFilter.Everything && string.IsNullOrWhiteSpace(query)
+        CollectionsScroller.Visibility = filter is CharmFilter.Everything && string.IsNullOrWhiteSpace(query)
             ? Visibility.Visible
             : Visibility.Collapsed;
 
@@ -1610,7 +1610,36 @@ public sealed partial class CustomizeWindow : Window
 
     private void OnDeleteImportClicked(object sender, RoutedEventArgs args)
     {
-        if (selectedCharmId is not string id || !Hangly.Core.Models.CharmId.IsCustom(id))
+        if (selectedCharmId is string id)
+        {
+            _ = ConfirmAndDeleteAsync(id);
+        }
+    }
+
+    private void OnDeleteMenuClicked(object sender, RoutedEventArgs args)
+    {
+        if (sender is MenuFlyoutItem { Tag: string id })
+        {
+            _ = ConfirmAndDeleteAsync(id);
+        }
+    }
+
+    private void OnFavouriteMenuClicked(object sender, RoutedEventArgs args)
+    {
+        if (sender is MenuFlyoutItem { Tag: string id })
+        {
+            ToggleFavourite(id);
+        }
+    }
+
+    /// <summary>Deletes one of the user's own charms once they say so; a built-in is ignored.</summary>
+    /// <remarks>
+    /// Asked first, as macOS does: the toolbar button used to delete on the click, and the
+    /// image goes with the charm, so there is nothing to get it back from.
+    /// </remarks>
+    private async Task ConfirmAndDeleteAsync(string id)
+    {
+        if (!Hangly.Core.Models.CharmId.IsCustom(id))
         {
             return;
         }
@@ -1623,10 +1652,29 @@ public sealed partial class CustomizeWindow : Window
             return;
         }
 
+        var confirm = new ContentDialog
+        {
+            XamlRoot = Root.XamlRoot,
+            Title = $"Delete “{entry.Name}”?",
+            Content = "The charm and its image are removed from Hangly. This cannot be undone.",
+            PrimaryButtonText = "Delete",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(confirm, "DeleteCharmDialog");
+
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
         environment.DeleteCharm(entry.Id);
         ImportMessage.Text = $"“{entry.Name}” was deleted.";
-        selectedCharmId = null;
-        DeleteButton.Visibility = Visibility.Collapsed;
+        if (selectedCharmId == id)
+        {
+            selectedCharmId = null;
+            DeleteButton.Visibility = Visibility.Collapsed;
+        }
 
         RebuildTiles();
         RebuildChips();

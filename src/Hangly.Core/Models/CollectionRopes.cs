@@ -29,6 +29,17 @@ public static class CollectionRopes
         ["friends"] = RopeStyle.Thread,
         ["breakingBad"] = RopeStyle.Leather,
         ["strangerThings"] = RopeStyle.Neon,
+
+        // 2.2's collections. Nine cords and seventeen collections, so from here on a
+        // cord is shared — each still the one the collection reads best on.
+        ["onePiece"] = RopeStyle.Leather,
+        ["harryPotter"] = RopeStyle.GoldChain,
+        ["ben10"] = RopeStyle.Neon,
+        ["attackOnTitan"] = RopeStyle.Leather,
+        ["naruto"] = RopeStyle.Thread,
+        ["gameOfThrones"] = RopeStyle.MidnightCord,
+        ["airJordan"] = RopeStyle.SilverChain,
+        ["pokemon"] = RopeStyle.SilverCord,
     };
 
     /// <summary>The cord a collection was drawn to hang on, or null for a category that is not a collection.</summary>

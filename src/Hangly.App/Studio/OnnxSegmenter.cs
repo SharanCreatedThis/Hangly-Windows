@@ -95,17 +95,29 @@ internal sealed class OnnxSegmenter : ISubjectSegmenter, IDisposable
         using var options = new RunOptions();
         using CancellationTokenRegistration stop = cancellation.Register(() => options.Terminate = true);
         using var tensor = OrtValue.CreateTensorValueFromMemory(input, [1, 3, Shape.Side, Shape.Side]);
-        using IDisposableReadOnlyCollection<OrtValue> outputs = model.Run(
-            options,
-            [model.InputNames[0]],
-            [tensor],
-            [model.OutputNames[0]]);
+        using IDisposableReadOnlyCollection<OrtValue> outputs = Infer(model, options, tensor, cancellation);
         cancellation.ThrowIfCancellationRequested();
         long inferred = clock.ElapsedMilliseconds;
 
         SubjectMask mask = SegmentationTensors.Mask(outputs[0].GetTensorDataAsSpan<float>(), Shape, image.Width, image.Height);
         Diagnostics.Log($"studio: subject {image.Width}×{image.Height} on {Provider} in {clock.ElapsedMilliseconds} ms (prepare {prepared}, model {inferred - prepared})");
         return mask;
+    }
+
+    /// <summary>Runs the model once; a run stopped through <paramref name="options"/> comes back as a cancellation.</summary>
+    private static IDisposableReadOnlyCollection<OrtValue> Infer(
+        InferenceSession model, RunOptions options, OrtValue tensor, CancellationToken cancellation)
+    {
+        try
+        {
+            return model.Run(options, [model.InputNames[0]], [tensor], [model.OutputNames[0]]);
+        }
+        catch (OnnxRuntimeException) when (cancellation.IsCancellationRequested)
+        {
+            // Terminate stops the run by throwing "Exiting due to terminate flag being set to true",
+            // not a cancellation: say what it is, so it never reaches the crash reports as a failure.
+            throw new OperationCanceledException(cancellation);
+        }
     }
 
     private InferenceSession Load(string path)

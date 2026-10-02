@@ -86,9 +86,82 @@ public class CharmArtworkSplitterTests
         Assert.Equal(121.0 / Side, body.Height, 6);
     }
 
-    [Fact(DisplayName = "The knot inset is the body's height over its longest side")]
+    /// <summary>
+    /// The cord arrives down the body's centre line onto solid artwork deep enough to be
+    /// tied to, so it tucks eight rows in: the knot sits on row 128, half a pixel into it,
+    /// rather than at the box top on row 120 — two times 8.5 rows less than the body.
+    /// </summary>
+    private const double TuckedKnotInset = (121.0 - 17.0) / 201.0;
+
+    [Fact(DisplayName = "The knot is measured where the cord meets the body, tucked in")]
     public void KnotInsetIsMeasured() =>
-        Assert.Equal(121.0 / 201.0, Split().KnotInset, 6);
+        Assert.Equal(TuckedKnotInset, Split().KnotInset, 6);
+
+    private static byte[] Mask(params (int Left, int Top, int Right, int Bottom)[] parts)
+    {
+        var mask = new byte[Side * Side];
+        foreach ((int left, int top, int right, int bottom) in parts)
+        {
+            Fill(mask, left, top, right, bottom);
+        }
+
+        return mask;
+    }
+
+    private static CharmArtworkRegions SplitWhole(byte[] mask) =>
+        CharmArtworkSplitter.Split(mask, Side, 1, 0, 0)
+        ?? throw new InvalidOperationException("the splitter refused a silhouette it should read");
+
+    [Fact(DisplayName = "A figure's cord meets its head, not the air between its ears")]
+    public void KnotFindsTheHead()
+    {
+        // Two ears set the box top at row 0; the head between them starts at row 84.
+        CharmArtworkRegions regions = SplitWhole(Mask((32, 0, 76, 100), (244, 0, 288, 100), (60, 84, 260, 319)));
+
+        Assert.Equal(0, regions.Body.Top, 6);
+        Assert.InRange(regions.KnotY!.Value * Side, 84, 94);
+    }
+
+    [Fact(DisplayName = "A cord threads a hook to the charm it holds")]
+    public void CordThreadsTheHook()
+    {
+        // A ring whose hole is a hook's — rows 14 to 30 — over a body from row 40.
+        CharmArtworkRegions regions = SplitWhole(Mask(
+            (140, 10, 180, 13), (140, 10, 147, 34), (173, 10, 180, 34), (140, 31, 180, 34), (60, 40, 260, 319)));
+
+        // Through the ring and its hole, and tucked into the body below.
+        Assert.Equal(48.5, regions.KnotY!.Value * Side, 6);
+        Assert.Equal(10.0 / Side, regions.Body.Top, 6);
+    }
+
+    [Fact(DisplayName = "A cord stops in a ring above an opening too big to thread")]
+    public void KnotStopsAtAnOpenRing()
+    {
+        // The ring's two sides either side of a gap on the centre line, over a body below.
+        CharmArtworkRegions regions = SplitWhole(Mask((146, 10, 153, 50), (167, 10, 174, 50), (60, 70, 260, 319)));
+
+        Assert.Equal(10.5, regions.KnotY!.Value * Side, 6);
+    }
+
+    [Fact(DisplayName = "A charm the cord meets past its centre hangs above it, and the cord goes on")]
+    public void CordReachesPastTheCentre()
+    {
+        // Two wings up the sides and a ball at the bottom: the centre line meets nothing
+        // until the ball, below the middle, as a Snitch's does.
+        CharmArtworkRegions regions = SplitWhole(Mask((26, 0, 64, 190), (256, 0, 294, 190), (110, 220, 210, 319)));
+
+        Assert.True(regions.CordInset < 0, $"cord inset {regions.CordInset}");
+        Assert.Equal(CharmArtworkRegions.MinimumKnotInset, regions.KnotInset);
+    }
+
+    [Fact(DisplayName = "A cord stops in a loop's wall above an opening too big to thread")]
+    public void KnotTucksIntoALoop()
+    {
+        // A loop whose top wall is rows 10–19 on the centre line, its hole below.
+        CharmArtworkRegions regions = SplitWhole(Mask((140, 10, 180, 19), (140, 10, 147, 50), (173, 10, 180, 50), (60, 70, 260, 319)));
+
+        Assert.InRange(regions.KnotY!.Value * Side, 11, 16);
+    }
 
     [Fact(DisplayName = "Asking for no beads leaves the body where it is")]
     public void ZeroBeadsStillFindsTheBody()
@@ -134,7 +207,7 @@ public class CharmArtworkSplitterTests
 
         Assert.Equal(charm.Mass, metrics.Mass);
         Assert.Equal(charm.RadiusRatio, metrics.RadiusRatio);
-        Assert.Equal(121.0 / 201.0, metrics.KnotInset, 6);
+        Assert.Equal(TuckedKnotInset, metrics.KnotInset, 6);
         Assert.NotEqual(CharmCatalog.FallbackKnotInset, metrics.KnotInset);
     }
 }
