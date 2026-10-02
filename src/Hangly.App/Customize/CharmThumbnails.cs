@@ -35,16 +35,67 @@ public static class CharmThumbnails
     private static readonly Lock Gate = new();
 
     /// <summary>Where the rendered thumbnails live.</summary>
+    /// <remarks>
+    /// Local app data rather than Temp, which is where they used to be: Windows' own clean-up
+    /// empties Temp, and every time it did, the next Library open rendered all of them again.
+    /// Next to the install, so uninstalling takes them with it.
+    /// </remarks>
     public static string Directory => Path.Combine(
-        Path.GetTempPath(),
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Hangly",
         "thumbnails",
         Pixels.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
+    /// <summary>The cached PNG for this charm, or null when it has not been rendered.</summary>
+    /// <remarks>
+    /// Named for the artwork's size in bytes as well as the charm, so a charm whose drawing
+    /// changes in an update is rendered afresh instead of showing the old picture.
+    /// </remarks>
+    public static string? CachedPathFor(CharmCatalogEntry entry)
+    {
+        string? target = TargetFor(entry);
+        return target is not null && File.Exists(target) ? target : null;
+    }
+
+    private static string? TargetFor(CharmCatalogEntry entry)
+    {
+        var source = new FileInfo(Path.Combine(CharmArtworkCache.DefaultDirectory, entry.FileName));
+        return source.Exists
+            ? Path.Combine(Directory, $"{SafeName(entry.Id)}-{source.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)}.png")
+            : null;
+    }
+
     /// <summary>
-    /// The PNG for this charm, rendering it first if it is not already there.
+    /// Renders every thumbnail not yet on disk, one at a time on a low-priority thread, so the
+    /// Library opens on finished pictures — including the first time after an update that
+    /// brought new charms. Started a minute after launch, when nothing else is starting.
     /// </summary>
-    /// <returns>A path, or <see langword="null"/> when the artwork could not be drawn.</returns>
+    public static void WarmInBackground(IReadOnlyList<CharmCatalogEntry> entries)
+    {
+        var thread = new Thread(() =>
+        {
+            int rendered = 0;
+            foreach (CharmCatalogEntry entry in entries)
+            {
+                if (CachedPathFor(entry) is null && PathFor(entry) is not null)
+                {
+                    rendered++;
+                }
+            }
+
+            if (rendered > 0)
+            {
+                Services.Diagnostics.Log($"thumbnails: rendered {rendered} in the background");
+            }
+        })
+        {
+            IsBackground = true,
+            Priority = ThreadPriority.Lowest,
+            Name = "Thumbnail warm-up",
+        };
+        thread.Start();
+    }
+
     /// <summary>Deletes cached thumbnails for charms that no longer exist.</summary>
     /// <remarks>
     /// The cache is keyed by charm id and nothing ever looks up an id that is gone, so a
@@ -57,7 +108,7 @@ public static class CharmThumbnails
     /// there is no version of "could not delete a cached thumbnail" that a person needs to
     /// hear about or that should stop the Library opening.</para>
     /// </remarks>
-    public static void Prune(IReadOnlyCollection<string> liveIds)
+    public static void Prune(IReadOnlyCollection<CharmCatalogEntry> live)
     {
         try
         {
@@ -66,18 +117,21 @@ public static class CharmThumbnails
                 return;
             }
 
-            var live = liveIds.Select(SafeName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            // Exactly the files the live charms' current artwork would be cached under; a
+            // charm whose drawing changed leaves its old picture behind for this to take.
+            var keep = live.Select(TargetFor).OfType<string>().Select(Path.GetFileNameWithoutExtension)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             int removed = 0;
             foreach (string file in System.IO.Directory.EnumerateFiles(Directory, "*.png"))
             {
-                if (!live.Contains(Path.GetFileNameWithoutExtension(file)))
+                if (!keep.Contains(Path.GetFileNameWithoutExtension(file)))
                 {
                     File.Delete(file);
                     removed++;
                 }
             }
 
-            Services.Diagnostics.Log($"pruned {removed} stale thumbnail(s) of {live.Count} live");
+            Services.Diagnostics.Log($"pruned {removed} stale thumbnail(s) of {keep.Count} live");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -87,7 +141,11 @@ public static class CharmThumbnails
 
     public static string? PathFor(CharmCatalogEntry entry)
     {
-        string target = Path.Combine(Directory, SafeName(entry.Id) + ".png");
+        if (TargetFor(entry) is not string target)
+        {
+            return null;
+        }
+
         if (File.Exists(target))
         {
             return target;

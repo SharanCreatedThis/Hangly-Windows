@@ -225,6 +225,18 @@ public sealed class AppEnvironment : IDisposable
         Diagnostics.Log("update downloaded; waiting for a quiet moment to install it");
     }
 
+    /// <summary>
+    /// A minute after launch, renders any Library thumbnail not yet on disk on a low-priority
+    /// thread, so the Library never renders one while somebody is waiting on it.
+    /// </summary>
+    private void WarmThumbnailsLater()
+    {
+        IReadOnlyList<CharmCatalogEntry> charms = Charms.All;
+        _ = Task.Delay(TimeSpan.FromMinutes(1)).ContinueWith(
+            _ => Customize.CharmThumbnails.WarmInBackground(charms),
+            TaskScheduler.Default);
+    }
+
     /// <summary>How long after launch the first check runs.</summary>
     private const int UpdateCheckDelaySeconds = 20;
 
@@ -492,6 +504,7 @@ public sealed class AppEnvironment : IDisposable
 
         // Last, and on its own thread, so nothing above waits on a network call.
         CheckForUpdateQuietly();
+        WarmThumbnailsLater();
         StartAuditCycle();
         OpenAuditPage();
     }

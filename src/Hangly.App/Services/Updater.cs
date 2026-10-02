@@ -64,6 +64,9 @@ public sealed class Updater
     private UpdateInfo? pending;
     private UpdateInfo? downloaded;
 
+    /// <summary>The background download while it runs, so Install can wait for it rather than race it.</summary>
+    private Task<bool>? downloading;
+
     // The update funnel (AnalyticsEvent.UpdateAvailable …): who asked for this update, and which version was
     // already reported available this run, so a daily check that finds the same one again adds nothing.
     private UpdateTrigger trigger = UpdateTrigger.Quiet;
@@ -191,7 +194,21 @@ public sealed class Updater
     /// Never throws.
     /// </summary>
     /// <returns>Whether an update is now downloaded and waiting.</returns>
-    public async Task<bool> DownloadAsync()
+    public Task<bool> DownloadAsync()
+    {
+        // One download at a time. Velopack holds an exclusive lock while it downloads, and a
+        // second download — Install pressed while the quiet one was still fetching 300 MB —
+        // failed on that lock and told the person the update could not be installed.
+        // A failed one is not kept: tomorrow's check tries again.
+        if (downloading is null || (downloading.IsCompleted && !downloading.Result))
+        {
+            downloading = DownloadOnceAsync();
+        }
+
+        return downloading;
+    }
+
+    private async Task<bool> DownloadOnceAsync()
     {
         if (pending is null)
         {
@@ -288,6 +305,15 @@ public sealed class Updater
         UpdateStage stage = UpdateStage.Download;
         try
         {
+            // The quiet download already running, if there is one: waited for, not raced.
+            if (downloading is not null && await downloading.ConfigureAwait(false))
+            {
+                stage = UpdateStage.Install;
+                Diagnostics.Log($"applying update {downloaded!.TargetFullRelease.Version} (downloaded in the background)");
+                Manager().ApplyUpdatesAndRestart(downloaded, [Core.Lifecycle.LaunchIntent.UpdatedArgument]);
+                return "Restarting…";
+            }
+
             UpdateManager manager = Manager();
             // Downloaded as it always was; reported only when it is not the package the quiet check already fetched.
             bool fresh = downloaded?.TargetFullRelease.Version.ToString() != version;

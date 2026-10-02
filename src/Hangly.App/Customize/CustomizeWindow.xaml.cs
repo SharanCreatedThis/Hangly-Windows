@@ -231,7 +231,7 @@ public sealed partial class CustomizeWindow : Window
 
         // Anything cached for a charm that is gone -- a deleted import, or a charm an
         // earlier build had -- goes with it.
-        CharmThumbnails.Prune([.. environment.Charms.All.Select(entry => entry.Id)]);
+        CharmThumbnails.Prune(environment.Charms.All);
 
         slotTiles.CollectionChanged += OnSlotsReordered;
         BuildCollections();
