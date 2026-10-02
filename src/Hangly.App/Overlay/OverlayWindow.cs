@@ -612,7 +612,10 @@ public sealed class OverlayWindow : IDisposable
         CharmPlacement charm = snapshot.Charms[^1];
         Vec2 anchor = snapshot.Points[0];
         double reach = (charm.Center - anchor).Magnitude;
-        double bottom = Math.Min(anchor.Y + reach + charm.Radius, CanvasSize.Height);
+        // A charm that hangs by its own drawn rope (Spider-Man and Gwen) fills the canvas below the anchor, well past
+        // the radius the solver gives it, so the card goes below the canvas instead.
+        bool ownCord = renderer.Charms.Count > 0 && renderer.Charms[^1].HangsByOwnCord;
+        double bottom = ownCord ? CanvasSize.Height : Math.Min(anchor.Y + reach + charm.Radius, CanvasSize.Height);
         var next = new AnchorBox(frame.Left + (anchor.X * scale), frame.Top + (bottom * scale), scale);
         if (restAnchor is not { } previous || Math.Abs(previous.X - next.X) >= 1 || Math.Abs(previous.Y - next.Y) >= 1 || previous.Scale != next.Scale)
         {

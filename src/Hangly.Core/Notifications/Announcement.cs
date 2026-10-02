@@ -87,6 +87,7 @@ public sealed partial record Announcement
     public bool IsLive(DateTimeOffset now) => StartAt <= now && now < ExpireAt;
 
     /// <summary>Whether this can be shown here: the endpoint's checks, restated.</summary>
+    /// <remarks>Lengths in UTF-16 units, as Firestore's rules and the endpoint count them (measured): 🔔 is two.</remarks>
     public bool IsUsable(string platform = Platform) =>
         Title.Length is > 0 and <= AnnouncementLimits.Title
         && Message.Length is > 0 and <= AnnouncementLimits.Message

@@ -166,6 +166,8 @@ public sealed class NotificationTests : IDisposable
         Assert.False(Make(platforms: ["mac"]).IsUsable());
         Assert.False(Make(title: string.Empty).IsUsable());
         Assert.False(Make(title: new string('x', 61)).IsUsable());
+        Assert.True(Make(title: "\U0001F514" + new string('x', 58)).IsUsable());
+        Assert.False(Make(title: "\U0001F514" + new string('x', 59)).IsUsable());
         Assert.False(Make(duration: 4).IsUsable());
         Assert.False(Make(start: Minutes(10), expire: Minutes(5)).IsUsable());
         Assert.False(Make(action: AnnouncementAction.OpenUrl, target: "http://example.com").IsUsable());
