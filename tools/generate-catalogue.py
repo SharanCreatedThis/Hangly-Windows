@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generate the C# charm catalogue from the Swift source.
 
-The catalogue is eighty-one entries of pure data — identity, mass, radius, palette,
-sound and how the artwork divides into beads. Transcribing that by hand is eighty-one
+The catalogue is a hundred and sixty entries of pure data — identity, mass, radius, palette,
+sound and how the artwork divides into beads. Transcribing that by hand is that many
 chances to mistype a number that no compiler would catch and only a screenshot would,
 so it is read out of `reference/swift/` instead and written as C#.
 
@@ -29,11 +29,13 @@ OUT = ROOT / "src" / "Hangly.Core" / "Models" / "CharmCatalog.Generated.cs"
 LIBRARY = SWIFT / "CharmLibrary.json"
 
 # The order the charm menu offers them in. CollectionCharmCatalog.entries is
-#   collectionEntries + collectionPackEntries + storyPackEntries + classicEntries
-# and storyPackEntries is legendEntries + screenEntries. Reproduced here because the
+#   collectionEntries + collectionPackEntries + storyPackEntries + fandomPackEntries
+#   + classicEntries
+# where storyPackEntries is legendEntries + screenEntries, and fandomPackEntries is
+# additionEntries + animeEntries + sagaEntries + iconEntries. Reproduced here because the
 # order is the catalogue's own and a reordering would silently renumber the menu.
 #
-# The two platforms now carry the same seventy charms. The seasonal packs, which only
+# The two platforms carry the same hundred and sixty charms. The seasonal packs, which only
 # macOS ever had, were removed from both — so there is nothing left for this file to
 # leave out.
 SOURCES = [
@@ -41,28 +43,40 @@ SOURCES = [
     ("Charms/CollectionPackCatalog.swift", "collectionPackEntries"),
     ("Charms/StoryPackCatalog.swift", "legendEntries"),
     ("Charms/StoryPackCatalog+Screen.swift", "screenEntries"),
+    ("Charms/FandomPackCatalog.swift", "additionEntries"),
+    ("Charms/FandomPackCatalog+Anime.swift", "animeEntries"),
+    ("Charms/FandomPackCatalog+Sagas.swift", "sagaEntries"),
+    ("Charms/FandomPackCatalog+Icons.swift", "iconEntries"),
     ("Charms/ClassicCharmCatalog.swift", "classicEntries"),
 ]
 
 # One line about each collection, for the Library's hero cards.
 #
 # These are not in CharmLibrary.json and not in the Swift that ships in reference/ —
-# they live in the macOS view layer, which is not part of this repository. Every line
-# below is a literal read out of the shipping macOS 2.0.0 binary, so they are quotations
-# rather than copy written here. A collection with no line gets no card.
+# they live in macOS's CharmCollection, which is not part of this repository. Every line
+# below is the summary written there, so they are quotations rather than copy written
+# here. A collection with no line gets no card.
 COLLECTION_BLURBS = {
     "marvel": "Iconic Marvel-inspired charms designed as hanging ornaments.",
     "dc": "Legendary DC-inspired symbols reimagined as hanging charms.",
-    "tamilSpiritual": "Traditional Tamil spiritual symbols and guardian deities.",
+    "tamilSpiritual": "Sacred symbols and guardian figures from many faiths.",
     "bts": "Stylized BTS-inspired collectible hanging charms.",
     "footballLegends": "Icons of world football.",
     "musicLegends": "Artists who shaped modern music.",
     "friends": "The iconic friends from New York.",
     "breakingBad": "The legendary Breaking Bad universe.",
     "strangerThings": "Mysteries from the Upside Down.",
+    "onePiece": "The Straw Hat crew and the brother who came before them.",
+    "harryPotter": "Hogwarts, its wizards, and the things worth chasing.",
+    "ben10": "One watch, ten aliens, and the kid who wears it.",
+    "attackOnTitan": "The Survey Corps and the Titans beyond the walls.",
+    "naruto": "Shinobi of the Hidden Leaf and the Akatsuki.",
+    "gameOfThrones": "The great houses of Westeros and the throne they fight for.",
+    "airJordan": "The sneakers that made the Jumpman an icon.",
+    "pokemon": "The first partners, a few legends, and the ball that catches them.",
 }
 
-EXPECTED = 70
+EXPECTED = 160
 
 
 def read(path: str) -> str:
@@ -79,10 +93,8 @@ def library_metadata() -> tuple[dict[str, dict], list[tuple[str, str]]]:
 
 def display_names() -> dict[str, str]:
     """`case .nazar: "Nazar boncuğu"` out of CharmKind's displayName switch."""
-    text = read("Models/CharmKind.swift")
-    start = text.index("var displayName: String")
-    end = text.index("var symbolName: String")
-    pairs = re.findall(r'case \.(\w+):\s*"([^"]*)"', text[start:end])
+    text = read("Models/CharmKind+Names.swift")
+    pairs = re.findall(r'case \.(\w+):\s*"([^"]*)"', text[text.index("var displayName: String"):])
     return dict(pairs)
 
 
@@ -200,8 +212,8 @@ def main() -> int:
         "//",
         "//  GENERATED FILE — DO NOT EDIT.",
         "//",
-        "//  Written by tools/generate-catalogue.py from reference/swift/. Eighty-one",
-        "//  entries of pure data, read out of the Swift rather than typed again, because",
+        "//  Written by tools/generate-catalogue.py from reference/swift/. A hundred and",
+        "//  sixty entries of pure data, read out of the Swift rather than typed again, because",
         "//  a mistyped mass is a bug no compiler sees and only a screenshot catches.",
         "//",
         "//  To change a charm, change the Swift and re-run the generator.",

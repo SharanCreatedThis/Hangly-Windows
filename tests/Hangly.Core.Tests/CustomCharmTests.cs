@@ -92,7 +92,7 @@ public class CustomCharmTests : IDisposable
     public void EmptyIndexIsTheCatalogue()
     {
         var index = new CharmIndex();
-        Assert.Equal(70, index.All.Count);
+        Assert.Equal(CharmCatalog.All.Count, index.All.Count);
         Assert.DoesNotContain(index.Categories, category => category.Id == CharmIndex.CustomCategoryId);
     }
 
@@ -103,7 +103,7 @@ public class CustomCharmTests : IDisposable
         CustomCharmEntry entry = store.Add("<svg/>", "My charm", Metrics, Palette);
         var index = new CharmIndex([entry.AsCatalogEntry(store.PathFor(entry)!)]);
 
-        Assert.Equal(71, index.All.Count);
+        Assert.Equal(CharmCatalog.All.Count + 1, index.All.Count);
         Assert.True(index.Contains(entry.CharmId));
         Assert.Equal("My charm", index.Find(entry.CharmId).DisplayName);
         Assert.Contains(index.Categories, category => category.Id == CharmIndex.CustomCategoryId);

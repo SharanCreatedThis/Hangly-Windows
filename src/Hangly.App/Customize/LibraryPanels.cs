@@ -171,11 +171,21 @@ public sealed class CollectionCard
         Count = members.Count;
 
         // Three at most, and the first three: enough to say what the collection looks
-        // like without the card becoming a second grid.
-        First = members.ElementAtOrDefault(0)?.Image;
-        Second = members.ElementAtOrDefault(1)?.Image;
-        Third = members.ElementAtOrDefault(2)?.Image;
+        // like without the card becoming a second grid. Spirituality shows one of each
+        // faith it holds instead, as macOS's coverCharms does, rather than the three
+        // Tamil charms it opened with.
+        IReadOnlyList<CharmTile> cover = Covers.TryGetValue(collection.Id, out string[]? ids)
+            ? [.. ids.Select(id => members.FirstOrDefault(tile => tile.Id == id)).OfType<CharmTile>()]
+            : members;
+        First = cover.ElementAtOrDefault(0)?.Image;
+        Second = cover.ElementAtOrDefault(1)?.Image;
+        Third = cover.ElementAtOrDefault(2)?.Image;
     }
+
+    private static readonly Dictionary<string, string[]> Covers = new(StringComparer.Ordinal)
+    {
+        ["tamilSpiritual"] = ["omSymbol", "cross", "crescentAndStar"],
+    };
 
     public string Id { get; }
 

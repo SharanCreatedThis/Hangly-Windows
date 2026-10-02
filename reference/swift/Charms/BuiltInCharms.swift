@@ -24,9 +24,8 @@ enum BuiltInCharms {
 
     /// Collection charms whose SVG asset could not be found.
     ///
-    /// This is the one place that asks, and asking opens every asset — which is why
-    /// it is only ever called from the development-only launch check. A shipped app
-    /// loads a charm's artwork when it draws it and not before.
+    /// Asking opens and decodes every asset, and the registry keeps what it decoded,
+    /// so this is for tests only. The app loads a charm's artwork when it draws it.
     static var missingArtwork: [CharmKind] {
         all.compactMap { charm in
             guard let svg = charm as? SVGCharm, svg.vector?.isAvailable != true else { return nil }

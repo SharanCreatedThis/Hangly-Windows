@@ -140,10 +140,10 @@ enum CollectionCharmCatalog {
     static let minimumBeadMass = 0.05
 
     /// The hand-drawn collection, the four collections, the five story
-    /// collections, then the classics — the order the charm menu offers
-    /// them in.
+    /// collections, the fandom collections, then the classics — the order the
+    /// charm menu offers them in.
     static let entries: [Entry] =
-        collectionEntries + collectionPackEntries + storyPackEntries + classicEntries
+        collectionEntries + collectionPackEntries + storyPackEntries + fandomPackEntries + classicEntries
 
     private static let collectionEntries: [Entry] = [
         Entry(
