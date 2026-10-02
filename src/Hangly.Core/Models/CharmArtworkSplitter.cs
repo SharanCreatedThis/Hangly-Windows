@@ -15,19 +15,31 @@ namespace Hangly.Core.Models;
 /// </remarks>
 /// <param name="Body">The charm itself, including whatever loop or hook it hangs by.</param>
 /// <param name="Beads">The beads above the body, ordered from the top down.</param>
-public readonly record struct CharmArtworkRegions(Rect Body, IReadOnlyList<Rect> Beads)
+/// <param name="KnotY">
+/// Where the cord stops, in the same unit square: on the body's centre line, inside the
+/// first solid part the cord reaches coming down it. Null means the top of the body,
+/// which is where it was always taken to be.
+/// </param>
+public readonly record struct CharmArtworkRegions(Rect Body, IReadOnlyList<Rect> Beads, double? KnotY = null)
 {
     /// <summary>
     /// Where the cord meets the body, as a fraction of the charm's radius measured back
     /// along the final link. The body is fitted into a square of side twice the radius,
-    /// so this is the body's height over its longest side.
+    /// so the top of the body is its height over its longest side, and a knot lower down
+    /// is proportionally less.
     /// </summary>
     public double KnotInset
     {
         get
         {
             double longest = Math.Max(Body.Width, Body.Height);
-            return longest > 0 ? Body.Height / longest : 1;
+            if (longest <= 0)
+            {
+                return 1;
+            }
+
+            double knot = Math.Clamp(KnotY ?? Body.Top, Body.Top, Body.Top + Body.Height);
+            return 2 * (Body.Top + (Body.Height / 2) - knot) / longest;
         }
     }
 
@@ -165,7 +177,99 @@ public static class CharmArtworkSplitter
         }
 
         Rect body = UnitRect(new Run(bodyTop, bodyBottom, minX, maxX), side);
-        return new CharmArtworkRegions(body, beads);
+        int knot = KnotRow(alpha, side, bodyTop, bodyBottom, (minX + maxX) / 2);
+        return new CharmArtworkRegions(body, beads, (knot + 0.5) / side);
+    }
+
+    /// <summary>
+    /// Half the width of the strip down the centre line the cord tucks into, as a
+    /// fraction of the analysis side: about a cord's width either way.
+    /// </summary>
+    public const double KnotBandFraction = 0.012;
+
+    /// <summary>
+    /// Half the width of the strip the cord arrives through. Wide enough to catch both
+    /// sides of a loop the cord would pass between — an open jump ring is a gap on the
+    /// centre line with metal either side of it — and narrow enough to pass between two
+    /// ears or beside a raised sword to the head below.
+    /// </summary>
+    public const double KnotReachFraction = 0.04;
+
+    /// <summary>
+    /// The furthest the cord tucks into what it meets, as a fraction of the analysis side
+    /// — enough to bury its rounded end in a loop's wall, never so far that it runs on
+    /// behind a figure for no reason.
+    /// </summary>
+    public const double KnotTuckFraction = 0.02;
+
+    /// <summary>
+    /// The row where the cord ends: where it first meets the artwork coming straight down
+    /// the body's centre line, and a little way into it when there is solid metal right
+    /// there to hide its end in.
+    /// </summary>
+    /// <remarks>
+    /// The cord used to stop at the top of the body's bounding box. That is the loop for a
+    /// pendant drawn with one, but a figure's box is set by whatever reaches highest — an
+    /// ear, a sword, a flame — and on the centre line, where the cord actually arrives,
+    /// that is often air: the cord ended short of the charm with a gap in between.
+    /// Measured on the line instead, it ends at the artwork, and because the charm is
+    /// drawn over the cord, the end tucked in is hidden rather than butting against an
+    /// edge. The same rule as macOS's <c>CharmArtworkSplitter.knotRow</c>.
+    /// </remarks>
+    private static int KnotRow(ReadOnlySpan<byte> alpha, int side, int top, int bottom, int centre)
+    {
+        (int From, int To) Strip(double fraction)
+        {
+            int half = Math.Max(1, (int)Math.Round(fraction * AnalysisPixels, MidpointRounding.AwayFromZero));
+            return (Math.Max(0, centre - half), Math.Min(side - 1, centre + half));
+        }
+
+        (int From, int To) reach = Strip(KnotReachFraction);
+        (int From, int To) band = Strip(KnotBandFraction);
+        int tuck = Math.Max(1, (int)Math.Round(KnotTuckFraction * AnalysisPixels, MidpointRounding.AwayFromZero));
+
+        static bool Inked(ReadOnlySpan<byte> alpha, int side, int row, (int From, int To) columns)
+        {
+            for (int x = columns.From; x <= columns.To; x++)
+            {
+                if (alpha[(row * side) + x] > AlphaThreshold)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        int first = -1;
+        for (int row = top; row <= bottom; row++)
+        {
+            if (Inked(alpha, side, row, reach))
+            {
+                first = row;
+                break;
+            }
+        }
+
+        if (first < 0)
+        {
+            return top;
+        }
+
+        // An open ring meets the cord with a gap on the line; the cord stops at it rather
+        // than threading through the hole to whatever is underneath.
+        if (!Inked(alpha, side, first, band))
+        {
+            return first;
+        }
+
+        int last = first;
+        while (last < bottom && Inked(alpha, side, last + 1, band))
+        {
+            last++;
+        }
+
+        return first + Math.Min((last - first) / 2, tuck);
     }
 
     /// <summary>Horizontal ink extent of every row, top down.</summary>
