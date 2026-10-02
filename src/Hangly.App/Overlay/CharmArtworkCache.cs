@@ -33,6 +33,13 @@ namespace Hangly.App.Overlay;
 /// measured from, kept rather than discarded.
 /// </param>
 /// <param name="Sound">What it sounds like when it knocks.</param>
+/// <param name="DrawRegion">
+/// What is rasterised when the body is drawn: the body with a margin round it, so the soft
+/// edge of an ear or a spike the measurement left outside the body is drawn rather than
+/// cut off flat. The body still sets the charm's size and where it hangs. Null draws
+/// exactly the body.
+/// </param>
+/// <param name="HangsByOwnCord">The rope drawn in its own artwork is the rope it hangs by.</param>
 /// <param name="CordInset">
 /// Where the drawn cord ends, when that is lower than the charm can be hung from — the
 /// cord then carries on behind the artwork to it. Null for every charm whose cord ends at
@@ -48,7 +55,13 @@ public sealed record CharmDescriptor(
     Rect Body,
     IReadOnlyList<Rect> BeadRegions,
     Hangly.Core.Audio.CharmSound Sound = Hangly.Core.Audio.CharmSound.Soft,
-    double? CordInset = null);
+    double? CordInset = null,
+    Rect? DrawRegion = null,
+    bool HangsByOwnCord = false);
+
+/// <summary>Where one charm is drawn: its centre, its radius and how far it is turned.</summary>
+/// <param name="Rotation">From hanging straight down, in radians.</param>
+public readonly record struct CharmHang(Vec2 Center, double Radius, double Rotation);
 
 /// <summary>Rasterises charm artwork, once per size.</summary>
 /// <remarks>
@@ -74,7 +87,7 @@ public sealed class CharmArtworkCache : IDisposable
     private readonly Dictionary<(string File, int Level), SKImage?> levels = [];
     private readonly Dictionary<(string File, int Size, Rect Region), CanvasBitmap> rasters = [];
     private readonly Dictionary<(string File, int Size, Rect Region), long> lastDrawn = [];
-    private readonly Dictionary<(string File, int Beads, int Body), CharmArtworkRegions?> regions = [];
+    private readonly Dictionary<(string File, int Beads, int Body, bool CordDrawn), CharmArtworkRegions?> regions = [];
     private readonly ICanvasResourceCreator resourceCreator;
 
     /// <summary>Guards <see cref="documents"/> and <see cref="regions"/>.</summary>
@@ -98,57 +111,28 @@ public sealed class CharmArtworkCache : IDisposable
     /// <summary>The bundled folder of charm artwork, copied in whole from Assets/Charms.</summary>
     public static string DefaultDirectory => Path.Combine(AppContext.BaseDirectory, "Assets", "Charms");
 
-    public void Draw(CanvasDrawingSession session, CharmDescriptor? charm, CharmPlacement placement)
+    public void Draw(CanvasDrawingSession session, CharmDescriptor? charm, CharmPlacement placement) =>
+        Draw(session, charm, new CharmHang(placement.Center, placement.Radius, placement.Angle - (Math.PI / 2)));
+
+    /// <summary>Draws a charm's body where <paramref name="hang"/> puts it.</summary>
+    /// <remarks>
+    /// Rasterised in <em>device</em> pixels, not in the points the session is measured in:
+    /// a bitmap sized in points is stretched by the DPI factor on its way to the screen, and
+    /// at 200% every source pixel was drawn to four. The charm hangs the way the cord meets
+    /// it, so it is turned about its centre by the hang's rotation.
+    /// </remarks>
+    public void Draw(CanvasDrawingSession session, CharmDescriptor? charm, CharmHang hang)
     {
-        if (charm is null || placement.Radius <= 0)
+        if (Place(session, charm, hang, mask: false) is not { Bitmap: { } bitmap } placed)
         {
             return;
         }
 
-        // Rasterised in *device* pixels, not in the points the session is measured in.
-        // The drawing session works in DIPs and the surface behind it is at the display's
-        // DPI, so a bitmap sized in points is stretched by the DPI factor on its way to
-        // the screen: at 200% every source pixel was drawn to four, which is why the
-        // artwork read as soft on exactly the displays that should have shown it best.
-        // The cord and the beads never had this because they are strokes, resolved at the
-        // target's resolution — only the artwork went through a fixed-size raster.
-        double density = session.Dpi / 96.0;
-        int pixels = (int)Math.Round(placement.Radius * 2 * density);
-        if (pixels <= 0)
-        {
-            return;
-        }
+        Windows.Foundation.Rect destination = placed.Destination;
 
-        CanvasBitmap? bitmap = Raster(charm.FileName, pixels, charm.Body);
-        if (bitmap is null)
-        {
-            return;
-        }
-
-        // The charm hangs the way the cord meets it, not the way it was drawn: the
-        // orientation comes from the cord, so the artwork's own loop lines up with the
-        // cord drawn into it. Rotated about the charm's centre, which is the node.
         System.Numerics.Matrix3x2 previous = session.Transform;
-        var center = new System.Numerics.Vector2((float)placement.Center.X, (float)placement.Center.Y);
-
-        // The artwork is drawn hanging straight down, which is an angle of pi/2.
-        float rotation = (float)(placement.Angle - (Math.PI / 2));
-        session.Transform = System.Numerics.Matrix3x2.CreateRotation(rotation, center) * previous;
-
-        // Sized from the raster rather than from the radius. `pixels` was rounded to a
-        // whole number of device pixels; the radius was not, so a destination of
-        // `radius * 2` points asked Direct2D to resample the bitmap by a hair either way
-        // on top of whatever Skia had already done. Deriving the destination back from
-        // `pixels` makes the bitmap land on device pixels one for one, and leaves the
-        // rotation as the only resample in the path.
-        double side = pixels / density;
-        var destination = new Windows.Foundation.Rect(
-            placement.Center.X - (side / 2),
-            placement.Center.Y - (side / 2),
-            side,
-            side);
-
-        DrawShadow(session, bitmap, destination, placement.Radius);
+        session.Transform = Turn(hang) * previous;
+        DrawShadow(session, bitmap, destination, hang.Radius);
 
         // Cubic rather than the default linear, because the rotation resamples every
         // charm that is not hanging dead straight and linear is where the rim of the
@@ -159,8 +143,82 @@ public sealed class CharmArtworkCache : IDisposable
             new Windows.Foundation.Rect(0, 0, bitmap.SizeInPixels.Width, bitmap.SizeInPixels.Height),
             1f,
             Microsoft.Graphics.Canvas.CanvasImageInterpolation.HighQualityCubic);
-
         session.Transform = previous;
+    }
+
+    /// <summary>Takes the rope out from behind a charm.</summary>
+    /// <remarks>
+    /// The charm's silhouette, its alpha raised four-fold so anything a quarter opaque or
+    /// more counts as solid, drawn with <c>DestinationOut</c> onto the layer the rope is in,
+    /// at exactly the place and size the charm is drawn: no rope pixel survives under the
+    /// charm, its soft edge or a faint halo, and the rope is seen only where the artwork is
+    /// open — inside a hook. macOS's <c>CharmRenderer.eraseBehind</c>.
+    /// </remarks>
+    public void EraseBehind(CanvasDrawingSession layer, CharmDescriptor? charm, CharmHang hang)
+    {
+        if (Place(layer, charm, hang, mask: true) is not { Bitmap: { } mask } placed)
+        {
+            return;
+        }
+
+        Windows.Foundation.Rect destination = placed.Destination;
+
+        System.Numerics.Matrix3x2 previous = layer.Transform;
+        layer.Transform = Turn(hang) * previous;
+        layer.DrawImage(
+            mask,
+            destination,
+            new Windows.Foundation.Rect(0, 0, mask.SizeInPixels.Width, mask.SizeInPixels.Height),
+            1f,
+            Microsoft.Graphics.Canvas.CanvasImageInterpolation.HighQualityCubic,
+            Microsoft.Graphics.Canvas.CanvasComposite.DestinationOut);
+        layer.Transform = previous;
+    }
+
+    private static System.Numerics.Matrix3x2 Turn(CharmHang hang) =>
+        System.Numerics.Matrix3x2.CreateRotation(
+            (float)hang.Rotation,
+            new System.Numerics.Vector2((float)hang.Center.X, (float)hang.Center.Y));
+
+    /// <summary>The body's raster, or its mask, and where it lands before turning.</summary>
+    /// <remarks>
+    /// The body — the measured charm — is what the hang describes: centred on the hang's
+    /// centre, its longest side spanning the charm. The draw region extends past it by a
+    /// margin at the same scale, so the charm keeps its size and place and only gains its
+    /// soft edge. The destination is derived back from the raster's whole pixels, so the
+    /// bitmap lands on device pixels one for one and the rotation is the only resample.
+    /// </remarks>
+    private (CanvasBitmap? Bitmap, Windows.Foundation.Rect Destination)? Place(
+        CanvasDrawingSession session, CharmDescriptor? charm, CharmHang hang, bool mask)
+    {
+        if (charm is null || hang.Radius <= 0)
+        {
+            return null;
+        }
+
+        Rect frame = charm.Body;
+        Rect region = charm.DrawRegion ?? frame;
+        double longest = Math.Max(frame.Width, frame.Height);
+        if (longest <= 0 || region.Width <= 0 || region.Height <= 0)
+        {
+            return null;
+        }
+
+        double density = session.Dpi / 96.0;
+        double unit = hang.Radius * 2 * density / longest;
+        CanvasBitmap? bitmap = RasterRegion(charm.FileName, unit, region, mask);
+        if (bitmap is null)
+        {
+            return null;
+        }
+
+        double points = unit / density;
+        var destination = new Windows.Foundation.Rect(
+            hang.Center.X + ((region.Left - (frame.Left + (frame.Width / 2))) * points),
+            hang.Center.Y + ((region.Top - (frame.Top + (frame.Height / 2))) * points),
+            bitmap.SizeInPixels.Width / density,
+            bitmap.SizeInPixels.Height / density);
+        return (bitmap, destination);
     }
 
     /// <summary>Draws one bead, as the artwork drew it.</summary>
@@ -302,7 +360,7 @@ public sealed class CharmArtworkCache : IDisposable
     /// </remarks>
     public CharmArtworkRegions? Measure(CharmCatalogEntry entry)
     {
-        var key = (entry.FileName, entry.BeadCount, entry.BodyRun);
+        var key = (entry.FileName, entry.BeadCount, entry.BodyRun, entry.CordDrawn);
         lock (gate)
         {
             if (regions.TryGetValue(key, out CharmArtworkRegions? cached))
@@ -340,7 +398,7 @@ public sealed class CharmArtworkCache : IDisposable
         byte[]? alpha = AlphaMask(document, bounds, scale, side);
         return alpha is null
             ? null
-            : CharmArtworkSplitter.Split(alpha, side, contentWidth, entry.BeadCount, entry.BodyRun);
+            : CharmArtworkSplitter.Split(alpha, side, contentWidth, entry.BeadCount, entry.BodyRun, entry.CordDrawn);
     }
 
     /// <summary>What happened when every charm in the catalogue was opened and measured.</summary>
@@ -519,6 +577,80 @@ public sealed class CharmArtworkCache : IDisposable
 
         rasters[(fileName, pixels, region)] = bitmap;
         lastDrawn[(fileName, pixels, region)] = frame;
+        return bitmap;
+    }
+
+    /// <summary>
+    /// Exactly <paramref name="region"/> of the artwork, at <paramref name="unit"/> device
+    /// pixels to the fitted unit square — or its rope mask: the alpha raised four-fold, in
+    /// black.
+    /// </summary>
+    private CanvasBitmap? RasterRegion(string fileName, double unit, Rect region, bool mask)
+    {
+        int width = Math.Max(1, (int)Math.Ceiling(region.Width * unit));
+        int height = Math.Max(1, (int)Math.Ceiling(region.Height * unit));
+        var key = (fileName + (mask ? "\u0000mask" : "\u0000body"), width, region);
+        if (rasters.TryGetValue(key, out CanvasBitmap? cached))
+        {
+            lastDrawn[key] = frame;
+            return cached;
+        }
+
+        SKSvg? document = Document(fileName);
+        if (document?.Picture is null)
+        {
+            return null;
+        }
+
+        SKRect bounds = document.Picture.CullRect;
+        if (bounds.Width <= 0 || bounds.Height <= 0)
+        {
+            return null;
+        }
+
+        using var surface = SKSurface.Create(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul));
+        SKCanvas canvas = surface.Canvas;
+        canvas.Clear(SKColors.Transparent);
+
+        // The region's origin to the bitmap's, then the artwork fitted in the unit square
+        // and centred in it, as every other raster here places it.
+        float scale = (float)Math.Min(unit / bounds.Width, unit / bounds.Height);
+        canvas.Translate(-(float)(region.Left * unit), -(float)(region.Top * unit));
+        canvas.Translate((float)((unit - (bounds.Width * scale)) / 2), (float)((unit - (bounds.Height * scale)) / 2));
+        canvas.Scale(scale);
+        DrawSource(canvas, fileName, document.Picture, bounds, scale);
+        canvas.Flush();
+
+        using SKImage image = surface.Snapshot();
+        using SKPixmap pixmap = image.PeekPixels();
+        if (pixmap is null)
+        {
+            return null;
+        }
+
+        byte[] pixelBytes = new byte[pixmap.BytesSize];
+        System.Runtime.InteropServices.Marshal.Copy(pixmap.GetPixels(), pixelBytes, 0, pixelBytes.Length);
+        if (mask)
+        {
+            for (int index = 0; index < pixelBytes.Length; index += 4)
+            {
+                int raised = Math.Min(255, pixelBytes[index + 3] * 4);
+                pixelBytes[index] = 0;
+                pixelBytes[index + 1] = 0;
+                pixelBytes[index + 2] = 0;
+                pixelBytes[index + 3] = (byte)raised;
+            }
+        }
+
+        var bitmap = CanvasBitmap.CreateFromBytes(
+            resourceCreator,
+            pixelBytes,
+            width,
+            height,
+            Windows.Graphics.DirectX.DirectXPixelFormat.B8G8R8A8UIntNormalized);
+
+        rasters[key] = bitmap;
+        lastDrawn[key] = frame;
         return bitmap;
     }
 

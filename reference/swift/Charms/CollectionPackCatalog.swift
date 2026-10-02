@@ -111,7 +111,8 @@ extension CollectionCharmCatalog {
                 light: CharmColor(0.67, 0.54, 0.56)
             ),
             sound: .soft,
-            beadCount: 0
+            beadCount: 0,
+            cordDrawn: true
         ),
         Entry(
             kind: .batmanSymbol,

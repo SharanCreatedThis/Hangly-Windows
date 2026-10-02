@@ -52,7 +52,8 @@ extension CollectionCharmCatalog {
                 light: CharmColor(0.78, 0.70, 0.64)
             ),
             sound: .soft,
-            beadCount: 0
+            beadCount: 0,
+            hangsByOwnCord: true
         ),
         Entry(
             kind: .eyeOfAgamotto,

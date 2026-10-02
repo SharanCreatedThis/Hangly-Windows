@@ -77,6 +77,14 @@ internal static class Program
             return;
         }
 
+        // Every charm on the rope, drawn offscreen by the real renderer; see RopeSheet.
+        int sheet = Array.IndexOf(args, "--rope-sheet");
+        if (sheet >= 0 && sheet + 1 < args.Length)
+        {
+            RopeSheet.Write(args[sheet + 1]);
+            return;
+        }
+
         if (args.Contains("--check-registry", StringComparer.Ordinal))
         {
             Diagnostics.StartLog();

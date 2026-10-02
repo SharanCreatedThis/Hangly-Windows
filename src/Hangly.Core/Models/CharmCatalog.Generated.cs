@@ -394,7 +394,8 @@ public static partial class CharmCatalog
             Region: "Marvel",
             Description: "Caught mid-swing on a line he shot a moment ago, one arm up and the rest of him still travelling. The second of him in this set, and the one that looks like it is going somewhere.",
             Tags: ["Spider-Man", "web", "swing", "Marvel"],
-            Sound: Audio.CharmSound.Soft),
+            Sound: Audio.CharmSound.Soft,
+            CordDrawn: true),
         new(
             Id: "batmanSymbol",
             DisplayName: "Batman Symbol",
@@ -1258,7 +1259,8 @@ public static partial class CharmCatalog
             Region: "New York",
             Description: "Spider-Man holds the line with Gwen Stacy hanging below him: the rope is drawn into the charm, so it hangs from his grip.",
             Tags: ["Spider-Man", "Gwen Stacy", "rope", "Marvel"],
-            Sound: Audio.CharmSound.Soft),
+            Sound: Audio.CharmSound.Soft,
+            HangsByOwnCord: true),
         new(
             Id: "eyeOfAgamotto",
             DisplayName: "Eye of Agamotto",

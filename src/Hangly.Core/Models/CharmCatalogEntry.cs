@@ -28,6 +28,14 @@ namespace Hangly.Core.Models;
 /// unless the artwork's own cord is thick enough to read as a part of its own, in which
 /// case the parts between are dropped and the simulated cord replaces them.
 /// </param>
+/// <param name="CordDrawn">
+/// The artwork draws a cord of its own above a charm with no beads, which the simulated
+/// cord replaces — Spider-Man swinging from his web line.
+/// </param>
+/// <param name="HangsByOwnCord">
+/// The artwork's own rope is the rope: Hangly draws none, and the charm hangs from the
+/// anchor by what is drawn — Spider-Man holding Gwen.
+/// </param>
 /// <param name="CategoryId">
 /// Which of <see cref="CharmCatalog.Categories"/> this charm belongs to.
 /// </param>
@@ -49,7 +57,9 @@ public sealed record CharmCatalogEntry(
     string Region,
     string Description,
     IReadOnlyList<string> Tags,
-    Audio.CharmSound Sound = Audio.CharmSound.Soft)
+    Audio.CharmSound Sound = Audio.CharmSound.Soft,
+    bool CordDrawn = false,
+    bool HangsByOwnCord = false)
 {
     /// <summary>Compared by value, tags included.</summary>
     /// <remarks>
@@ -70,7 +80,9 @@ public sealed record CharmCatalogEntry(
         && Region == other.Region
         && Description == other.Description
         && Tags.SequenceEqual(other.Tags, StringComparer.Ordinal)
-        && Sound == other.Sound;
+        && Sound == other.Sound
+        && CordDrawn == other.CordDrawn
+        && HangsByOwnCord == other.HangsByOwnCord;
 
     public override int GetHashCode() => Id.GetHashCode(StringComparison.Ordinal);
 }

@@ -105,10 +105,14 @@ public static partial class CharmCatalog
     /// <param name="regions">
     /// The measured split, or <see langword="null"/> when the artwork could not be read.
     /// </param>
+    /// <remarks>
+    /// A charm that hangs by the rope drawn in its own artwork hangs from the top of it:
+    /// that is where its rope starts.
+    /// </remarks>
     public static CharmMetrics MetricsFor(CharmCatalogEntry entry, CharmArtworkRegions? regions) => new(
         entry.Mass,
         entry.RadiusRatio,
-        regions?.KnotInset ?? FallbackKnotInset);
+        (entry.HangsByOwnCord ? regions?.TopInset : regions?.KnotInset) ?? FallbackKnotInset);
 
     /// <summary>
     /// The beads the artwork draws above the charm, in proportions of the charm's radius

@@ -166,6 +166,8 @@ def parse(block: str) -> dict:
         # Swift defaults bodyRun to beadCount; make it explicit rather than reproduce
         # the defaulting in two languages.
         "bodyRun": body_run if body_run is not None else bead_count,
+        "cordDrawn": re.search(r"\bcordDrawn:\s*true", block) is not None,
+        "hangsByOwnCord": re.search(r"\bhangsByOwnCord:\s*true", block) is not None,
         "primary": colour(block, "primary"),
         "secondary": colour(block, "secondary"),
         "deep": colour(block, "deep"),
@@ -285,7 +287,10 @@ def main() -> int:
             f'            Region: "{escape(meta["region"])}",',
             f'            Description: "{escape(meta["description"])}",',
             f'            Tags: [{tags}],',
-            f'            Sound: Audio.CharmSound.{e["sound"][0].upper() + e["sound"][1:]}),',
+            f'            Sound: Audio.CharmSound.{e["sound"][0].upper() + e["sound"][1:]}'
+            + (",\n            CordDrawn: true" if e["cordDrawn"] else "")
+            + (",\n            HangsByOwnCord: true" if e["hangsByOwnCord"] else "")
+            + "),",
         ]
 
     lines += ["    ];", "}", ""]
