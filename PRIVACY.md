@@ -129,11 +129,11 @@ It does not read window contents, other applications, or anything you type.
 
 ## Announcements
 
-About four times a day — twenty seconds after launch if the last check was six hours ago, then every
-six hours, and once when the network comes back after a failed check — Hangly asks
-`…/announcements` (the same Firebase project as the registry) what news is live: a new collection,
-say. The request carries the platform and Hangly's version, and nothing else: no installation ID,
-no nickname, no cookies. As with any web request, the server sees an IP address; it is not stored.
+Every fifteen minutes or so while Hangly runs — and at launch, when the network comes back, on waking from sleep,
+and never more than once a minute — Hangly asks `hangly-sm.web.app/announcements` (Firebase Hosting, in front of the
+same Firebase project as the registry) what news is live: a new collection, say. The request carries the platform and
+nothing else: no installation ID, no nickname, no version, no cookies. When nothing has changed the answer is a few
+hundred bytes. As with any web request, the server sees an IP address; it is not stored.
 
 What has been shown, read or cleared is kept on this computer only, in `%AppData%\Hangly\notifications.json`. Usage
 events record that a card was shown, opened or dismissed (`notification_shown` and the others in
