@@ -90,6 +90,7 @@ public static class CharmLibrary
             regions?.Body ?? WholeArtwork,
             regions?.Beads ?? [],
             // The material from the catalogue; a charm somebody made is soft, as on macOS.
-            entry.Sound);
+            entry.Sound,
+            regions is { } measured && measured.CordInset < measured.KnotInset ? measured.CordInset : null);
     }
 }

@@ -32,6 +32,12 @@ namespace Hangly.App.Overlay;
 /// than a shape this renderer invented: the same rectangles <see cref="Beads"/> was
 /// measured from, kept rather than discarded.
 /// </param>
+/// <param name="Sound">What it sounds like when it knocks.</param>
+/// <param name="CordInset">
+/// Where the drawn cord ends, when that is lower than the charm can be hung from — the
+/// cord then carries on behind the artwork to it. Null for every charm whose cord ends at
+/// its knot.
+/// </param>
 public sealed record CharmDescriptor(
     string Id,
     string DisplayName,
@@ -41,7 +47,8 @@ public sealed record CharmDescriptor(
     IReadOnlyList<CharmBead> Beads,
     Rect Body,
     IReadOnlyList<Rect> BeadRegions,
-    Hangly.Core.Audio.CharmSound Sound = Hangly.Core.Audio.CharmSound.Soft);
+    Hangly.Core.Audio.CharmSound Sound = Hangly.Core.Audio.CharmSound.Soft,
+    double? CordInset = null);
 
 /// <summary>Rasterises charm artwork, once per size.</summary>
 /// <remarks>

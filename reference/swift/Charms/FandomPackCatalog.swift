@@ -14,11 +14,11 @@ import Foundation
 /// Described exactly as the collections before them, with three differences worth
 /// knowing before changing anything here.
 ///
-/// **Most were drawn with nothing to hang by.** A figure has no loop, so the cord met
-/// it at the top of its hair. Those assets carry a jump ring added on the line the app
-/// hangs them from — behind the figure, with a small cap where it goes in — so the cord
-/// meets metal the way it does on every pendant. The ring is part of the SVG, so the
-/// Library, the previews and the rope all show the same thing.
+/// **Nothing is added to the artwork.** A figure drawn without a loop hangs as it was
+/// drawn, and the cord meets it where the splitter measures its top on the centre
+/// line. The Golden Snitch's centre line first meets the ball, below its middle, so
+/// it hangs from just above its centre and the drawn cord runs on behind it, between
+/// the wings, to the ball (`cordInset`).
 ///
 /// **The sneakers and a few sigils hang from loops drawn off to one side.** Hung by
 /// such a loop a real charm tips until the loop is over its middle, so those assets

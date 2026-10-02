@@ -27,12 +27,12 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Changed**
 
-- **The cord meets every charm the way a real one would.** Figures that had nothing to hang
-  by — Music Legends, Friends, Breaking Bad and Stranger Things among them — now hang from a
-  small metal jump ring, so the cord ends in metal instead of in their hair. Where the cord
-  arrives is measured on the charm's own centre line, so it no longer stops short above a
-  charm whose top is two ears or a raised sword, and its end is tucked into the loop rather
-  than butting against it. Sneakers hang tilted from the loop at their heel.
+- **The cord meets every charm where it actually is.** Where the cord arrives is measured on
+  the charm's own centre line, so it no longer stops short above a charm whose top is two
+  ears or a raised sword, and where a charm has its own loop the cord's end is tucked into it
+  rather than butting against it. Nothing is added to the artwork: a charm drawn without a
+  loop hangs as it was drawn. Sneakers hang tilted from the loop at their heel, and the
+  Golden Snitch's cord runs between its wings to the ball.
 
 **Fixed**
 

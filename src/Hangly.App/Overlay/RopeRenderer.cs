@@ -107,6 +107,7 @@ public sealed class RopeRenderer
         // One piece of cord per gap the charms leave, so a charm's own loop is where the
         // cord ends rather than something the cord is drawn through.
         List<List<Vec2>> runs = VisibleRuns(snapshot.Points, snapshot.Charms);
+        AddCordReaches(runs, snapshot.Charms);
         for (int index = 0; index < runs.Count; index++)
         {
             DrawCord(session, runs[index], appearance, width, charmRadius, head: index == 0);
@@ -533,6 +534,31 @@ public sealed class RopeRenderer
 
         Finish(runs, ref current);
         return runs;
+    }
+
+    /// <summary>
+    /// The cord on past the knot, for a charm whose cord meets its artwork lower than it
+    /// can be hung from — straight down the charm's axis and behind it, so it shows only
+    /// through what the artwork leaves open: between a Snitch's wings, to the ball. macOS's
+    /// <c>RopeCanvasView.cordReach</c>.
+    /// </summary>
+    private void AddCordReaches(List<List<Vec2>> runs, IReadOnlyList<CharmPlacement> placements)
+    {
+        for (int slot = 0; slot < placements.Count && slot < charms.Count; slot++)
+        {
+            CharmPlacement placement = placements[slot];
+            if (charms[slot].CordInset is not double inset || inset >= placement.KnotInset)
+            {
+                continue;
+            }
+
+            var direction = new Vec2(Math.Cos(placement.Angle), Math.Sin(placement.Angle));
+            runs.Add(
+            [
+                placement.Center - (direction * (placement.Radius * placement.KnotInset)),
+                placement.Center - (direction * (placement.Radius * inset)),
+            ]);
+        }
     }
 
     /// <summary>Closes off the run being built, keeping it only if it is worth stroking.</summary>

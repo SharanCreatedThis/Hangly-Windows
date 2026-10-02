@@ -31,7 +31,7 @@ public static class ReleaseHighlights
     [
         new("Ninety new charms", "One Piece, Harry Potter, Ben 10, Attack on Titan, Naruto, Game of Thrones, Air Jordan and Pokémon, and more in four others."),
         new("Spirituality", "Tamil Spiritual is now Spirituality, with charms from every faith: Hindu, Buddhist, Muslim and Christian."),
-        new("Charms hang like the real thing", "Figures hang from a small metal ring, and the cord meets every charm in its loop instead of stopping short."),
+        new("Charms hang like the real thing", "The cord meets every charm where it actually is, tucked into its own loop instead of stopping short."),
         new("Every collection, one row", "The collection cards at the top of the Library scroll sideways, so all seventeen are a click away."),
         new("Delete your own charms", "Right-click a charm you imported or made in Create to delete it."),
         new("Start over in Create", "Not happy with a picture? The ✕ beside Open removes it without saving."),

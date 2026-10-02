@@ -44,6 +44,11 @@ struct SVGCharm: BuiltInCharm {
         )
     }
 
+    /// Past the knot when the cord meets the artwork below where it can hang from.
+    var cordInset: Double {
+        regions?.cordInset ?? metrics.knotInset
+    }
+
     /// The beads the artwork draws above the charm, described in proportions of the
     /// charm's radius so they survive a rescale.
     ///

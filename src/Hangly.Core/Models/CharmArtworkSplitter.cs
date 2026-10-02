@@ -23,12 +23,12 @@ namespace Hangly.Core.Models;
 public readonly record struct CharmArtworkRegions(Rect Body, IReadOnlyList<Rect> Beads, double? KnotY = null)
 {
     /// <summary>
-    /// Where the cord meets the body, as a fraction of the charm's radius measured back
-    /// along the final link. The body is fitted into a square of side twice the radius,
-    /// so the top of the body is its height over its longest side, and a knot lower down
-    /// is proportionally less.
+    /// Where the drawn cord ends, as a fraction of the charm's radius measured back along
+    /// the final link: the top of the body is its height over its longest side, and a cord
+    /// that meets the artwork lower down is proportionally less — below zero when it meets
+    /// it past the centre, as a Snitch's cord reaches the ball between its wings.
     /// </summary>
-    public double KnotInset
+    public double CordInset
     {
         get
         {
@@ -40,6 +40,32 @@ public readonly record struct CharmArtworkRegions(Rect Body, IReadOnlyList<Rect>
 
             double knot = Math.Clamp(KnotY ?? Body.Top, Body.Top, Body.Top + Body.Height);
             return 2 * (Body.Top + (Body.Height / 2) - knot) / longest;
+        }
+    }
+
+    /// <summary>
+    /// The least a charm hangs below where its cord takes hold, as a fraction of its radius.
+    /// The rope ends at the charm's centre and comes down into it from above, so the knot
+    /// the physics hangs it from has to be above the centre.
+    /// </summary>
+    public const double MinimumKnotInset = 0.12;
+
+    /// <summary>
+    /// Where the charm hangs from, for the physics: the cord's end, kept above the centre.
+    /// Only a charm whose cord reaches past its middle differs, and its drawn cord carries
+    /// on behind the artwork to <see cref="CordInset"/>.
+    /// </summary>
+    public double KnotInset
+    {
+        get
+        {
+            double longest = Math.Max(Body.Width, Body.Height);
+            if (longest <= 0)
+            {
+                return 1;
+            }
+
+            return Math.Min(Body.Height / longest, Math.Max(CordInset, MinimumKnotInset));
         }
     }
 

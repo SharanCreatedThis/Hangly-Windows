@@ -131,6 +131,17 @@ public class CharmArtworkSplitterTests
         Assert.Equal(10.5, regions.KnotY!.Value * Side, 6);
     }
 
+    [Fact(DisplayName = "A charm the cord meets past its centre hangs above it, and the cord goes on")]
+    public void CordReachesPastTheCentre()
+    {
+        // Two wings up the sides and a ball at the bottom: the centre line meets nothing
+        // until the ball, below the middle, as a Snitch's does.
+        CharmArtworkRegions regions = SplitWhole(Mask((26, 0, 64, 190), (256, 0, 294, 190), (110, 220, 210, 319)));
+
+        Assert.True(regions.CordInset < 0, $"cord inset {regions.CordInset}");
+        Assert.Equal(CharmArtworkRegions.MinimumKnotInset, regions.KnotInset);
+    }
+
     [Fact(DisplayName = "A cord tucks into a closed loop's wall, and no further")]
     public void KnotTucksIntoALoop()
     {
