@@ -94,6 +94,7 @@ public sealed partial class StudioView : UserControl
             UndoButton.IsEnabled = s.History.CanUndo;
             RedoButton.IsEnabled = s.History.CanRedo;
             UseOnRopeBox.IsEnabled = s.HasImage;
+            RemoveButton.IsEnabled = s.HasImage;
             UseOnRopeBox.IsChecked = s.UseOnRopeAfterSave;
             SaveButton.IsEnabled = s.CanSave;
 
@@ -243,6 +244,13 @@ public sealed partial class StudioView : UserControl
     }
 
     private void OnMakeAnother(object sender, RoutedEventArgs args) => session?.Clear();
+
+    /// <summary>Drops an image the user does not want, without saving anything.</summary>
+    /// <remarks>
+    /// Nothing has been written yet, so there is nothing to confirm or undo: the image is
+    /// still wherever it was opened from, and opening it again starts over.
+    /// </remarks>
+    private void OnRemove(object sender, RoutedEventArgs args) => session?.Clear();
 
     private void OnDone(object sender, RoutedEventArgs args)
     {

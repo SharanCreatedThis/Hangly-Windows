@@ -40,6 +40,7 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                 <FontIcon Glyph="&#xE771;" FontSize="16" />
@@ -48,15 +49,19 @@
             <Button Grid.Column="1" x:Name="OpenButton" AutomationProperties.AutomationId="StudioOpen" AutomationProperties.Name="Open another image" ToolTipService.ToolTip="Open another image (Ctrl+O)" Click="OnOpen">
                 <FontIcon Glyph="&#xE8B7;" FontSize="14" />
             </Button>
-            <Button Grid.Column="2" x:Name="UndoButton" AutomationProperties.AutomationId="StudioUndo" AutomationProperties.Name="Undo" ToolTipService.ToolTip="Undo the last change (Ctrl+Z)" Click="OnUndo">
+            <!-- Drops the image without saving it, back to the empty state. -->
+            <Button Grid.Column="2" x:Name="RemoveButton" AutomationProperties.AutomationId="StudioRemove" AutomationProperties.Name="Remove this image" ToolTipService.ToolTip="Remove this image" IsEnabled="False" Click="OnRemove">
+                <FontIcon Glyph="&#xE711;" FontSize="14" />
+            </Button>
+            <Button Grid.Column="3" x:Name="UndoButton" AutomationProperties.AutomationId="StudioUndo" AutomationProperties.Name="Undo" ToolTipService.ToolTip="Undo the last change (Ctrl+Z)" Click="OnUndo">
                 <FontIcon Glyph="&#xE7A7;" FontSize="14" />
             </Button>
-            <Button Grid.Column="3" x:Name="RedoButton" AutomationProperties.AutomationId="StudioRedo" AutomationProperties.Name="Redo" ToolTipService.ToolTip="Redo the last undone change (Ctrl+Y)" Click="OnRedo">
+            <Button Grid.Column="4" x:Name="RedoButton" AutomationProperties.AutomationId="StudioRedo" AutomationProperties.Name="Redo" ToolTipService.ToolTip="Redo the last undone change (Ctrl+Y)" Click="OnRedo">
                 <FontIcon Glyph="&#xE7A6;" FontSize="14" />
             </Button>
-            <AppBarSeparator Grid.Column="4" />
-            <CheckBox Grid.Column="5" x:Name="UseOnRopeBox" AutomationProperties.AutomationId="StudioUseOnRope" Content="Use on rope" IsChecked="True" MinWidth="0" ToolTipService.ToolTip="Hang it as soon as it is saved" Click="OnUseOnRope" />
-            <Button Grid.Column="6" x:Name="SaveButton" AutomationProperties.AutomationId="StudioSave" Content="Save" MinWidth="64" Style="{StaticResource AccentButtonStyle}" ToolTipService.ToolTip="Save this charm to your library (Ctrl+S)" Click="OnSave" />
+            <AppBarSeparator Grid.Column="5" />
+            <CheckBox Grid.Column="6" x:Name="UseOnRopeBox" AutomationProperties.AutomationId="StudioUseOnRope" Content="Use on rope" IsChecked="True" MinWidth="0" ToolTipService.ToolTip="Hang it as soon as it is saved" Click="OnUseOnRope" />
+            <Button Grid.Column="7" x:Name="SaveButton" AutomationProperties.AutomationId="StudioSave" Content="Save" MinWidth="64" Style="{StaticResource AccentButtonStyle}" ToolTipService.ToolTip="Save this charm to your library (Ctrl+S)" Click="OnSave" />
         </Grid>
 
         <!-- The empty state: a large target for a file. -->

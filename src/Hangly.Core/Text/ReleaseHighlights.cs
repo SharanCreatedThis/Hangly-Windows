@@ -15,28 +15,26 @@ public sealed record Highlight(string Title, string Text);
 /// A short, written summary rather than the changelog, which is long and is for the release page
 /// (<see cref="ReleaseNotesUrl"/> links to it). Written for somebody coming back to their PC to find Hangly updated.
 ///
-/// <para><b>When.</b> Once, on the first launch of a new feature version after an update — 2.0 or 0.9 to 2.1, not
-/// 2.1.0 to 2.1.1: a patch stays silent. Never on a first install, which gets the welcome instead.</para>
+/// <para><b>When.</b> Once, on the first launch of a new feature version after an update — 2.1, 2.0 or 0.9 to 2.2, not
+/// 2.2.0 to 2.2.1: a patch stays silent. Never on a first install, which gets the welcome instead.</para>
 /// </remarks>
 public static class ReleaseHighlights
 {
     /// <summary>The feature version these words describe.</summary>
-    public const string FeatureVersion = "2.1";
+    public const string FeatureVersion = "2.2";
 
-    public const string Heading = "What's new in Hangly 2.1";
+    public const string Heading = "What's new in Hangly 2.2";
 
     public const string Lead = "Hangly updated itself. Here's what's new.";
 
     public static IReadOnlyList<Highlight> Items { get; } =
     [
-        new("Spider-Man drops in", "With Spider-Man on the rope, Hangly starts with a web across the top of your screen and him dropping in on his strand."),
-        new("An elastic rope", "Pull the charm and the cord stretches, then bounces back and settles. Appearance → Motion → Rope."),
-        new("Charms that react", "Move quickly towards a charm and it swings away; reach slowly and it lets you take hold."),
-        new("On top, or on your desktop", "Hang the charm above every window or on your wallpaper, with a soft or strong glow."),
-        new("Sound, and a rope shelf", "Every charm sounds like what it's made of, and Library → Ropes shows every cord."),
-        new("Creator Studio", "Drop a picture on the charm and it opens in the Studio, ready to hang."),
-        new("Quiet updates", "Hangly now updates itself while you're away, and shows you what's new when you're back."),
-        new("Your installation record", "Hangly keeps one record for this PC: the name you gave, your city and your versions. Appearance → Privacy says exactly what."),
+        new("Ninety new charms", "One Piece, Harry Potter, Ben 10, Attack on Titan, Naruto, Game of Thrones, Air Jordan and Pokémon, and more in four others."),
+        new("Spirituality", "Tamil Spiritual is now Spirituality, with charms from every faith: Hindu, Buddhist, Muslim and Christian."),
+        new("Charms hang like the real thing", "Figures hang from a small metal ring, and the cord meets every charm in its loop instead of stopping short."),
+        new("Every collection, one row", "The collection cards at the top of the Library scroll sideways, so all seventeen are a click away."),
+        new("Delete your own charms", "Right-click a charm you imported or made in Create to delete it."),
+        new("Start over in Create", "Not happy with a picture? The ✕ beside Open removes it without saving."),
     ];
 
     /// <summary>Whether this launch opens the release notes.</summary>

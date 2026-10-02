@@ -6,7 +6,33 @@ pulls the section out and the release workflow hands it to both.
 
 Headings are `## <version> — <date>`. Nothing else is a version heading.
 
-## 2.1.3 — 2026-10-01
+## 2.2.0 — 2026-10-02
+
+**New**
+
+- **Ninety new charms and eight new collections:** One Piece, Harry Potter, Ben 10, Attack on
+  Titan, Naruto, Game of Thrones, Air Jordan and Pokémon. Marvel gains Doctor Strange's Eye of
+  Agamotto, Stormbreaker, Doctor Doom, Deadpool and Wolverine, and Spider-Man holding Gwen;
+  Stranger Things gains Max and Steve; Football Legends gains two more Ronaldos, the Ballon d'Or
+  and the Champions League trophy. 160 charms in all.
+- **Spirituality.** Tamil Spiritual is now Spirituality and holds every faith: the rudraksha,
+  Shiva lingam, Hanuman and Buddha beside the Kaaba, the Green Dome, the crescent and star and
+  an Allah pendant, and a cross, a dove, a praying angel and the Sacred Heart.
+- **Every collection has a card.** The collection cards are one row that scrolls sideways, so
+  all seventeen fit without pushing the charms down the page.
+- **Delete your own charms from the Library.** Right-click a charm you imported or made in
+  Create and choose Delete Charm…. Hangly now asks before it deletes one.
+- **Remove an image from Create.** A ✕ next to Open drops an image you do not want to keep,
+  without saving it.
+
+**Changed**
+
+- **The cord meets every charm the way a real one would.** Figures that had nothing to hang
+  by — Music Legends, Friends, Breaking Bad and Stranger Things among them — now hang from a
+  small metal jump ring, so the cord ends in metal instead of in their hair. Where the cord
+  arrives is measured on the charm's own centre line, so it no longer stops short above a
+  charm whose top is two ears or a raised sword, and its end is tucked into the loop rather
+  than butting against it. Sneakers hang tilted from the loop at their heel.
 
 **Fixed**
 
