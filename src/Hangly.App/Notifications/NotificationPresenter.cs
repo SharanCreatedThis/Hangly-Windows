@@ -74,6 +74,7 @@ public sealed class NotificationPresenter
     private DateTimeOffset? cardEndsAt;
     private DateTimeOffset? restUntil;
     private bool isHovering;
+    private CancellationTokenSource? updating;
 
     public NotificationPresenter(
         DispatcherQueue queue,
@@ -103,8 +104,20 @@ public sealed class NotificationPresenter
 
     public NotificationStore Store { get; }
 
+    private static readonly bool AuditEvaluations = Environment.GetEnvironmentVariable("HANGLY_AUDIT_NOTIFICATIONS") == "evaluations";
+
     /// <summary>Opens the Notification Center. Set after construction: the Center is built from this.</summary>
     public Action OpenCenter { get; set; } = () => { };
+
+    /// <summary>Told when the charm comes back on screen, so the feed can look for anything new.</summary>
+    public Action CharmReturned { get; set; } = () => { };
+
+    /// <summary>Opens the Center and says where from: <c>bell</c>, <c>charm_menu</c> or <c>tray</c>.</summary>
+    public void ShowCenter(string source)
+    {
+        HanglyAnalytics.Log(AnalyticsEvent.NotificationCenterOpened(source));
+        OpenCenter();
+    }
 
     /// <summary>Raised on the XAML thread whenever the card, the bell or the count may have changed.</summary>
     public event Action? Changed;
@@ -128,6 +141,11 @@ public sealed class NotificationPresenter
         }
 
         IsCharmPresent = present;
+        if (present)
+        {
+            CharmReturned();
+        }
+
         if (!present && Card is not null)
         {
             // Hidden with the charm, not dismissed: a broadcast that had begun was seen; the reminder keeps its clock.
@@ -143,6 +161,11 @@ public sealed class NotificationPresenter
     public void Evaluate()
     {
         DateTimeOffset now = DateTimeOffset.Now;
+        if (AuditEvaluations)
+        {
+            Diagnostics.Log("notifications: evaluate");
+        }
+
         Store.Expire(now);
         ReminderDecision decision = UpdateDecision(now);
         if (Card is { } current)
@@ -164,7 +187,10 @@ public sealed class NotificationPresenter
     }
 
     private bool CanShow(DateTimeOffset now) =>
-        IsCharmPresent && !isOnboarding() && now - launchedAt >= LaunchQuiet && (restUntil is null || now >= restUntil);
+        IsCharmPresent && !isOnboarding() && now - launchedAt >= Quiet && (restUntil is null || now >= restUntil);
+
+    /// <summary>The launch's quiet moments; three seconds under the development preview, so a screenshot script need not wait.</summary>
+    private static TimeSpan Quiet => Preview.IsOn ? TimeSpan.FromSeconds(3) : LaunchQuiet;
 
     private ReminderDecision UpdateDecision(DateTimeOffset now)
     {
@@ -178,7 +204,7 @@ public sealed class NotificationPresenter
         }
         else
         {
-            Store.RemoveUpdate();
+            Store.SettleUpdate(currentVersion, now);
         }
 
         return decision;
@@ -221,11 +247,17 @@ public sealed class NotificationPresenter
         else
         {
             string version = next.Version!;
-            Store.UpdateReminderState(state => UpdateReminder.Begin(state, now));
+            bool began = false;
+            Store.UpdateReminderState(state => UpdateReminder.Begin(state, now, out began));
             Card = new CardPresentation(Guid.NewGuid(), version, Highlights, UpdateNowStage.Idle, null, null);
             cardEndsAt = Store.State.Update.VisibleUntil;
-            HanglyAnalytics.Log(AnalyticsEvent.NotificationShown(NotificationKind.Update, $"update-{version}"));
-            HanglyAnalytics.Log(AnalyticsEvent.UpdateBannerShown(version));
+
+            // One impression per ten minutes up, not one each time the charm comes back inside them.
+            if (began)
+            {
+                HanglyAnalytics.Log(AnalyticsEvent.NotificationShown(NotificationKind.Update, $"update-{version}"));
+                HanglyAnalytics.Log(AnalyticsEvent.UpdateBannerShown(version));
+            }
         }
 
         Diagnostics.Log($"notification card: {next.Id}");
@@ -255,7 +287,7 @@ public sealed class NotificationPresenter
             moments.Add(start);
         }
 
-        DateTimeOffset quietEnds = launchedAt + LaunchQuiet;
+        DateTimeOffset quietEnds = launchedAt + Quiet;
         if (quietEnds > now)
         {
             moments.Add(quietEnds);
@@ -316,7 +348,10 @@ public sealed class NotificationPresenter
         HanglyAnalytics.Log(AnalyticsEvent.UpdateBannerClicked(current.Version!));
         Store.MarkRead(current.Id, DateTimeOffset.Now);
         SetStage(UpdateNowStage.Downloading, updates?.ReadyVersion is null ? 0 : 100);
-        Func<Action<int>, Action, Task<bool>> run = Preview.IsOn ? Preview.SimulateAsync : updates!.UpdateNowAsync;
+        updating?.Cancel();
+        updating = new CancellationTokenSource();
+        CancellationToken cancel = updating.Token;
+        Func<Action<int>, Action, CancellationToken, Task<bool>> run = Preview.IsOn ? Preview.SimulateAsync : updates!.UpdateNowAsync;
         bool started = await run(
             percent => queue.TryEnqueue(() => SetStage(UpdateNowStage.Downloading, percent)),
             () => queue.TryEnqueue(() =>
@@ -324,8 +359,9 @@ public sealed class NotificationPresenter
                 SetStage(UpdateNowStage.Installing);
                 // Velopack replaces the files once this process has exited; the restart is what is seen next.
                 _ = Task.Delay(900).ContinueWith(_ => queue.TryEnqueue(() => SetStage(UpdateNowStage.Restarting)), TaskScheduler.Default);
-            })).ConfigureAwait(true);
-        if (!started)
+            }),
+            cancel).ConfigureAwait(true);
+        if (!started && !cancel.IsCancellationRequested)
         {
             SetStage(UpdateNowStage.Failed);
         }
@@ -335,6 +371,9 @@ public sealed class NotificationPresenter
     public void RemindLater(DismissReason reason = DismissReason.Later)
     {
         DateTimeOffset now = DateTimeOffset.Now;
+
+        // Closed mid-download: the update installs quietly later instead of restarting Hangly behind a closed card.
+        updating?.Cancel();
         Store.UpdateReminderState(state => UpdateReminder.Later(state, now));
         End(reason, now);
         Evaluate();
@@ -406,7 +445,7 @@ public sealed class NotificationPresenter
 
             if (updates is not null)
             {
-                _ = updates.UpdateNowAsync(_ => { }, () => { });
+                _ = updates.UpdateNowAsync(_ => { }, () => { }, CancellationToken.None);
             }
 
             return;
@@ -434,15 +473,28 @@ internal static class Preview
         "- **90 new charms.** Pokémon, Naruto and more.\n- **Notification Center.** Hangly tells you what is new.\n- **Faster startup.** Opens sooner.";
 
     public static bool IsOn { get; } =
-        Environment.GetEnvironmentVariable("HANGLY_NOTIFICATION_PREVIEW") == "update" && !Updater.IsInstalled;
+        Environment.GetEnvironmentVariable("HANGLY_NOTIFICATION_PREVIEW") is "update" or "update-fail" && !Updater.IsInstalled;
+
+    /// <summary><c>update-fail</c>: the download stops at 40%, to see the failure and Try Again.</summary>
+    private static bool Fails { get; } = Environment.GetEnvironmentVariable("HANGLY_NOTIFICATION_PREVIEW") == "update-fail";
 
     /// <summary>Four seconds of download, then the install, then nothing: there is nothing to restart into.</summary>
-    public static async Task<bool> SimulateAsync(Action<int> downloading, Action installing)
+    public static async Task<bool> SimulateAsync(Action<int> downloading, Action installing, CancellationToken cancel)
     {
         for (int percent = 0; percent <= 100; percent += 4)
         {
+            if (Fails && percent >= 40)
+            {
+                return false;
+            }
+
             downloading(percent);
             await Task.Delay(160).ConfigureAwait(false);
+        }
+
+        if (cancel.IsCancellationRequested)
+        {
+            return false;
         }
 
         installing();

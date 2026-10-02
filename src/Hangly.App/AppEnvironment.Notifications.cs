@@ -45,6 +45,7 @@ public sealed partial class AppEnvironment
                 isOnboarding: () => activeWelcome is { } welcome && welcome.AppWindow.IsVisible,
                 perform: Perform);
             notifications.OpenCenter = OpenNotifications;
+            notifications.CharmReturned = () => announcements?.Request(FetchTrigger.CharmVisible);
             notificationCard = new NotificationCardWindow(queue) { OnDesktop = store.Settings.Overlay.WindowMode == Core.Models.WindowMode.Desktop };
             notificationCard.Command += OnCardCommand;
             notificationCard.HoverChanged += hovering => notifications.SetHovering(hovering);
@@ -57,7 +58,7 @@ public sealed partial class AppEnvironment
                 HookNotifications(existing);
             }
 
-            Diagnostics.Log($"notifications started; announcements {(announcements.Endpoint is null ? "off in this build" : "on")}");
+            Diagnostics.Log($"notifications started; announcements {(announcements.Endpoints.Count == 0 ? "off in this build" : string.Join(", ", announcements.Endpoints.Select(uri => uri.Host)))}");
         }
         catch (Exception exception)
         {
@@ -81,9 +82,9 @@ public sealed partial class AppEnvironment
                 return;
             }
 
-            notificationCard!.Anchor = window.RestAnchor;
+            notificationCard!.Column = window.RestColumn;
             notificationCard.Place();
-            notifications.SetCharmPresent(window.IsCharmShown && window.RestAnchor is not null);
+            notifications.SetCharmPresent(window.IsCharmShown && window.RestColumn is not null);
         }
 
         window.CharmMoved += () => queue.TryEnqueue(Follow);
@@ -100,7 +101,7 @@ public sealed partial class AppEnvironment
             return;
         }
 
-        notificationCard.Anchor = overlay?.RestAnchor;
+        notificationCard.Column = overlay?.RestColumn;
         notificationCard.Show(notifications.Card, notifications.ShowsBell, notifications.UnreadCount);
     }
 
@@ -132,7 +133,7 @@ public sealed partial class AppEnvironment
                 presenter.OpenBroadcast();
                 break;
             case CardCommand.Bell:
-                OpenNotifications();
+                presenter.ShowCenter("bell");
                 break;
         }
     }
@@ -162,7 +163,7 @@ public sealed partial class AppEnvironment
         int unread = notifications?.UnreadCount ?? 0;
         tray?.ShowMenu(
         [
-            new MenuEntry(unread > 0 ? $"Notifications ({unread})" : "Notifications", OpenNotifications),
+            new MenuEntry(unread > 0 ? $"Notifications ({unread})" : "Notifications", () => notifications?.ShowCenter("charm_menu")),
             MenuEntry.Separator,
             new MenuEntry("Library", OpenLibrary),
             new MenuEntry("Hide Charm", () => store.UpdateOverlay(overlay => overlay with { IsEnabled = false })),
@@ -178,7 +179,7 @@ public sealed partial class AppEnvironment
         }
 
         int unread = notifications.UnreadCount;
-        return [new MenuEntry(unread > 0 ? $"Notifications ({unread})" : "Notifications…", OpenNotifications)];
+        return [new MenuEntry(unread > 0 ? $"Notifications ({unread})" : "Notifications…", () => notifications.ShowCenter("tray"))];
     }
 
     /// <summary>What a notification's button asks for.</summary>
@@ -205,6 +206,13 @@ public sealed partial class AppEnvironment
         }
 
         Diagnostics.Log($"notification action: {action.AnalyticsName}");
+    }
+
+    /// <summary>The clock jumped — a wake from sleep, most often: catch up on whatever came due, and look for anything new.</summary>
+    private void NotificationsAfterWake()
+    {
+        notifications?.Evaluate();
+        announcements?.Request(FetchTrigger.Wake);
     }
 
     private void StopNotifications()

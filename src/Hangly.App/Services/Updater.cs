@@ -314,7 +314,8 @@ public sealed class Updater
     /// </summary>
     /// <param name="downloading">Told the percent as the download goes.</param>
     /// <param name="installing">Told when the download is done and the install begins.</param>
-    public async Task<bool> UpdateNowAsync(Action<int> downloading, Action installing)
+    /// <param name="cancel">The card was closed: the download carries on for the quiet install, but nothing restarts now.</param>
+    public async Task<bool> UpdateNowAsync(Action<int> downloading, Action installing, CancellationToken cancel = default)
     {
         if (pending is null && downloaded is null)
         {
@@ -337,10 +338,21 @@ public sealed class Updater
             DownloadProgress -= Progress;
         }
 
+        if (cancel.IsCancellationRequested)
+        {
+            Diagnostics.Log("update now: card closed; the update installs quietly later");
+            return false;
+        }
+
         installing();
 
         // Long enough to read "Installing…" and then "Restarting Hangly…"; the package is already verified.
         await Task.Delay(1500).ConfigureAwait(false);
+        if (cancel.IsCancellationRequested)
+        {
+            return false;
+        }
+
         try
         {
             Diagnostics.Log($"update now: applying {downloaded!.TargetFullRelease.Version}");

@@ -124,6 +124,10 @@ public sealed record AnalyticsEvent(string Name, IReadOnlyDictionary<string, str
     public static AnalyticsEvent BroadcastDismissed(string id, DismissReason reason) =>
         new("broadcast_dismissed", new Dictionary<string, string> { ["notification_id"] = Clip(id), ["reason"] = ReasonName(reason) });
 
+    /// <summary><c>source</c> is <c>bell</c>, <c>charm_menu</c> or <c>tray</c>.</summary>
+    public static AnalyticsEvent NotificationCenterOpened(string source) =>
+        new("notification_center_opened", new Dictionary<string, string> { ["source"] = source });
+
     private static string KindName(Notifications.NotificationKind kind) =>
         kind == Notifications.NotificationKind.Update ? "update" : "broadcast";
 

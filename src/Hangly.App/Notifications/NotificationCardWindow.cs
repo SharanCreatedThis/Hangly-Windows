@@ -9,6 +9,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using Hangly.App.Interop;
 using Hangly.App.Services;
+using Hangly.Core.Notifications;
 using Microsoft.Graphics.Canvas;
 using Microsoft.UI.Dispatching;
 using Windows.Graphics.DirectX;
@@ -37,7 +38,10 @@ internal sealed class NotificationCardWindow : IDisposable
     public const float WindowWidth = 360;
     public const float WindowHeight = 340;
     public const float TopMargin = 12;
-    public const float Gap = 4;
+    public const float Gap = 8;
+
+    /// <summary>The tallest a card is drawn — the update card with three notes — for deciding whether it fits below.</summary>
+    public const float CardHeight = 240;
     private const string ClassName = "HanglyNotificationCard";
     private static readonly NativeMethods.WindowProc Procedure = OnMessage;
     private static readonly Dictionary<IntPtr, NotificationCardWindow> Instances = [];
@@ -68,6 +72,20 @@ internal sealed class NotificationCardWindow : IDisposable
     private bool cardHovered;
     private CardTheme theme = CardTheme.Dark;
 
+    /// <summary>The current card drawn once, shadow and all; a float frame only moves it.</summary>
+    private CanvasRenderTarget? image;
+    private (CardLayout Layout, CardTheme Theme, CardCommand? Hovered, CardCommand? Pressed, bool Hover)? imageKey;
+
+    /// <summary>Something changed that a still frame must show: a hover, a press, the theme, new words.</summary>
+    private bool dirty = true;
+
+    /// <summary>Whether the compositor is floating the visual now, and whether it can (false after a failure: no float).</summary>
+    private bool isFloating;
+    private bool canFloat = true;
+
+    /// <summary>Room around the card in the cached image for its shadow, in points.</summary>
+    private const float ShadowPad = 30;
+
     public NotificationCardWindow(DispatcherQueue queue)
     {
         this.queue = queue;
@@ -81,13 +99,23 @@ internal sealed class NotificationCardWindow : IDisposable
     /// <summary>The pointer arrived on or left the card. Raised on the XAML thread.</summary>
     public event Action<bool>? HoverChanged;
 
-    /// <summary>Where the card hangs from — the charm's resting bottom-centre, in desktop pixels — and the display's scale.</summary>
-    public (double X, double Y, double Scale)? Anchor { get; set; }
+    /// <summary>The rope and its charms at rest, in desktop pixels, and the display's scale (<see cref="Overlay.OverlayWindow.RestColumn"/>).</summary>
+    public (Hangly.Core.Geometry.Rect Column, double Scale)? Column { get; set; }
+
+    /// <summary>What was last shown, so an evaluation that changed nothing draws nothing.</summary>
+    private (Guid? Token, UpdateNowStage Stage, int? Percent, bool Bell, int Count)? shownAs;
 
     /// <summary>Shows <paramref name="card"/>, or the bell when it is null and <paramref name="bellCount"/> is set, or nothing.</summary>
     public void Show(CardPresentation? card, bool showsBell, int bellCount)
     {
         bool wantsBell = card is null && showsBell;
+        var signature = (card?.Token, card?.Stage ?? UpdateNowStage.Idle, card?.Percent, wantsBell, wantsBell ? bellCount : 0);
+        if (signature == shownAs && (current is not null || (card is null && !wantsBell)))
+        {
+            return;
+        }
+
+        shownAs = signature;
         double now = clock.Elapsed.TotalSeconds;
         if (card is null && !wantsBell)
         {
@@ -117,6 +145,7 @@ internal sealed class NotificationCardWindow : IDisposable
             }
 
             current = layout;
+            dirty = true;
             currentToken = card?.Token;
             currentIsBell = wantsBell;
             Place();
@@ -143,9 +172,13 @@ internal sealed class NotificationCardWindow : IDisposable
         }
 
         Vector2 at = CardOrigin(current);
-        if (Anchor is (double ax, double ay, _))
+        if (Column is (Hangly.Core.Geometry.Rect column, _))
         {
-            Diagnostics.Log($"notification anchor at {ax:0},{ay:0}");
+            Diagnostics.Log($"notification anchor at {column.Left + (column.Width / 2):0},{column.Bottom:0}");
+            double cardLeft = origin.X + (at.X * scale), cardTop = origin.Y + (at.Y * scale);
+            Diagnostics.Log(
+                $"notification geometry column {column.Left:0},{column.Top:0},{column.Width:0},{column.Height:0} " +
+                $"card {cardLeft:0},{cardTop:0},{current.Bounds.Width * scale:0},{current.Bounds.Height * scale:0}");
         }
 
         foreach ((Windows.Foundation.Rect bounds, CardCommand command) in current.Targets)
@@ -170,10 +203,10 @@ internal sealed class NotificationCardWindow : IDisposable
 
     // Placing
 
-    /// <summary>Under the charm's resting place, inside its display's work area.</summary>
+    /// <summary>Below the charms if the card fits there, otherwise beside them (<see cref="CardPlacement"/>), inside the display's work area.</summary>
     public void Place()
     {
-        if (handle == IntPtr.Zero || Anchor is not (double ax, double ay, double s))
+        if (handle == IntPtr.Zero || Column is not (Hangly.Core.Geometry.Rect column, double s))
         {
             return;
         }
@@ -181,18 +214,28 @@ internal sealed class NotificationCardWindow : IDisposable
         bool rescaled = Math.Abs(s - scale) > 0.001;
         scale = s;
         int width = (int)Math.Round(WindowWidth * scale), height = (int)Math.Round(WindowHeight * scale);
-        int x = (int)Math.Round(ax - (width / 2.0));
-        int y = (int)Math.Round(ay + ((Gap - TopMargin) * scale));
+        Hangly.Core.Geometry.Rect area = new(column.Left, column.Top, 1, 1);
+        double midX = column.Left + (column.Width / 2);
         foreach (DisplayInfo display in DisplayObserver.Displays())
         {
-            if (ax >= display.Bounds.Left && ax < display.Bounds.Right && ay >= display.Bounds.Top && ay < display.Bounds.Bottom)
+            if (midX >= display.Bounds.Left && midX < display.Bounds.Right && column.Top >= display.Bounds.Top && column.Top < display.Bounds.Bottom)
             {
-                x = (int)Math.Clamp(x, display.WorkArea.Left, Math.Max(display.WorkArea.Left, display.WorkArea.Right - width));
-                y = (int)Math.Clamp(y, display.WorkArea.Top, Math.Max(display.WorkArea.Top, display.WorkArea.Bottom - height));
+                area = display.WorkArea;
                 break;
             }
         }
 
+        if (area.Width <= 1)
+        {
+            area = DisplayObserver.Displays().FirstOrDefault(display => display.IsPrimary).WorkArea;
+        }
+
+        double inset = (WindowWidth - NotificationCardPainter.Width) / 2 * scale;
+        (double cardX, double cardY, _) = CardPlacement.Place(NotificationCardPainter.Width * scale, CardHeight * scale, column, area, Gap * scale);
+
+        // The window is larger than the card: room for its rise above, and its float and shadow around.
+        int x = (int)Math.Round(cardX - inset);
+        int y = (int)Math.Round(cardY - (TopMargin * scale));
         if (rescaled || swapChain is null || swapChain.SizeInPixels.Width != width)
         {
             Resize(width, height);
@@ -232,8 +275,6 @@ internal sealed class NotificationCardWindow : IDisposable
     {
         bool animating = leaving.Count > 0 || (current is not null && (clock.Elapsed.TotalSeconds - enteredAt) < 0.7);
         bool indeterminate = current?.Progress is not null && current.ProgressFraction is null;
-        bool floating = current is not null && !SystemMotion.ReducesMotion
-            && (!currentIsBell || clock.Elapsed.TotalSeconds - floatSince < 60);
         bool visible = current is not null;
         if (!animating && !visible)
         {
@@ -243,18 +284,33 @@ internal sealed class NotificationCardWindow : IDisposable
                 NativeMethods.ShowWindow(handle, NativeMethods.SwHide);
                 isShown = false;
                 SetClickThrough(true);
+
+                // Nothing on screen: the float stops, and the swap chain and the cached card go, back with the next card.
+                SetFloating(false);
+                image?.Dispose();
+                image = null;
+                imageKey = null;
+                swapChain?.Dispose();
+                swapChain = null;
+                origin = (int.MinValue, int.MinValue);
             }
 
             return;
         }
 
-        // Fast while something moves; thirty a second for the float and the pointer; the pointer alone otherwise.
-        frames.Interval = TimeSpan.FromMilliseconds(animating || indeterminate ? 16 : floating ? 33 : 50);
+        // Fast while something moves; thirty a second for the float; and for a resting card or bell, the pointer alone —
+        // ten times a second, which is soon enough to pass clicks through, and a bell can be up for hours.
+        frames.Interval = TimeSpan.FromMilliseconds(animating || indeterminate ? 16 : cardHovered ? 33 : 100);
         if (!frames.IsRunning)
         {
             frames.Start();
         }
     }
+
+    private static readonly bool Audit = Environment.GetEnvironmentVariable("HANGLY_AUDIT_NOTIFICATIONS") is { Length: > 0 };
+    private int auditFrames;
+    private int auditDraws;
+    private double auditSince;
 
     private void Frame()
     {
@@ -263,9 +319,36 @@ internal sealed class NotificationCardWindow : IDisposable
             return;
         }
 
+        if (Audit)
+        {
+            auditFrames++;
+            if (clock.Elapsed.TotalSeconds - auditSince >= 5)
+            {
+                Diagnostics.Log($"notification card: {auditFrames} frames, {auditDraws} drawn in 5 s; interval {frames.Interval.TotalMilliseconds} ms");
+                auditFrames = 0;
+                auditDraws = 0;
+                auditSince = clock.Elapsed.TotalSeconds;
+            }
+        }
+
         double now = clock.Elapsed.TotalSeconds;
         PollPointer();
         bool reduced = SystemMotion.ReducesMotion;
+        bool entering = current is not null && now - enteredAt < 1.2;
+        bool floats = current is not null && !reduced && (!currentIsBell || now - floatSince < 60);
+        bool indeterminate = current?.Progress is not null && current.ProgressFraction is null;
+        SetFloating(floats && !entering);
+
+        // A still card is not redrawn: the pointer is all a frame looks at. Measured: redrawing the resting bell ten
+        // times a second cost 7% of a core on the test machine, and the float re-ran two blurs per frame.
+        if (!dirty && !entering && !indeterminate && leaving.Count == 0)
+        {
+            Run();
+            return;
+        }
+
+        dirty = false;
+        auditDraws++;
         using (CanvasDrawingSession session = swapChain.CreateDrawingSession(Microsoft.UI.Colors.Transparent))
         {
             for (int index = leaving.Count - 1; index >= 0; index--)
@@ -289,14 +372,76 @@ internal sealed class NotificationCardWindow : IDisposable
                 float opacity = (float)Math.Min(1, t / 0.2);
                 opacity = 1 - ((1 - opacity) * (1 - opacity));
                 float rise = reduced ? 0 : (float)(10 * Spring(t));
-                bool floats = !reduced && (!currentIsBell || now - floatSince < 60);
-                float drift = floats ? (float)(1.5 * Math.Sin(2 * Math.PI * (now - floatSince) / 4.2)) : 0;
-                DrawCard(session, current, opacity, 1, rise + drift, cardHovered, now);
+                // The float is the compositor's (SetFloating): nothing is drawn for it.
+                if (indeterminate)
+                {
+                    DrawCard(session, current, opacity, 1, rise, cardHovered, now);
+                }
+                else
+                {
+                    DrawCached(session, current, opacity, rise);
+                }
             }
         }
 
         swapChain.Present(0);
         Run();
+    }
+
+    /// <summary>Starts or ends the compositor's float of the whole window's content; ±1.5 points on a 4.2-second sine.</summary>
+    private void SetFloating(bool floating)
+    {
+        if (floating == isFloating || !canFloat || compositionVisual == IntPtr.Zero)
+        {
+            return;
+        }
+
+        try
+        {
+            if (floating)
+            {
+                DirectComposition.Float(compositionDevice, compositionVisual, (float)(1.5 * scale), 1f / 4.2f);
+            }
+            else
+            {
+                DirectComposition.Settle(compositionVisual);
+            }
+
+            DirectComposition.Commit(compositionDevice);
+            isFloating = floating;
+        }
+        catch (Exception exception)
+        {
+            // A card that does not float is still a card.
+            canFloat = false;
+            Diagnostics.Log($"notification card float unavailable: {exception.GetType().Name}");
+        }
+    }
+
+    /// <summary>The current card from its cached image, made again only when what it shows changes.</summary>
+    private void DrawCached(CanvasDrawingSession session, CardLayout layout, float opacity, float offsetY)
+    {
+        var key = (layout, theme, cardHovered ? hovered : null, cardHovered ? pressed : null, cardHovered);
+        if (image is null || imageKey != key)
+        {
+            image?.Dispose();
+            image = new CanvasRenderTarget(
+                device,
+                (float)layout.Bounds.Width + (2 * ShadowPad),
+                (float)layout.Bounds.Height + (2 * ShadowPad),
+                (float)(96 * scale));
+            using (CanvasDrawingSession drawing = image.CreateDrawingSession())
+            {
+                drawing.Clear(Microsoft.UI.Colors.Transparent);
+                drawing.Transform = Matrix3x2.CreateTranslation(ShadowPad, ShadowPad);
+                NotificationCardPainter.Draw(drawing, layout, theme, key.Item3, key.Item4, cardHovered, 0);
+            }
+
+            imageKey = key;
+        }
+
+        Vector2 at = CardOrigin(layout);
+        session.DrawImage(image, at.X - ShadowPad, at.Y - ShadowPad + offsetY, image.Bounds, Math.Clamp(opacity, 0, 1));
     }
 
     /// <summary>A damped spring from 1 to 0: response 0.42 s, damping 0.72 — macOS's entrance.</summary>
@@ -350,10 +495,16 @@ internal sealed class NotificationCardWindow : IDisposable
             }
         }
 
+        if (hovered != target)
+        {
+            dirty = true;
+        }
+
         hovered = target;
         if (inside != cardHovered)
         {
             cardHovered = inside;
+            dirty = true;
             if (!currentIsBell)
             {
                 HoverChanged?.Invoke(inside);
@@ -392,6 +543,7 @@ internal sealed class NotificationCardWindow : IDisposable
             case WmLButtonDown:
                 PollPointer();
                 pressed = hovered;
+                dirty = true;
                 Frame();
                 return IntPtr.Zero;
             case WmLButtonUp:
@@ -399,6 +551,7 @@ internal sealed class NotificationCardWindow : IDisposable
                 CardCommand? released = hovered;
                 bool click = pressed is not null && pressed == released;
                 pressed = null;
+                dirty = true;
                 Frame();
                 if (click)
                 {
@@ -408,6 +561,7 @@ internal sealed class NotificationCardWindow : IDisposable
                 return IntPtr.Zero;
             case NativeMethods.WmSettingChange:
                 theme = ReadTheme();
+                dirty = true;
                 Frame();
                 break;
             default:
@@ -521,6 +675,8 @@ internal sealed class NotificationCardWindow : IDisposable
         }
 
         leaving.Clear();
+        image?.Dispose();
+        image = null;
         swapChain?.Dispose();
         swapChain = null;
         DirectComposition.Release(ref compositionVisual);

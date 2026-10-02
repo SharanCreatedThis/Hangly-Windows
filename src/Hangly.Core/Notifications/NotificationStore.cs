@@ -68,6 +68,9 @@ public sealed record NotificationState
     public UpdateReminderState Update { get; init; } = new();
 
     public DateTimeOffset? LastFetchAt { get; init; }
+
+    /// <summary>The feed's ETag, so an unchanged feed costs a 304.</summary>
+    public string? FeedETag { get; init; }
 }
 
 /// <summary><c>notifications.json</c> in <c>%AppData%\Hangly</c>, next to <c>installation.json</c>.</summary>
@@ -79,8 +82,8 @@ public sealed record NotificationState
 /// </remarks>
 public sealed class NotificationStore
 {
-    public const int HistoryLimit = 100;
-    public const int RememberedLimit = 500;
+    public const int HistoryLimit = 1000;
+    public const int RememberedLimit = 2000;
 
     private static readonly JsonSerializerOptions Json = new(AnnouncementFeedParser.Options)
     {
@@ -120,14 +123,15 @@ public sealed class NotificationStore
     /// Takes in what the feed sent: new broadcasts wait for their card; <c>Low</c> ones go straight to the Center.
     /// Anything already shown, cleared or expired is ignored, and a waiting one the dashboard withdrew is dropped.
     /// </summary>
-    public void Receive(IEnumerable<Announcement> announcements, bool includeTest, DateTimeOffset now)
+    public void Receive(IEnumerable<Announcement> announcements, bool includeTest, DateTimeOffset now, string? etag = null)
     {
         List<Announcement> usable = [.. announcements.Where(a =>
             a.IsUsable() && a.ExpireAt > now && (a.Audience == AnnouncementAudience.All || includeTest))];
         Mutate(current =>
         {
             HashSet<string> served = [.. usable.Select(a => a.Id)];
-            List<Announcement> waiting = [.. current.Waiting.Where(a => served.Contains(a.Id) && a.ExpireAt > now)];
+            // One the feed no longer serves was withdrawn in the dashboard — expired early or deleted — not missed.
+            List<Announcement> waiting = [.. current.Waiting.Where(a => served.Contains(a.Id))];
             List<string> shown = [.. current.ShownNotifications];
             NotificationState next = current;
             foreach (Announcement announcement in usable)
@@ -156,17 +160,36 @@ public sealed class NotificationStore
                 }
             }
 
-            return next with { Waiting = waiting, ShownNotifications = shown, LastFetchAt = now };
+            return next with { Waiting = waiting, ShownNotifications = shown, LastFetchAt = now, FeedETag = etag };
         });
     }
 
-    /// <summary>Drops waiting broadcasts that have expired.</summary>
+    /// <summary>The feed answered 304: nothing changed since the last answer.</summary>
+    public void NoteUnchanged(DateTimeOffset now) => Mutate(current => current with { LastFetchAt = now });
+
+    /// <summary>
+    /// A waiting broadcast that reached its expiry without its card — the PC was asleep, the charm hidden — is not
+    /// lost: it goes into the Center, unread, and is never shown as a card.
+    /// </summary>
     public void Expire(DateTimeOffset now)
     {
-        if (State.Waiting.Any(a => a.ExpireAt <= now))
+        if (!State.Waiting.Any(a => a.ExpireAt <= now))
         {
-            Mutate(current => current with { Waiting = [.. current.Waiting.Where(a => a.ExpireAt > now)] });
+            return;
         }
+
+        Mutate(current =>
+        {
+            List<string> shown = [.. current.ShownNotifications];
+            NotificationState next = current with { Waiting = [.. current.Waiting.Where(a => a.ExpireAt > now)] };
+            foreach (Announcement missed in current.Waiting.Where(a => a.ExpireAt <= now))
+            {
+                Remember(shown, missed.Id);
+                next = Record(next, ItemFor(missed, now));
+            }
+
+            return next with { ShownNotifications = shown };
+        });
     }
 
     // Showing
@@ -185,7 +208,7 @@ public sealed class NotificationStore
     public void RecordUpdate(string version, IReadOnlyList<string> highlights, DateTimeOffset now)
     {
         string id = $"update-{version}";
-        if (State.History.Any(item => item.Id == id))
+        if (State.History.Any(item => item.Id == id && item.ButtonTitle is not null))
         {
             return;
         }
@@ -205,17 +228,42 @@ public sealed class NotificationStore
             }));
     }
 
-    /// <summary>The update entry goes once that version is installed or no longer offered.</summary>
-    public void RemoveUpdate()
+    /// <summary>
+    /// No update on offer any more. One this copy now runs becomes a record that it was installed — read, with no button —
+    /// so the Center keeps the history; one withdrawn before it was installed goes.
+    /// </summary>
+    public void SettleUpdate(string current, DateTimeOffset now)
     {
-        if (State.History.Any(item => item.Kind == NotificationKind.Update))
+        if (State.History.FirstOrDefault(item => item.Kind == NotificationKind.Update && item.ButtonTitle is not null) is not { } offered)
         {
-            Mutate(current => current with { History = [.. current.History.Where(item => item.Kind != NotificationKind.Update)] });
+            return;
         }
+
+        Mutate(state =>
+        {
+            if (offered.Version is not { } version || VersionOrder.IsNewer(version, current))
+            {
+                return state with { History = [.. state.History.Where(item => item.Id != offered.Id)] };
+            }
+
+            NotificationItem installed = offered with
+            {
+                Title = $"Updated to Hangly {ShortVersion(version)}",
+                Message = "You're on the newest version.",
+                ButtonTitle = null,
+                ReadAt = offered.ReadAt ?? now,
+            };
+            return state with { History = [.. state.History.Select(item => item.Id == offered.Id ? installed : item)] };
+        });
     }
 
-    public void UpdateReminderState(Func<UpdateReminderState, UpdateReminderState> change) =>
-        Mutate(current => current with { Update = change(current.Update) });
+    public void UpdateReminderState(Func<UpdateReminderState, UpdateReminderState> change) => Mutate(current =>
+    {
+        UpdateReminderState next = change(current.Update);
+
+        // The reminder holds no lists, so record equality is the whole comparison: unchanged is not written.
+        return next == current.Update ? current : current with { Update = next };
+    });
 
     // Reading
 
@@ -237,6 +285,11 @@ public sealed class NotificationStore
 
     public void MarkAllRead(DateTimeOffset now) => Mutate(current =>
     {
+        if (current.History.All(item => item.IsRead))
+        {
+            return current;
+        }
+
         List<string> read = [.. current.ReadNotifications];
         foreach (NotificationItem item in current.History.Where(item => !item.IsRead))
         {
@@ -253,6 +306,11 @@ public sealed class NotificationStore
     /// <summary>Dismiss all: the Center is emptied. Nothing cleared comes back as a card.</summary>
     public void ClearAll() => Mutate(current =>
     {
+        if (current.History.Count == 0)
+        {
+            return current;
+        }
+
         List<string> read = [.. current.ReadNotifications];
         foreach (NotificationItem item in current.History)
         {
@@ -264,13 +322,18 @@ public sealed class NotificationStore
 
     // Storage
 
+    /// <summary>Applies a change; each operation returns the same document when it changes nothing, and that is not written.</summary>
+    /// <remarks>
+    /// By reference, not by content: comparing the serialised document was the first way, and with a thousand entries
+    /// it cost two serialisations of the whole history on every evaluation, most of which change nothing.
+    /// </remarks>
     private void Mutate(Func<NotificationState, NotificationState> change)
     {
         bool changed;
         lock (gate)
         {
             NotificationState next = change(state);
-            changed = !Same(next, state);
+            changed = !ReferenceEquals(next, state);
             if (changed)
             {
                 state = next;
@@ -283,10 +346,6 @@ public sealed class NotificationStore
             Changed?.Invoke();
         }
     }
-
-    /// <summary>Records hold lists, which compare by reference; the document is what matters.</summary>
-    private static bool Same(NotificationState a, NotificationState b) =>
-        ReferenceEquals(a, b) || JsonSerializer.Serialize(a, Json) == JsonSerializer.Serialize(b, Json);
 
     private void Save(NotificationState document)
     {
@@ -317,11 +376,95 @@ public sealed class NotificationStore
 
         try
         {
-            return JsonSerializer.Deserialize<NotificationState>(File.ReadAllText(path), Json);
+            string text = File.ReadAllText(path);
+            try
+            {
+                return JsonSerializer.Deserialize<NotificationState>(text, Json);
+            }
+            catch (Exception exception) when (exception is JsonException or NotSupportedException)
+            {
+                // Written by another version — a kind or an action this one does not know: read what can be read.
+                return ReadLenient(text) ?? throw new JsonException("unreadable", exception);
+            }
         }
-        catch (Exception exception) when (exception is JsonException or IOException or UnauthorizedAccessException or NotSupportedException)
+        catch (Exception exception) when (exception is JsonException or NotSupportedException)
         {
-            // Unreadable is a fresh start, not a crash.
+            // Unreadable is a fresh start, not a crash; the file is set aside rather than overwritten, to be looked at.
+            try
+            {
+                File.Move(path, Path.Combine(Path.GetDirectoryName(path)!, $"notifications.corrupt-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}.json"));
+            }
+            catch (Exception moveFailure) when (moveFailure is IOException or UnauthorizedAccessException)
+            {
+                // Left where it is: the next save replaces it.
+            }
+
+            return null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Field by field, entry by entry: one entry this version cannot read is skipped, not the document.</summary>
+    private static NotificationState? ReadLenient(string text)
+    {
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(text);
+            JsonElement root = document.RootElement;
+            List<T> Each<T>(string name)
+            {
+                var list = new List<T>();
+                if (root.TryGetProperty(name, out JsonElement array) && array.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (JsonElement element in array.EnumerateArray())
+                    {
+                        try
+                        {
+                            if (element.Deserialize<T>(Json) is { } value)
+                            {
+                                list.Add(value);
+                            }
+                        }
+                        catch (Exception exception) when (exception is JsonException or NotSupportedException or InvalidOperationException)
+                        {
+                            // Skipped.
+                        }
+                    }
+                }
+
+                return list;
+            }
+
+            T? One<T>(string name)
+                where T : class
+            {
+                try
+                {
+                    return root.TryGetProperty(name, out JsonElement value) ? value.Deserialize<T>(Json) : null;
+                }
+                catch (Exception exception) when (exception is JsonException or NotSupportedException)
+                {
+                    return null;
+                }
+            }
+
+            DateTimeOffset? lastFetch = root.TryGetProperty("lastFetchAt", out JsonElement fetched) && fetched.TryGetDateTimeOffset(out DateTimeOffset at) ? at : null;
+            return new NotificationState
+            {
+                History = Each<NotificationItem>("history"),
+                ShownNotifications = Each<string>("shownNotifications"),
+                ReadNotifications = Each<string>("readNotifications"),
+                Waiting = Each<Announcement>("waiting"),
+                Update = One<UpdateReminderState>("update") ?? new UpdateReminderState(),
+                LastFetchAt = lastFetch,
+                FeedETag = root.TryGetProperty("feedETag", out JsonElement etag) && etag.ValueKind == JsonValueKind.String ? etag.GetString() : null,
+            };
+        }
+        catch (JsonException)
+        {
             return null;
         }
     }

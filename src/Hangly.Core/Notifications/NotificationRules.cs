@@ -85,8 +85,17 @@ public static class UpdateReminder
     }
 
     /// <summary>The card has appeared: its ten minutes start now, not when it fell due.</summary>
-    public static UpdateReminderState Begin(UpdateReminderState state, DateTimeOffset now) =>
-        state.VisibleUntil is not null ? state : state with { VisibleUntil = now + VisibleFor, NextShowAt = null };
+    public static UpdateReminderState Begin(UpdateReminderState state, DateTimeOffset now) => Begin(state, now, out _);
+
+    /// <summary>
+    /// As <see cref="Begin(UpdateReminderState, DateTimeOffset)"/>; <paramref name="began"/> is true when this began a
+    /// new ten minutes, false when the card is coming back inside one already begun — not a new impression.
+    /// </summary>
+    public static UpdateReminderState Begin(UpdateReminderState state, DateTimeOffset now, out bool began)
+    {
+        began = state.VisibleUntil is null;
+        return began ? state with { VisibleUntil = now + VisibleFor, NextShowAt = null } : state;
+    }
 
     /// <summary>× or Later: asleep for an hour from now.</summary>
     public static UpdateReminderState Later(UpdateReminderState state, DateTimeOffset now) =>

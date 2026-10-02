@@ -31,6 +31,14 @@ public sealed class NotificationCenterWindow : Window
     private readonly MenuFlyoutItem markAll = new() { Text = "Mark All as Read" };
     private readonly MenuFlyoutItem clearAll = new() { Text = "Clear All" };
 
+    /// <summary>What was last drawn, so a change that is not to the history or the search draws nothing.</summary>
+    private (NotificationState? State, string Query, int Shown) rendered;
+
+    /// <summary>Rows built at once: the newest fifty, then a hundred more each time Show Earlier is pressed.</summary>
+    private int visibleCount = PageSize;
+
+    private const int PageSize = 50;
+
     public NotificationCenterWindow(NotificationPresenter presenter)
     {
         this.presenter = presenter;
@@ -65,7 +73,11 @@ public sealed class NotificationCenterWindow : Window
         header.Children.Add(menu);
 
         search.Margin = new Thickness(18, 0, 18, 12);
-        search.TextChanged += (_, _) => Rebuild();
+        search.TextChanged += (_, _) =>
+        {
+            visibleCount = PageSize;
+            Rebuild();
+        };
 
         var body = new Grid();
         body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -84,6 +96,14 @@ public sealed class NotificationCenterWindow : Window
         Interop.WindowPlacement.SizeAndCentre(this, 420, 600);
         Interop.WindowIcon.Apply(this);
         Interop.WindowPlacement.FixSize(this);
+
+        // A small panel to read, not a document: no minimise, no maximise — close is the only way out, and it hides.
+        if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenterStyle)
+        {
+            presenterStyle.IsMaximizable = false;
+            presenterStyle.IsMinimizable = false;
+        }
+
         Onboarding.ProcessLifetime.KeepAlive(this);
 
         presenter.Changed += () =>
@@ -103,6 +123,7 @@ public sealed class NotificationCenterWindow : Window
         if (!wasOpen)
         {
             Interop.WindowPlacement.SizeAndCentre(this, 420, 600);
+            visibleCount = PageSize;
         }
 
         Rebuild();
@@ -114,6 +135,13 @@ public sealed class NotificationCenterWindow : Window
     private void Rebuild()
     {
         NotificationState state = presenter.Store.State;
+        string trimmed = search.Text.Trim();
+        if (ReferenceEquals(rendered.State, state) && rendered.Query == trimmed && rendered.Shown == visibleCount)
+        {
+            return;
+        }
+
+        rendered = (state, trimmed, visibleCount);
         int unreadCount = state.History.Count(item => !item.IsRead);
         unread.Text = unreadCount == 0 ? "All caught up" : $"{unreadCount} unread";
         markAll.IsEnabled = unreadCount > 0;
@@ -138,8 +166,24 @@ public sealed class NotificationCenterWindow : Window
             return;
         }
 
-        Section("NEW", [.. items.Where(item => !item.IsRead)]);
-        Section("EARLIER", [.. items.Where(item => item.IsRead)]);
+        List<NotificationItem> page = [.. items.Take(visibleCount)];
+        Section("NEW", [.. page.Where(item => !item.IsRead)]);
+        Section("EARLIER", [.. page.Where(item => item.IsRead)]);
+        if (items.Count > page.Count)
+        {
+            var more = new HyperlinkButton
+            {
+                Content = $"Show earlier ({items.Count - page.Count} more)",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 4, 0, 0),
+            };
+            more.Click += (_, _) =>
+            {
+                visibleCount += 100;
+                Rebuild();
+            };
+            list.Children.Add(more);
+        }
     }
 
     private void Section(string title, List<NotificationItem> items)

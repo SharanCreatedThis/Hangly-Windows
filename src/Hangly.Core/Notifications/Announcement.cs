@@ -105,8 +105,7 @@ public sealed partial record Announcement
         AnnouncementAction.None or AnnouncementAction.OpenCreate => target.Length == 0,
         AnnouncementAction.OpenLibrary => target.Length == 0 || CollectionPattern().IsMatch(target),
         AnnouncementAction.OpenCharm => CharmPattern().IsMatch(target),
-        AnnouncementAction.OpenUrl => Uri.TryCreate(target, UriKind.Absolute, out Uri? uri)
-            && uri.Scheme == Uri.UriSchemeHttps && uri.Host.Length > 0,
+        AnnouncementAction.OpenUrl => LinkPolicy.Allows(target),
         _ => false,
     };
 

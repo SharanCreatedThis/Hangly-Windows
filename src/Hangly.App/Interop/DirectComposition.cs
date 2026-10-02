@@ -33,6 +33,14 @@ namespace Hangly.App.Interop;
 /// GetDevice 7, IDXGISwapChain (8–17), IDXGISwapChain1 (18–28), SetSourceSize 29,
 /// GetSourceSize 30, SetMaximumFrameLatency 31, GetMaximumFrameLatency 32,
 /// GetFrameLatencyWaitableObject 33, SetMatrixTransform 34</description></item>
+/// <item><term>IDCompositionDevice, continued</term><description>CreateSurface 8, CreateVirtualSurface 9,
+/// CreateSurfaceFromHandle 10, CreateSurfaceFromHwnd 11, six transforms and their 3D forms and a group (12–22),
+/// CreateEffectGroup 23, CreateRectangleClip 24, CreateAnimation 25</description></item>
+/// <item><term>IDCompositionVisual, the overloads</term><description>MSVC puts an overloaded method's later
+/// declaration first, so SetOffsetX(animation) is 3, SetOffsetX(float) 4, SetOffsetY(animation) 5,
+/// SetOffsetY(float) 6</description></item>
+/// <item><term>IDCompositionAnimation</term><description>IUnknown (0–2), Reset 3, SetAbsoluteBeginTime 4,
+/// AddCubic 5, AddSinusoidal 6</description></item>
 /// <item><term>ICanvasResourceWrapperNative</term><description>IUnknown (0–2),
 /// GetNativeResource 3 — how a Win2D swap chain gives up its DXGI one</description></item>
 /// <item><term>IDirect3DDxgiInterfaceAccess</term><description>IUnknown (0–2),
@@ -124,6 +132,36 @@ internal static unsafe class DirectComposition
         {
             Marshal.Release(swapChain);
         }
+    }
+
+    /// <summary>
+    /// Floats <paramref name="visual"/> up and down for ever: a sine of <paramref name="amplitude"/> pixels and
+    /// <paramref name="frequency"/> hertz, run by the compositor — nothing is drawn again for it, and nothing in this
+    /// process wakes for it. The notification card's idle float; macOS gets the same from Core Animation.
+    /// </summary>
+    public static void Float(IntPtr device, IntPtr visual, float amplitude, float frequency)
+    {
+        IntPtr animation;
+        var create = (delegate* unmanaged[Stdcall]<IntPtr, IntPtr*, int>)Slot(device, 25);
+        Check(create(device, &animation), "CreateAnimation");
+        try
+        {
+            var sine = (delegate* unmanaged[Stdcall]<IntPtr, double, float, float, float, float, int>)Slot(animation, 6);
+            Check(sine(animation, 0, 0, amplitude, frequency, 0), "AddSinusoidal");
+            var offset = (delegate* unmanaged[Stdcall]<IntPtr, IntPtr, int>)Slot(visual, 5);
+            Check(offset(visual, animation), "SetOffsetY(animation)");
+        }
+        finally
+        {
+            Marshal.Release(animation);
+        }
+    }
+
+    /// <summary>Puts <paramref name="visual"/> back where it belongs, ending any float.</summary>
+    public static void Settle(IntPtr visual)
+    {
+        var offset = (delegate* unmanaged[Stdcall]<IntPtr, float, int>)Slot(visual, 6);
+        Check(offset(visual, 0f), "SetOffsetY(float)");
     }
 
     public static void SetRoot(IntPtr target, IntPtr visual)

@@ -861,7 +861,11 @@ public sealed partial class AppEnvironment : IDisposable
         xamlQueue ??= Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
         overlay.FileDropped += OnFileDroppedOnCharm;
         overlay.SwingsToBank += () => xamlQueue?.TryEnqueue(BankSwings);
-        overlay.ClockChanged += () => xamlQueue?.TryEnqueue(FollowTheClock);
+        overlay.ClockChanged += () => xamlQueue?.TryEnqueue(() =>
+        {
+            FollowTheClock();
+            NotificationsAfterWake();
+        });
         HookNotifications(overlay);
         Diagnostics.Log("overlay window constructed");
 

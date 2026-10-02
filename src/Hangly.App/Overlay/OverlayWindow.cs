@@ -134,18 +134,19 @@ public sealed class OverlayWindow : IDisposable
     public event Action? CharmMoved;
 
     /// <summary>
-    /// The bottom-centre of the lowest charm at rest, in desktop pixels, with the display's scale; null before the
-    /// first frame. At rest, not where it is: hanging straight below the anchor as far as the cord and the charm
-    /// reach, so a card hung from it does not follow every swing.
+    /// The rope and its charms at rest, in desktop pixels, with the display's scale; null before the first frame: from
+    /// the anchor down to the bottom of the lowest charm, as wide as the widest. At rest, not where they are — hanging
+    /// straight below the anchor — so a card placed by it does not follow every swing.
     /// </summary>
-    public (double X, double Y, double Scale)? RestAnchor => restAnchor is { } anchor ? (anchor.X, anchor.Y, anchor.Scale) : null;
+    public (Hangly.Core.Geometry.Rect Column, double Scale)? RestColumn =>
+        restAnchor is { } anchor ? (new Hangly.Core.Geometry.Rect(anchor.Left, anchor.Top, anchor.Width, anchor.Height), anchor.Scale) : null;
 
     /// <summary>Whether the charm is on screen: not hidden for full-screen video.</summary>
     public bool IsCharmShown => !isHiddenForFullscreen;
 
     private volatile AnchorBox? restAnchor;
 
-    private sealed record AnchorBox(double X, double Y, double Scale);
+    private sealed record AnchorBox(double Left, double Top, double Width, double Height, double Scale);
 
     private const int VkRbutton = 0x02;
 
@@ -616,8 +617,15 @@ public sealed class OverlayWindow : IDisposable
         // the radius the solver gives it, so the card goes below the canvas instead.
         bool ownCord = renderer.Charms.Count > 0 && renderer.Charms[^1].HangsByOwnCord;
         double bottom = ownCord ? CanvasSize.Height : Math.Min(anchor.Y + reach + charm.Radius, CanvasSize.Height);
-        var next = new AnchorBox(frame.Left + (anchor.X * scale), frame.Top + (bottom * scale), scale);
-        if (restAnchor is not { } previous || Math.Abs(previous.X - next.X) >= 1 || Math.Abs(previous.Y - next.Y) >= 1 || previous.Scale != next.Scale)
+        double halfWidth = Math.Max(snapshot.Charms.Max(placement => placement.Radius), 12);
+        var next = new AnchorBox(
+            frame.Left + ((anchor.X - halfWidth) * scale),
+            frame.Top + (anchor.Y * scale),
+            2 * halfWidth * scale,
+            Math.Max(0, bottom - anchor.Y) * scale,
+            scale);
+        if (restAnchor is not { } previous || Math.Abs(previous.Left - next.Left) >= 1 || Math.Abs(previous.Top + previous.Height - next.Top - next.Height) >= 1
+            || Math.Abs(previous.Width - next.Width) >= 1 || previous.Scale != next.Scale)
         {
             restAnchor = next;
         }
