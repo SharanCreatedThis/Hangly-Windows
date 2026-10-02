@@ -77,6 +77,16 @@ public sealed class RopeRenderer
 
     private GlowLevel glow = GlowLevel.Soft;
 
+    /// <summary>
+    /// The canvas's height in points, which a charm that hangs by its own drawn rope fills
+    /// down from its top. Zero — the default, for the Library's and the Studio's small
+    /// canvases — hangs it to the rope's end and its own radius.
+    /// </summary>
+    public double CanvasHeight { get; set; }
+
+    /// <summary>How much of the canvas below its top such a charm fills, leaving room for its shadow.</summary>
+    private const double OwnCordFill = 0.96;
+
     public void Draw(CanvasDrawingSession session, RopeSnapshot snapshot, RopeStyle style)
     {
         if (snapshot.Points.Count < 2)
@@ -661,7 +671,10 @@ public sealed class RopeRenderer
         }
 
         Vec2 direction = reach / distance;
-        double height = distance + placement.Radius;
+
+        // Down as far as the canvas allows: it is one tall picture, five times taller than
+        // wide, so stopping at the rope's end left both figures a few dozen points across.
+        double height = Math.Max(distance + placement.Radius, (CanvasHeight - top.Y) * OwnCordFill);
         double longest = Math.Max(body.Width, body.Height);
         return new CharmHang(
             top + (direction * (height / 2)),
