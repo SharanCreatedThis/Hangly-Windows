@@ -47,6 +47,7 @@ public sealed record NotificationAction(AnnouncementAction Type, string Target)
         AnnouncementAction.OpenLibrary => "open_library",
         AnnouncementAction.OpenCharm => "open_charm",
         AnnouncementAction.OpenCreate => "open_create",
+        AnnouncementAction.OpenNotifications => "open_notifications",
         _ => "open_url",
     };
 }

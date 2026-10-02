@@ -198,6 +198,9 @@ public sealed partial class AppEnvironment
             case AnnouncementAction.OpenCreate:
                 OpenCreate();
                 break;
+            case AnnouncementAction.OpenNotifications:
+                notifications?.ShowCenter("card");
+                break;
             case AnnouncementAction.OpenUrl when Uri.TryCreate(action.Target, UriKind.Absolute, out Uri? uri) && uri.Scheme == Uri.UriSchemeHttps:
                 _ = Windows.System.Launcher.LaunchUriAsync(uri);
                 break;

@@ -19,6 +19,7 @@ public enum AnnouncementAction
     OpenCharm,
     OpenCreate,
     OpenUrl,
+    OpenNotifications,
 }
 
 /// <summary><c>Low</c> never gets a card — straight to the Notification Center. <c>High</c> goes before anything else waiting.</summary>
@@ -81,6 +82,7 @@ public sealed partial record Announcement
         AnnouncementAction.OpenLibrary => "Open Library",
         AnnouncementAction.OpenCharm => "Show Charm",
         AnnouncementAction.OpenCreate => "Open Create",
+        AnnouncementAction.OpenNotifications => "Open Notifications",
         _ => "Open",
     };
 
@@ -102,7 +104,7 @@ public sealed partial record Announcement
     /// <summary>An https link and nothing else may be opened; a collection or charm must look like one.</summary>
     public static bool TargetFits(AnnouncementAction type, string target) => type switch
     {
-        AnnouncementAction.None or AnnouncementAction.OpenCreate => target.Length == 0,
+        AnnouncementAction.None or AnnouncementAction.OpenCreate or AnnouncementAction.OpenNotifications => target.Length == 0,
         AnnouncementAction.OpenLibrary => target.Length == 0 || CollectionPattern().IsMatch(target),
         AnnouncementAction.OpenCharm => CharmPattern().IsMatch(target),
         AnnouncementAction.OpenUrl => LinkPolicy.Allows(target),
