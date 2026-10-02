@@ -1065,6 +1065,26 @@ public sealed partial class CustomizeWindow : Window
     /// <summary>Opens a section by its tag: charms, create, appearance or about.</summary>
     public void ShowSectionNamed(string tag) => ShowSection(tag);
 
+    /// <summary>Opens the Library where a notification pointed: one collection, or one charm in the detail panel.</summary>
+    /// <remarks>
+    /// The search is cleared, so what was pointed at is what is seen. A charm is described, not hung: reading about a
+    /// charm is not choosing it. macOS's <c>CharmLibraryViewModel.follow</c>.
+    /// </remarks>
+    public void ShowFromNotification(string? collectionId, string? charmId)
+    {
+        ShowSection("charms");
+        query = string.Empty;
+        SearchBox.Text = string.Empty;
+        bool known = collectionId is not null && environment.Charms.Categories.Any(category => category.Id == collectionId);
+        filter = known ? CharmFilter.Category(collectionId!) : CharmFilter.All;
+        HighlightChips();
+        ShowResults();
+        if (charmId is not null && environment.Charms.Find(charmId) is { } entry && entry.Id == charmId)
+        {
+            ShowDetail(entry);
+        }
+    }
+
     /// <summary>Selects the navigation item carrying <paramref name="tag"/>.</summary>
     /// <remarks>
     /// Selecting the item is what runs <see cref="OnSectionChanged"/>, which owns page

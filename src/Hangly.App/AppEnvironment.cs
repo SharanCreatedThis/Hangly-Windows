@@ -33,7 +33,7 @@ namespace Hangly.App;
 /// original's Observation stream, with an event standing in for
 /// <c>withObservationTracking</c>.</para>
 /// </remarks>
-public sealed class AppEnvironment : IDisposable
+public sealed partial class AppEnvironment : IDisposable
 {
     private readonly SettingsStore store;
     private readonly ILaunchAtLogin launchAtLogin;
@@ -471,6 +471,10 @@ public sealed class AppEnvironment : IDisposable
             Diagnostics.Log("carrying on without a tray icon; the overlay still runs");
         }
 
+        // Before anything below can bring the overlay up — a settings write does — so the first
+        // time the charm appears is already heard.
+        StartNotifications();
+
         store.Changed += OnSettingsChanged;
 
         // After the tray and before the overlay. The support card is scheduled off this count, which the quiet
@@ -858,6 +862,7 @@ public sealed class AppEnvironment : IDisposable
         overlay.FileDropped += OnFileDroppedOnCharm;
         overlay.SwingsToBank += () => xamlQueue?.TryEnqueue(BankSwings);
         overlay.ClockChanged += () => xamlQueue?.TryEnqueue(FollowTheClock);
+        HookNotifications(overlay);
         Diagnostics.Log("overlay window constructed");
 
         // Returns as soon as the frame loop is running. The window itself is created on
@@ -982,6 +987,7 @@ public sealed class AppEnvironment : IDisposable
         overlay = null;
         artwork?.Dispose();
         artwork = null;
+        CharmGone();
     }
 
     private void OnSettingsChanged(AppSettings settings)
@@ -994,6 +1000,10 @@ public sealed class AppEnvironment : IDisposable
         }
 
         ShowOverlay();
+        if (notificationCard is not null)
+        {
+            notificationCard.OnDesktop = settings.Overlay.WindowMode == WindowMode.Desktop;
+        }
 
         // Rebuilding the charms means measuring artwork, so it happens only when the
         // charms actually changed rather than on every slider move.
@@ -1137,6 +1147,7 @@ public sealed class AppEnvironment : IDisposable
         return
         [
             .. update,
+            .. NotificationsMenu(),
             new MenuEntry(
                 settings.Overlay.IsEnabled ? "Hide Charm" : "Show Charm",
                 () => store.UpdateOverlay(overlay => overlay with { IsEnabled = !overlay.IsEnabled })),
@@ -1249,6 +1260,7 @@ public sealed class AppEnvironment : IDisposable
         if (args.IsAvailable)
         {
             registry.NetworkBecameAvailable();
+            announcements?.NetworkBecameAvailable();
         }
     }
 
@@ -1256,6 +1268,7 @@ public sealed class AppEnvironment : IDisposable
     {
         System.Net.NetworkInformation.NetworkChange.NetworkAvailabilityChanged -= OnNetworkAvailabilityChanged;
         store.Changed -= OnSettingsChanged;
+        StopNotifications();
         audio?.Dispose();
         HideOverlay();
         tray?.Dispose();

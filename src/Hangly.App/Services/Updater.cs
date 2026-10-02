@@ -77,6 +77,18 @@ public sealed class Updater
     /// <summary>The version downloaded and waiting for Hangly to restart, if any.</summary>
     public string? ReadyVersion => downloaded?.TargetFullRelease.Version.ToString();
 
+    /// <summary>The version the last check found, downloaded or not.</summary>
+    public string? AvailableVersion => (pending ?? downloaded)?.TargetFullRelease.Version.ToString();
+
+    /// <summary>The found release's notes, Markdown, for the update card's bullet points.</summary>
+    public string? AvailableNotes => (pending ?? downloaded)?.TargetFullRelease.NotesMarkdown;
+
+    /// <summary>Percent downloaded, raised on a thread-pool thread while any download runs.</summary>
+    public event Action<int>? DownloadProgress;
+
+    /// <summary>Raised when a check finds something new, or a download completes or fails.</summary>
+    public event Action? StateChanged;
+
     public Updater(string feedUrl) => this.feedUrl = feedUrl;
 
     /// <summary>The manager this build asks, pointed at its own channel.</summary>
@@ -160,6 +172,8 @@ public sealed class Updater
                 Report(AnalyticsEvent.UpdateAvailable(version, trigger));
             }
 
+            StateChanged?.Invoke();
+
             // Whatever the release was packaged with, if anything. A release with no
             // notes is ordinary rather than an error, and shows the version alone.
             string? notes = pending.TargetFullRelease.NotesMarkdown;
@@ -220,16 +234,18 @@ public sealed class Updater
             UpdateInfo found = pending;
             string version = found.TargetFullRelease.Version.ToString();
             Report(AnalyticsEvent.UpdateDownloadStarted(version, trigger));
-            await Manager().DownloadUpdatesAsync(found).ConfigureAwait(false);
+            await Manager().DownloadUpdatesAsync(found, percent => DownloadProgress?.Invoke(percent)).ConfigureAwait(false);
             downloaded = found;
             Report(AnalyticsEvent.UpdateDownloadCompleted(version, trigger));
             Diagnostics.Log($"update {found.TargetFullRelease.Version} downloaded; applies on the next start");
+            StateChanged?.Invoke();
             return true;
         }
         catch (Exception exception)
         {
             Diagnostics.Log($"update download failed: {exception.GetType().Name}");
             Report(AnalyticsEvent.UpdateFailed(UpdateStage.Download, exception.GetType().Name, trigger));
+            StateChanged?.Invoke();
             return false;
         }
     }
@@ -287,6 +303,53 @@ public sealed class Updater
         catch (Exception exception)
         {
             Diagnostics.Log($"quiet update install failed: {exception.GetType().Name}");
+            Report(AnalyticsEvent.UpdateFailed(UpdateStage.Install, exception.GetType().Name, trigger));
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// The update card's Update Now: downloads with progress if it has not been already, then applies and restarts.
+    /// Returns only if it failed — success ends this process. Never throws.
+    /// </summary>
+    /// <param name="downloading">Told the percent as the download goes.</param>
+    /// <param name="installing">Told when the download is done and the install begins.</param>
+    public async Task<bool> UpdateNowAsync(Action<int> downloading, Action installing)
+    {
+        if (pending is null && downloaded is null)
+        {
+            return false;
+        }
+
+        trigger = UpdateTrigger.Manual;
+        void Progress(int percent) => downloading(percent);
+        DownloadProgress += Progress;
+        try
+        {
+            // The quiet download already running is joined, not raced: one lock, one download.
+            if (downloaded is null && !await DownloadAsync().ConfigureAwait(false))
+            {
+                return false;
+            }
+        }
+        finally
+        {
+            DownloadProgress -= Progress;
+        }
+
+        installing();
+
+        // Long enough to read "Installing…" and then "Restarting Hangly…"; the package is already verified.
+        await Task.Delay(1500).ConfigureAwait(false);
+        try
+        {
+            Diagnostics.Log($"update now: applying {downloaded!.TargetFullRelease.Version}");
+            Manager().ApplyUpdatesAndRestart(downloaded, [Core.Lifecycle.LaunchIntent.UpdatedArgument]);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Diagnostics.Failure("update now", exception);
             Report(AnalyticsEvent.UpdateFailed(UpdateStage.Install, exception.GetType().Name, trigger));
             return false;
         }

@@ -86,6 +86,61 @@ public sealed record AnalyticsEvent(string Name, IReadOnlyDictionary<string, str
         });
 
     private static string TriggerName(UpdateTrigger trigger) => trigger == UpdateTrigger.Manual ? "manual" : "quiet";
+
+    // The notifications (2.3.0): every card, of either kind, and each kind on its own, so a GA4 report can read the
+    // update banner's funnel and a broadcast's reach without filtering. Never the title or the message. macOS's names.
+
+    public static AnalyticsEvent NotificationShown(Notifications.NotificationKind kind, string id) =>
+        new("notification_shown", new Dictionary<string, string> { ["kind"] = KindName(kind), ["notification_id"] = Clip(id) });
+
+    public static AnalyticsEvent NotificationClicked(Notifications.NotificationKind kind, string id, string action) =>
+        new("notification_clicked", new Dictionary<string, string>
+        {
+            ["kind"] = KindName(kind),
+            ["notification_id"] = Clip(id),
+            ["action"] = action,
+        });
+
+    public static AnalyticsEvent NotificationDismissed(Notifications.NotificationKind kind, string id, DismissReason reason) =>
+        new("notification_dismissed", new Dictionary<string, string>
+        {
+            ["kind"] = KindName(kind),
+            ["notification_id"] = Clip(id),
+            ["reason"] = ReasonName(reason),
+        });
+
+    public static AnalyticsEvent UpdateBannerShown(string toVersion) =>
+        new("update_banner_shown", new Dictionary<string, string> { ["to_version"] = toVersion });
+
+    public static AnalyticsEvent UpdateBannerClicked(string toVersion) =>
+        new("update_banner_clicked", new Dictionary<string, string> { ["to_version"] = toVersion });
+
+    public static AnalyticsEvent BroadcastShown(string id) =>
+        new("broadcast_shown", new Dictionary<string, string> { ["notification_id"] = Clip(id) });
+
+    public static AnalyticsEvent BroadcastClicked(string id, string action) =>
+        new("broadcast_clicked", new Dictionary<string, string> { ["notification_id"] = Clip(id), ["action"] = action });
+
+    public static AnalyticsEvent BroadcastDismissed(string id, DismissReason reason) =>
+        new("broadcast_dismissed", new Dictionary<string, string> { ["notification_id"] = Clip(id), ["reason"] = ReasonName(reason) });
+
+    private static string KindName(Notifications.NotificationKind kind) =>
+        kind == Notifications.NotificationKind.Update ? "update" : "broadcast";
+
+    private static string ReasonName(DismissReason reason) => reason.ToString().ToLowerInvariant();
+
+    /// <summary>GA4 keeps parameter values up to 100 characters.</summary>
+    private static string Clip(string value) => value.Length <= 100 ? value : value[..100];
+}
+
+/// <summary>How a card left: on its own, by ×, by Skip This Version, by Later, or cleared from the Center.</summary>
+public enum DismissReason
+{
+    Timeout,
+    Closed,
+    Skipped,
+    Later,
+    Cleared,
 }
 
 public enum UpdateTrigger

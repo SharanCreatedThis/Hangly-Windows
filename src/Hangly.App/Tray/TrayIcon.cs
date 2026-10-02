@@ -281,9 +281,12 @@ public sealed class TrayIcon : IDisposable
         }
     }
 
-    private void ShowMenu()
+    private void ShowMenu() => ShowMenu(MenuBuilder?.Invoke() ?? []);
+
+    /// <summary>Shows <paramref name="entries"/> at the pointer, as the tray's own menu: the charm's right-click menu.</summary>
+    /// <remarks>On the thread that made this icon, which owns the window the menu belongs to.</remarks>
+    public void ShowMenu(IReadOnlyList<MenuEntry> entries)
     {
-        IReadOnlyList<MenuEntry> entries = MenuBuilder?.Invoke() ?? [];
         commands.Clear();
 
         IntPtr menu = CreatePopupMenu();

@@ -124,6 +124,34 @@ public sealed class OverlayWindow : IDisposable
     /// <summary>A file was dragged over a charm for the first time in this drag.</summary>
     public event Action? DragEntered;
 
+    /// <summary>The charm was right-clicked. Raised on the frame loop's thread.</summary>
+    public event Action? CharmRightClicked;
+
+    /// <summary>
+    /// The charm's resting place may have moved — a refit, or the rope settling — or it appeared or went. Raised on
+    /// the frame loop's thread; the notification card reads <see cref="RestAnchor"/> and <see cref="IsCharmShown"/>.
+    /// </summary>
+    public event Action? CharmMoved;
+
+    /// <summary>
+    /// The bottom-centre of the lowest charm at rest, in desktop pixels, with the display's scale; null before the
+    /// first frame. At rest, not where it is: hanging straight below the anchor as far as the cord and the charm
+    /// reach, so a card hung from it does not follow every swing.
+    /// </summary>
+    public (double X, double Y, double Scale)? RestAnchor => restAnchor is { } anchor ? (anchor.X, anchor.Y, anchor.Scale) : null;
+
+    /// <summary>Whether the charm is on screen: not hidden for full-screen video.</summary>
+    public bool IsCharmShown => !isHiddenForFullscreen;
+
+    private volatile AnchorBox? restAnchor;
+
+    private sealed record AnchorBox(double X, double Y, double Scale);
+
+    private const int VkRbutton = 0x02;
+
+    private bool wasRightDown;
+    private bool wasIdle;
+
     /// <summary>Changes what hangs on the cord, without rebuilding the window.</summary>
     /// <remarks>
     /// Handed over the same way settings are, and for the same reason: the solver and the
@@ -460,6 +488,7 @@ public sealed class OverlayWindow : IDisposable
         if (hide)
         {
             surface.Hide();
+            CharmMoved?.Invoke();
             Diagnostics.Log("full-screen video on this display: charm hidden");
         }
         else
@@ -467,6 +496,7 @@ public sealed class OverlayWindow : IDisposable
             surface.Show();
             rope.Wake();
             Draw();
+            CharmMoved?.Invoke();
             Diagnostics.Log("full-screen video ended: charm back");
         }
     }
@@ -567,6 +597,27 @@ public sealed class OverlayWindow : IDisposable
         // below it, to stretch into, and must not make the rope itself any longer.
         double stretchRoom = OverlayMetrics.StretchRoom(settings.RopeLength, settings.RopePhysics);
         rope.Fit(new Size(CanvasSize.Width, CanvasSize.Height - stretchRoom), settings.CharmSize, settings.RopeLength);
+        NoteRestAnchor(rope.Snapshot());
+        CharmMoved?.Invoke();
+    }
+
+    /// <summary>Where the card hangs from: see <see cref="RestAnchor"/>.</summary>
+    private void NoteRestAnchor(RopeSnapshot snapshot)
+    {
+        if (snapshot.Charms.Count == 0 || snapshot.Points.Count == 0)
+        {
+            return;
+        }
+
+        CharmPlacement charm = snapshot.Charms[^1];
+        Vec2 anchor = snapshot.Points[0];
+        double reach = (charm.Center - anchor).Magnitude;
+        double bottom = Math.Min(anchor.Y + reach + charm.Radius, CanvasSize.Height);
+        var next = new AnchorBox(frame.Left + (anchor.X * scale), frame.Top + (bottom * scale), scale);
+        if (restAnchor is not { } previous || Math.Abs(previous.X - next.X) >= 1 || Math.Abs(previous.Y - next.Y) >= 1 || previous.Scale != next.Scale)
+        {
+            restAnchor = next;
+        }
     }
 
     /// <summary>
@@ -637,6 +688,16 @@ public sealed class OverlayWindow : IDisposable
         // arriving over the charm. A layered window keeps the last frame it was given, so
         // not presenting leaves the settled rope on screen rather than blanking it.
         isIdle = rope.IsSleeping && !rope.IsDragging;
+        if (isIdle != wasIdle)
+        {
+            wasIdle = isIdle;
+            if (isIdle)
+            {
+                // Settled: its resting place is exactly where it hangs now.
+                NoteRestAnchor(rope.Snapshot());
+                CharmMoved?.Invoke();
+            }
+        }
         if ((!rope.IsSleeping || rope.IsDragging) && !isHiddenForFullscreen)
         {
             Draw(onlyIfMoved: true);
@@ -698,6 +759,7 @@ public sealed class OverlayWindow : IDisposable
         }
 
         lastShown = snapshot;
+        NoteRestAnchor(snapshot);
 
         // What this frame paints and what the last one did: the only pixels that can have
         // changed. Everything else on the canvas is transparent in both.
@@ -840,6 +902,15 @@ public sealed class OverlayWindow : IDisposable
         // mid-drag, or letting go while moving fast would drop the charm the instant the
         // pointer outran it.
         SetClickThrough(!overCharm && !rope.IsDragging);
+
+        // A right-click on the charm opens its menu, on release, as menus open everywhere in Windows.
+        bool isRightDown = (NativeMethods.GetAsyncKeyState(VkRbutton) & 0x8000) != 0;
+        if (!isRightDown && wasRightDown && overCharm && !rope.IsDragging)
+        {
+            CharmRightClicked?.Invoke();
+        }
+
+        wasRightDown = isRightDown;
 
         Repel(cursor, location, isButtonDown);
 
