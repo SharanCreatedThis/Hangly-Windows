@@ -93,7 +93,7 @@ public static class Diagnostics
             File.WriteAllText(
                 LogPath,
                 $"Hangly {typeof(Diagnostics).Assembly.GetName().Version}" +
-                $" · {Environment.OSVersion}" +
+                $" · Windows {AppInfo.WindowsVersion}" +
                 $" · {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}" +
                 $" · {DateTimeOffset.Now:O}{Environment.NewLine}");
         }
