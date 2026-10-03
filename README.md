@@ -150,8 +150,8 @@ out, on this PC), sound, reduced motion and auto-hide during full-screen video.
 
 **Later:** a High Quality cut-out mode and GPU acceleration measured on real hardware.
 
-**Not planned.** Weather charms and seasonal charms exist on macOS and are not coming to
-Windows. They are removed from the roadmap permanently rather than deferred.
+**Not planned.** Weather and seasonal charms. They were removed from macOS as well, so
+both apps carry the same seventy charms, and they are off the roadmap permanently.
 
 [STATUS.md](STATUS.md) is the detailed picture, [Docs/RELEASE-READINESS.md](Docs/RELEASE-READINESS.md)
 carries the numbers, and [PORTING.md](PORTING.md) explains what was rewritten rather than
