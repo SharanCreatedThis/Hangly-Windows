@@ -64,6 +64,9 @@ public sealed class Updater
     private UpdateInfo? pending;
     private UpdateInfo? downloaded;
 
+    /// <summary>The background download while it runs, so Install can wait for it rather than race it.</summary>
+    private Task<bool>? downloading;
+
     // The update funnel (AnalyticsEvent.UpdateAvailable …): who asked for this update, and which version was
     // already reported available this run, so a daily check that finds the same one again adds nothing.
     private UpdateTrigger trigger = UpdateTrigger.Quiet;
@@ -73,6 +76,18 @@ public sealed class Updater
 
     /// <summary>The version downloaded and waiting for Hangly to restart, if any.</summary>
     public string? ReadyVersion => downloaded?.TargetFullRelease.Version.ToString();
+
+    /// <summary>The version the last check found, downloaded or not.</summary>
+    public string? AvailableVersion => (pending ?? downloaded)?.TargetFullRelease.Version.ToString();
+
+    /// <summary>The found release's notes, Markdown, for the update card's bullet points.</summary>
+    public string? AvailableNotes => (pending ?? downloaded)?.TargetFullRelease.NotesMarkdown;
+
+    /// <summary>Percent downloaded, raised on a thread-pool thread while any download runs.</summary>
+    public event Action<int>? DownloadProgress;
+
+    /// <summary>Raised when a check finds something new, or a download completes or fails.</summary>
+    public event Action? StateChanged;
 
     public Updater(string feedUrl) => this.feedUrl = feedUrl;
 
@@ -157,6 +172,8 @@ public sealed class Updater
                 Report(AnalyticsEvent.UpdateAvailable(version, trigger));
             }
 
+            StateChanged?.Invoke();
+
             // Whatever the release was packaged with, if anything. A release with no
             // notes is ordinary rather than an error, and shows the version alone.
             string? notes = pending.TargetFullRelease.NotesMarkdown;
@@ -191,7 +208,21 @@ public sealed class Updater
     /// Never throws.
     /// </summary>
     /// <returns>Whether an update is now downloaded and waiting.</returns>
-    public async Task<bool> DownloadAsync()
+    public Task<bool> DownloadAsync()
+    {
+        // One download at a time. Velopack holds an exclusive lock while it downloads, and a
+        // second download — Install pressed while the quiet one was still fetching 300 MB —
+        // failed on that lock and told the person the update could not be installed.
+        // A failed one is not kept: tomorrow's check tries again.
+        if (downloading is null || (downloading.IsCompleted && !downloading.Result))
+        {
+            downloading = DownloadOnceAsync();
+        }
+
+        return downloading;
+    }
+
+    private async Task<bool> DownloadOnceAsync()
     {
         if (pending is null)
         {
@@ -203,16 +234,18 @@ public sealed class Updater
             UpdateInfo found = pending;
             string version = found.TargetFullRelease.Version.ToString();
             Report(AnalyticsEvent.UpdateDownloadStarted(version, trigger));
-            await Manager().DownloadUpdatesAsync(found).ConfigureAwait(false);
+            await WithLockRetriesAsync(() => Manager().DownloadUpdatesAsync(found, percent => DownloadProgress?.Invoke(percent))).ConfigureAwait(false);
             downloaded = found;
             Report(AnalyticsEvent.UpdateDownloadCompleted(version, trigger));
             Diagnostics.Log($"update {found.TargetFullRelease.Version} downloaded; applies on the next start");
+            StateChanged?.Invoke();
             return true;
         }
         catch (Exception exception)
         {
             Diagnostics.Log($"update download failed: {exception.GetType().Name}");
             Report(AnalyticsEvent.UpdateFailed(UpdateStage.Download, exception.GetType().Name, trigger));
+            StateChanged?.Invoke();
             return false;
         }
     }
@@ -275,46 +308,150 @@ public sealed class Updater
         }
     }
 
-    public async Task<string> DownloadAndApplyAsync()
+    /// <summary>
+    /// The update card's Update in Background: downloads if it has not been already, then installs as this process exits
+    /// and starts the new version — silently, no progress window, and the new version opens nothing
+    /// (<see cref="Core.Lifecycle.LaunchIntent.SilentlyArgument"/>). True when it is handed over: the caller exits.
+    /// </summary>
+    public async Task<bool> UpdateInBackgroundAsync()
     {
-        if (pending is null)
+        if (pending is null && downloaded is null)
+        {
+            return false;
+        }
+
+        trigger = UpdateTrigger.Manual;
+        if (downloaded is null && !await DownloadAsync().ConfigureAwait(false))
+        {
+            return false;
+        }
+
+        try
+        {
+            Manager().WaitExitThenApplyUpdates(
+                downloaded!.TargetFullRelease,
+                silent: true,
+                restart: true,
+                restartArgs: [Core.Lifecycle.LaunchIntent.UpdatedArgument, Core.Lifecycle.LaunchIntent.SilentlyArgument]);
+            Diagnostics.Log($"update in background: {downloaded.TargetFullRelease.Version} installs as Hangly restarts");
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Diagnostics.Failure("update in background", exception);
+            Report(AnalyticsEvent.UpdateFailed(UpdateStage.Install, exception.GetType().Name, trigger));
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// The update card's Update Now: downloads with progress if it has not been already, then applies and restarts.
+    /// Returns only if it failed — success ends this process. Never throws.
+    /// </summary>
+    /// <param name="downloading">Told the percent as the download goes.</param>
+    /// <param name="installing">Told when the download is done and the install begins.</param>
+    /// <param name="cancel">The card was closed: the download carries on for the quiet install, but nothing restarts now.</param>
+    public async Task<bool> UpdateNowAsync(Action<int> downloading, Action installing, CancellationToken cancel = default)
+    {
+        if (pending is null && downloaded is null)
+        {
+            return false;
+        }
+
+        trigger = UpdateTrigger.Manual;
+        void Progress(int percent) => downloading(percent);
+        DownloadProgress += Progress;
+        try
+        {
+            // The quiet download already running is joined, not raced: one lock, one download.
+            if (downloaded is null && !await DownloadAsync().ConfigureAwait(false))
+            {
+                return false;
+            }
+        }
+        finally
+        {
+            DownloadProgress -= Progress;
+        }
+
+        if (cancel.IsCancellationRequested)
+        {
+            Diagnostics.Log("update now: card closed; the update installs quietly later");
+            return false;
+        }
+
+        installing();
+
+        // Long enough to read "Installing…" and then "Restarting Hangly…"; the package is already verified.
+        await Task.Delay(1500).ConfigureAwait(false);
+        if (cancel.IsCancellationRequested)
+        {
+            return false;
+        }
+
+        try
+        {
+            Diagnostics.Log($"update now: applying {downloaded!.TargetFullRelease.Version}");
+            Manager().ApplyUpdatesAndRestart(downloaded, [Core.Lifecycle.LaunchIntent.UpdatedArgument]);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Diagnostics.Failure("update now", exception);
+            Report(AnalyticsEvent.UpdateFailed(UpdateStage.Install, exception.GetType().Name, trigger));
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// The About page's Install and restart, and the tray's Restart to update: the same path as the update card's
+    /// Update Now. Returns only if it failed — success ends this process.
+    /// </summary>
+    /// <remarks>
+    /// <b>Why it no longer downloads for itself.</b> It used to call Velopack's download directly, and Velopack holds an
+    /// exclusive lock while it downloads. Pressed while the quiet background download of the same update was still
+    /// fetching — a full package is 320 MB, so for minutes after a release — it failed on that lock at once, and said
+    /// "That update couldn't be installed". The registry had 296 such reports from 95 installs on 2.1.0–2.1.2. Now it
+    /// joins the download already running (<see cref="DownloadAsync"/>), shows its progress, and a lock held by anything
+    /// else is waited for (<see cref="WithLockRetriesAsync"/>) rather than reported as a failure.
+    /// </remarks>
+    /// <param name="status">Told what is happening, for the page to show: "Downloading 42%…", "Installing…".</param>
+    public async Task<string> DownloadAndApplyAsync(Action<string>? status = null)
+    {
+        if (pending is null && downloaded is null)
         {
             return "There's nothing to install.";
         }
 
-        // Only ever asked for by a person: the About page's Install, the tray's Restart to update.
-        trigger = UpdateTrigger.Manual;
-        string version = pending.TargetFullRelease.Version.ToString();
-        UpdateStage stage = UpdateStage.Download;
-        try
+        bool started = await UpdateNowAsync(
+            percent => status?.Invoke($"Downloading {percent}%…"),
+            () => status?.Invoke("Installing…")).ConfigureAwait(false);
+        return started
+            ? "Restarting…"
+            : "That update couldn't be installed just now. Your copy is unchanged, and Hangly will install it on its own.";
+    }
+
+    /// <summary>How long, in all, a lock held by another Velopack operation is waited for: about a minute and a half.</summary>
+    private static readonly TimeSpan[] LockWaits = [TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(6), TimeSpan.FromSeconds(12), TimeSpan.FromSeconds(24), TimeSpan.FromSeconds(45)];
+
+    /// <summary>
+    /// Runs a Velopack operation, waiting and trying again while another operation holds its lock — another download,
+    /// or an Update.exe from an earlier session still finishing — instead of failing at the first refusal.
+    /// </summary>
+    private static async Task WithLockRetriesAsync(Func<Task> operation)
+    {
+        for (int attempt = 0; ; attempt++)
         {
-            UpdateManager manager = Manager();
-            // Downloaded as it always was; reported only when it is not the package the quiet check already fetched.
-            bool fresh = downloaded?.TargetFullRelease.Version.ToString() != version;
-            if (fresh)
+            try
             {
-                Report(AnalyticsEvent.UpdateDownloadStarted(version, trigger));
+                await operation().ConfigureAwait(false);
+                return;
             }
-
-            await manager.DownloadUpdatesAsync(pending).ConfigureAwait(false);
-            if (fresh)
+            catch (Velopack.Exceptions.AcquireLockFailedException) when (attempt < LockWaits.Length)
             {
-                Report(AnalyticsEvent.UpdateDownloadCompleted(version, trigger));
+                Diagnostics.Log($"update lock held by another operation; trying again in {LockWaits[attempt].TotalSeconds:0} s");
+                await Task.Delay(LockWaits[attempt]).ConfigureAwait(false);
             }
-
-            stage = UpdateStage.Install;
-
-            Diagnostics.Log($"applying update {pending.TargetFullRelease.Version}");
-            // Restarted quietly: the update is the only thing that changed, so no window
-            // should open because of it (Core.Lifecycle.LaunchIntent).
-            manager.ApplyUpdatesAndRestart(pending, [Core.Lifecycle.LaunchIntent.UpdatedArgument]);
-            return "Restarting…";
-        }
-        catch (Exception exception)
-        {
-            Diagnostics.Failure("applying an update", exception);
-            Report(AnalyticsEvent.UpdateFailed(stage, exception.GetType().Name, trigger));
-            return "That update couldn't be installed. Your copy is unchanged.";
         }
     }
 }

@@ -140,6 +140,9 @@ public static partial class CharmCatalog
         // Unit-square distances become multiples of the charm's radius.
         double scale = 2 / longest;
 
+        // Above the connector on a charm with a hook: the cap and jump ring take the cord just above it.
+        double rise = split.Hook is CharmArtworkHook hook ? new HookConnector(hook, split.Body, HookConnector.WeightOf(entry.Mass)).Rise * scale : 0;
+
         var beads = new List<CharmBead>(split.Beads.Count);
         foreach (Rect rect in split.Beads)
         {
@@ -151,7 +154,7 @@ public static partial class CharmCatalog
 
             beads.Add(new CharmBead(
                 size,
-                Offset: (split.Body.Top - rect.MidY) * scale,
+                Offset: ((split.Body.Top - rect.MidY) * scale) + rise,
 
                 // Weight for a solid bead of this size beside the charm's own, floored
                 // so the lightest still registers on the rope.

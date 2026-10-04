@@ -176,11 +176,47 @@ public sealed class TrayIcon : IDisposable
 
         // Shell_NotifyIcon reports failure by returning false, not by throwing, so an
         // unchecked call is a tray icon that silently never appears.
-        if (!ShellNotifyIcon(NimAdd, ref data))
+        if (ShellNotifyIcon(NimAdd, ref data))
         {
-            throw new InvalidOperationException(
-                $"Shell_NotifyIcon(NIM_ADD) failed (Win32 {Marshal.GetLastWin32Error()}); " +
-                $"window={window}, icon={icon}, cbSize={data.Size}.");
+            return;
+        }
+
+        // Usually Hangly starting at sign-in before Explorer's notification area is ready
+        // (26 reports, 22 installations, 2.1.0–2.2.0). This used to throw, and the app ran
+        // the whole session with no tray icon: no Library, no Quit. Now it asks again every
+        // two seconds for two minutes; TaskbarCreated still covers an Explorer that starts later.
+        Services.Diagnostics.Log(
+            $"Shell_NotifyIcon(NIM_ADD) failed (Win32 {Marshal.GetLastWin32Error()}); retrying");
+        addAttempts = 0;
+        SetTimer(window, RetryTimer, RetryEveryMilliseconds, IntPtr.Zero);
+    }
+
+    private const nuint RetryTimer = 1;
+    private const uint RetryEveryMilliseconds = 2000;
+    private const int RetryAttempts = 60;
+    private const int WmTimer = 0x0113;
+    private int addAttempts;
+
+    /// <summary>One more try at adding the icon, from the retry timer.</summary>
+    private void RetryAdd()
+    {
+        addAttempts++;
+        NotifyIconData data = NotifyIconData.Create(window, 1);
+        data.Flags = NifMessage | NifIcon | NifTip;
+        data.CallbackMessage = CallbackMessage;
+        data.Icon = icon;
+        data.Tip = tooltip;
+
+        if (ShellNotifyIcon(NimAdd, ref data))
+        {
+            KillTimer(window, RetryTimer);
+            Services.Diagnostics.Log($"tray icon added after {addAttempts} retries");
+        }
+        else if (addAttempts >= RetryAttempts)
+        {
+            KillTimer(window, RetryTimer);
+            Services.Diagnostics.Failure("tray icon", new InvalidOperationException(
+                $"Shell_NotifyIcon(NIM_ADD) still failing after {addAttempts} retries (Win32 {Marshal.GetLastWin32Error()})."));
         }
     }
 
@@ -229,6 +265,7 @@ public sealed class TrayIcon : IDisposable
 
         if (ShellNotifyIcon(NimAdd, ref data))
         {
+            KillTimer(window, RetryTimer);
             Services.Diagnostics.Log("notification area rebuilt; tray icon re-added");
             return;
         }
@@ -255,7 +292,7 @@ public sealed class TrayIcon : IDisposable
                 int mouse = (int)(lParam.ToInt64() & 0xFFFF);
                 if (mouse is WmRbuttonup or WmLbuttonup)
                 {
-                    ShowMenu();
+                    Run(ShowMenu);
                 }
 
                 return IntPtr.Zero;
@@ -266,11 +303,19 @@ public sealed class TrayIcon : IDisposable
                 int command = (int)(wParam.ToInt64() & 0xFFFF);
                 if (command > 0 && command <= commands.Count)
                 {
-                    commands[command - 1]();
+                    Run(commands[command - 1]);
                 }
 
                 return IntPtr.Zero;
             }
+
+            case WmTimer when (nuint)wParam.ToInt64() == RetryTimer:
+                if (!disposed)
+                {
+                    RetryAdd();
+                }
+
+                return IntPtr.Zero;
 
             case WmDestroy:
                 PostQuitMessage(0);
@@ -281,9 +326,12 @@ public sealed class TrayIcon : IDisposable
         }
     }
 
-    private void ShowMenu()
+    private void ShowMenu() => ShowMenu(MenuBuilder?.Invoke() ?? []);
+
+    /// <summary>Shows <paramref name="entries"/> at the pointer, as the tray's own menu: the charm's right-click menu.</summary>
+    /// <remarks>On the thread that made this icon, which owns the window the menu belongs to.</remarks>
+    public void ShowMenu(IReadOnlyList<MenuEntry> entries)
     {
-        IReadOnlyList<MenuEntry> entries = MenuBuilder?.Invoke() ?? [];
         commands.Clear();
 
         IntPtr menu = CreatePopupMenu();
@@ -310,7 +358,24 @@ public sealed class TrayIcon : IDisposable
 
         if (selected > 0 && selected <= commands.Count)
         {
-            commands[selected - 1]();
+            Run(commands[selected - 1]);
+        }
+    }
+
+    /// <summary>Runs a menu entry's action. A failure is reported and the app carries on.</summary>
+    /// <remarks>
+    /// This is called from the window procedure, and an exception that leaves a window procedure ends the process at
+    /// once: that is how a tray click on Library, Create or Quit became a crash (17 fatal reports, 2.1.0–2.2.0).
+    /// </remarks>
+    private static void Run(Action action)
+    {
+        try
+        {
+            action();
+        }
+        catch (Exception exception)
+        {
+            Services.Diagnostics.Failure("tray menu", exception);
         }
     }
 
@@ -346,6 +411,7 @@ public sealed class TrayIcon : IDisposable
         }
 
         disposed = true;
+        KillTimer(window, RetryTimer);
 
         NotifyIconData data = NotifyIconData.Create(window, 1);
         ShellNotifyIcon(NimDelete, ref data);
@@ -496,6 +562,13 @@ public sealed class TrayIcon : IDisposable
 
     [DllImport("user32.dll")]
     private static extern void PostQuitMessage(int exitCode);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern nuint SetTimer(IntPtr hWnd, nuint idEvent, uint elapse, IntPtr timerProc);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool KillTimer(IntPtr hWnd, nuint idEvent);
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

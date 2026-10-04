@@ -146,6 +146,23 @@ jobs:
       - name: Install vpk
         run: dotnet tool install --global vpk --version 1.2.0
 
+      # The release before this one, so vpk can build a delta from it. Without one every
+      # update was the full 300 MB package, downloaded in the background by every copy —
+      # minutes of bandwidth and CPU that people noticed as the app being slow. A copy on
+      # the previous version now fetches only what changed; anything further behind falls
+      # back to the full package, as before. No previous release (a new channel) is not an
+      # error: the release is simply full-only.
+      - name: Fetch the previous release for deltas
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          vpk download github --repoUrl https://github.com/${{ github.repository }} `
+            --channel ${{ matrix.rid }} --outputDir releases --token $env:GITHUB_TOKEN
+          if ($LASTEXITCODE -ne 0) { Write-Host 'No previous release to build a delta from; full package only.' }
+          Get-ChildItem releases -ErrorAction SilentlyContinue | % { Write-Host "  $($_.Name)" }
+          exit 0
+
       # The channel is passed explicitly and is the runtime identifier. vpk defaults to
       # "win", which would put ARM64 and x64 on one line of releases and offer an ARM64
       # machine an x64 package. One channel per architecture; see DISTRIBUTION.md.
@@ -169,6 +186,17 @@ jobs:
             exit 1
           }
           Get-Content $feed -Raw | Write-Host
+
+      # The previous full package was only needed to build the delta; it is already on the
+      # release it came from and is not uploaded again.
+      - name: Keep only this release's packages
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          Get-ChildItem releases -Filter *.nupkg | ? { $_.Name -notlike "Hangly-$version-*" } | % {
+            Write-Host "dropping $($_.Name)"; Remove-Item $_.FullName
+          }
+          Get-ChildItem releases | % { Write-Host ("  {0}  {1:N1} MB" -f $_.Name, ($_.Length / 1MB)) }
 
       - uses: actions/upload-artifact@v7
         with:

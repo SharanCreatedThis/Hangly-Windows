@@ -31,12 +31,17 @@ public sealed class CharmStackLayout
     /// Cord available above this charm's knot for the beads it threads, in points,
     /// measured on a rope hanging straight.
     /// </param>
+    /// <param name="HoldsRope">
+    /// A figure that holds the rope in two hands, above and below its centre (Spider-Man): the rope between them is
+    /// its body, held straight (<c>RopeSimulation.SolveHeldSpans</c>).
+    /// </param>
     public readonly record struct Slot(
         int Node,
         double Radius,
         double KnotInset,
         double Mass,
-        double BeadSpan)
+        double BeadSpan,
+        bool HoldsRope = false)
     {
         /// <summary>Radius of the circle the cord disappears behind.</summary>
         public double KnotRadius => Radius * KnotInset;
@@ -82,6 +87,19 @@ public sealed class CharmStackLayout
         }
 
         int[] nodes = RopeConfiguration.Layout.Attachments(metrics.Count, configuration.SegmentCount);
+
+        // A figure of a picture that hangs by its own rope hangs where the picture puts it.
+        for (int index = 0; index < metrics.Count - 1; index++)
+        {
+            if (metrics[index].AlongRope is not double along)
+            {
+                continue;
+            }
+
+            int node = (int)Math.Round(configuration.SegmentCount * along);
+            int floor = index == 0 ? 1 : nodes[index - 1] + 1;
+            nodes[index] = Math.Max(floor, Math.Min(configuration.SegmentCount - (metrics.Count - index), node));
+        }
         double scale = RopeConfiguration.Layout.CharmScale(metrics.Count);
         double segment = configuration.SegmentLength;
 
@@ -123,6 +141,19 @@ public sealed class CharmStackLayout
             {
                 double below = (nodes[index + 1] - nodes[index]) * segment;
                 ceiling = Math.Min(ceiling, RopeConfiguration.Layout.CharmClearance * below);
+            }
+
+            // A figure of a picture: sized against the rope itself, so the picture keeps its proportions. Never shrunk
+            // to fit: the proportions are the point, and the canvas is sized for the whole picture instead
+            // (PictureParts.CanvasRopeLength).
+            if (charm.AlongRope is not null)
+            {
+                double figure = Math.Max(0, segment * configuration.SegmentCount * charm.RadiusRatio);
+                consumed = figure * charm.KnotInset;
+                slots.Add(new Slot(
+                    nodes[index], figure, charm.KnotInset, charm.Mass, Math.Max(0, above - consumed),
+                    HoldsRope: index < metrics.Count - 1));
+                continue;
             }
 
             double radius = Math.Max(0, Math.Min(reference * charm.RadiusRatio * scale, ceiling));

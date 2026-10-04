@@ -42,7 +42,13 @@ public static class AppInfo
     /// <summary>The stream's Measurement Protocol API secret, empty when this build has none.</summary>
     public static string Ga4ApiSecret { get; } = Metadata("HanglyGa4ApiSecret") ?? string.Empty;
 
-    public static string WindowsVersion { get; } = Environment.OSVersion.Version.ToString();
+    /// <summary>Major.minor.build.patch, such as <c>10.0.19045.6456</c>.</summary>
+    /// <remarks>
+    /// <see cref="Environment.OSVersion"/> always reports the last part as 0, so the registry
+    /// could not tell a PC three years behind on updates from a current one. The patch level
+    /// is the UBR value Windows keeps in the registry; without it, the old answer stands.
+    /// </remarks>
+    public static string WindowsVersion { get; } = ReadWindowsVersion();
 
     /// <summary>The installation registry's URL, empty when this build has none.</summary>
     public static string RegistryUrl { get; } = Metadata("HanglyRegistryUrl") ?? string.Empty;
@@ -119,4 +125,23 @@ public static class AppInfo
         .GetCustomAttributes<AssemblyMetadataAttribute>()
         .FirstOrDefault(attribute => attribute.Key == key)
         ?.Value;
+
+    private static string ReadWindowsVersion()
+    {
+        Version version = Environment.OSVersion.Version;
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion");
+            if (key?.GetValue("UBR") is int patch and > 0)
+            {
+                return $"{version.Major}.{version.Minor}.{version.Build}.{patch}";
+            }
+        }
+        catch (Exception exception) when (exception is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        {
+            // Unreadable is not worth failing over; the build number alone is what was sent before.
+        }
+
+        return version.ToString();
+    }
 }

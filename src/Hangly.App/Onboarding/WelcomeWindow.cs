@@ -42,9 +42,32 @@ public sealed class WelcomeWindow : Window
     private readonly Grid body;
     private readonly Action? abandoned;
     private readonly WelcomeHero hero;
+    private readonly FrameworkElement stepColumn;
 
-    /// <summary>The charm, the question, the field and Continue, and a margin under them.</summary>
+    /// <summary>The charm, the question, the field and Continue, and a margin under them — at the least: the window grows
+    /// to whatever its content measures (<see cref="FitToContent"/>).</summary>
     private const double NameStepHeight = 470;
+
+    /// <summary>
+    /// The step's column and the card, in points: the macOS card's 304 and 560 at Windows' own text size, wider in step
+    /// with "Make text bigger" — at 304 the second step's buttons cut their own words off.
+    /// </summary>
+    private static readonly double TextScale = ReadTextScale();
+    private static readonly double ColumnWidth = 304 * TextScale;
+    private static readonly double CardWidth = Math.Max(560, ColumnWidth + 112);
+
+    private static double ReadTextScale()
+    {
+        try
+        {
+            double scale = new Windows.UI.ViewManagement.UISettings().TextScaleFactor;
+            return scale >= 1 ? Math.Min(scale, 2.25) : 1;
+        }
+        catch (Exception)
+        {
+            return 1;
+        }
+    }
 
     /// <summary>Tall enough for the support sheet opened from the second step.</summary>
     private const double WelcomeStepHeight = 600;
@@ -89,6 +112,16 @@ public sealed class WelcomeWindow : Window
         name.TextChanged += (_, _) => start.IsEnabled = name.Text.Trim().Length > 0;
         start.Click += OnStart;
 
+        // Enter in the field is Continue: whatever happens to the window's size, the name can always be given.
+        name.KeyDown += (_, args) =>
+        {
+            if (args.Key == Windows.System.VirtualKey.Enter && name.Text.Trim().Length > 0)
+            {
+                args.Handled = true;
+                OnStart(start, new RoutedEventArgs());
+            }
+        };
+
         // The name step: the charm, one question, the field, Continue — and nothing that
         // explains the question, because somebody asked what to be called already knows
         // what the box is for. The macOS card's numbers: a 304-point column, 10 under the
@@ -120,19 +153,31 @@ public sealed class WelcomeWindow : Window
         // caption buttons, where the web spreads; the step sits centred below it.
         var column = new StackPanel
         {
-            Width = 304,
+            Width = ColumnWidth,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Top,
             Margin = new Thickness(0, 0, 0, 28),
         };
         column.Children.Add(steps);
 
+        // The step scrolls if it must — the window is never taller than the screen's work area, and with Windows' text
+        // made bigger the question wraps and everything below it moves down. At a fixed 470 points Continue then fell
+        // below the window's edge and could not be reached, and nobody past it could get to the Library (Sharan, 4 Oct).
+        var scroller = new ScrollViewer
+        {
+            Content = column,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            VerticalScrollMode = ScrollMode.Auto,
+        };
+
         body = new Grid();
         body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         body.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         body.Children.Add(hero.View);
-        Grid.SetRow(column, 1);
-        body.Children.Add(column);
+        Grid.SetRow(scroller, 1);
+        body.Children.Add(scroller);
+        stepColumn = column;
 
         Content = body;
 
@@ -143,9 +188,12 @@ public sealed class WelcomeWindow : Window
         // Sized to the step, as the macOS card is: the name step is short, and the second
         // step grows to 600 (ShowWelcomeStep), because the support sheet opens inside this
         // window from there and a dialog can be no taller than its host (SupportSheet.QrSide).
-        Interop.WindowPlacement.SizeAndCentre(this, 560, NameStepHeight);
+        Interop.WindowPlacement.SizeAndCentre(this, CardWidth, NameStepHeight);
         Interop.WindowIcon.Apply(this);
         Interop.WindowPlacement.FixSize(this);
+
+        // Then to its content, once that has been laid out at this machine's text size.
+        body.Loaded += (_, _) => FitToContent(NameStepHeight);
 
         // Closing this without a name closes Hangly.
         //
@@ -302,7 +350,26 @@ public sealed class WelcomeWindow : Window
 
         askPanel.Visibility = Visibility.Collapsed;
         welcomePanel.Visibility = Visibility.Visible;
-        Interop.WindowPlacement.SizeAndCentre(this, 560, WelcomeStepHeight);
+        FitToContent(WelcomeStepHeight);
+    }
+
+    /// <summary>
+    /// Sizes the card to the charm and the step as they are laid out here — with this machine's text size, which can make
+    /// every line of it larger — and never less than <paramref name="minimumHeight"/>; no taller than the screen's work
+    /// area (<see cref="Interop.WindowPlacement.SizeAndCentre"/>), past which the step scrolls.
+    /// </summary>
+    private void FitToContent(double minimumHeight)
+    {
+        try
+        {
+            stepColumn.Measure(new Windows.Foundation.Size(CardWidth, double.PositiveInfinity));
+            double needed = WelcomeHero.Height + stepColumn.DesiredSize.Height + 12;
+            Interop.WindowPlacement.SizeAndCentre(this, CardWidth, Math.Max(minimumHeight, Math.Ceiling(needed)));
+        }
+        catch (Exception exception)
+        {
+            Diagnostics.Failure("sizing the welcome card", exception);
+        }
     }
 
     private void OnStart(object sender, RoutedEventArgs args)

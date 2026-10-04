@@ -34,8 +34,30 @@ public sealed class CharmTile : INotifyPropertyChanged
     {
         Entry = entry;
 
-        string? path = CharmThumbnails.PathFor(entry);
-        Image = path is null ? null : new BitmapImage(new Uri(path));
+        // Never rendered here. This runs on the UI thread for every charm when the Library
+        // opens, and rendering the ninety charms 2.2 added one after another froze it for
+        // seconds on the first open after the update. A tile shows the cached thumbnail if
+        // there is one and otherwise renders it in the background; the BitmapImage is handed
+        // out now and filled in then, so the collection cards and the detail panel that copy
+        // it pick the picture up too.
+        var image = new BitmapImage();
+        Image = image;
+        if (CharmThumbnails.CachedPathFor(entry) is string cached)
+        {
+            image.UriSource = new Uri(cached);
+            return;
+        }
+
+        Microsoft.UI.Dispatching.DispatcherQueue? queue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+        _ = Task.Run(() => CharmThumbnails.PathFor(entry)).ContinueWith(
+            rendered =>
+            {
+                if (rendered.Result is string path)
+                {
+                    queue?.TryEnqueue(() => image.UriSource = new Uri(path));
+                }
+            },
+            TaskScheduler.Default);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

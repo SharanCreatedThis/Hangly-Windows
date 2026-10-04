@@ -111,6 +111,12 @@ public readonly record struct RopePhysicsProfile(
 public static class RopeStyleTable
 {
     /// <summary>
+    /// Linked metal: hangs a charm by its own last link, hooked through the charm's ring, where a cord is tied on through
+    /// a jump ring (<see cref="HookConnector"/>). macOS's <c>RopeStyle.isChain</c>.
+    /// </summary>
+    public static bool IsChain(this RopeStyle style) => style is RopeStyle.GoldChain or RopeStyle.SilverChain;
+
+    /// <summary>
     /// The shipped default, and the behaviour every build before rope styles had.
     /// Thread is exactly <see cref="Physics.RopeConfiguration.Default"/>, which is why
     /// every physics comparison is made against it.

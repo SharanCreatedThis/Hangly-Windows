@@ -117,20 +117,16 @@
          is a developer tool and is not referenced by the app. -->
     <PackageReference Include="Velopack" Version="1.2.0" />
 
-    <!-- SVG is the charm artwork's source format on both platforms. Svg.Skia rasterises
-         it at the exact size each frame needs, which is what the macOS VectorImage does
-         and why neither build ships baked bitmaps. -->
     <!-- For pulling the app icon back out of the executable for the About page. The
          icon is embedded by ApplicationIcon and deliberately not shipped as Content as
          well, because one file registered twice is what gives the PRI compiler two
          entries for one path. -->
     <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
 
-    <PackageReference Include="Svg.Skia" Version="5.2.3" />
-
-    <!-- Named explicitly rather than left to Svg.Skia's transitive reference, because the
-         native Skia binary has to be restored for both architectures and an implicit
-         reference resolves only the one the build happens to be running on. -->
+    <!-- No SVG library. Svg.Skia and its six companions were unsigned, and Windows' Smart
+         App Control blocks unsigned DLLs, which stopped Hangly working on those PCs. Charm
+         artwork is pictures in an SVG wrapper, read by Core.Import.ImageSvg and drawn with
+         SkiaSharp, which Microsoft signs (Overlay/ImageSvgPicture). -->
     <PackageReference Include="SkiaSharp" Version="4.152.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.152.1" />
 
@@ -158,6 +154,8 @@
   <ItemGroup>
     <!-- Copied whole, exactly as the macOS bundle copies Assets/Charms. -->
     <Content Include="Assets/Charms/**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets/Connectors/*.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets/Ropes/*.png" CopyToOutputDirectory="PreserveNewest" />
     <!-- The Spider-Man entrance's sound slot: whatever is there is copied; empty is silent. -->
     <Content Include="Assets/Sounds/*.wav" CopyToOutputDirectory="PreserveNewest" />
 

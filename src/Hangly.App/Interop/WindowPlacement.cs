@@ -52,6 +52,10 @@ public static class WindowPlacement
                 (int)Math.Round(heightInPoints * scale));
 
             Windows.Graphics.RectInt32 work = area.WorkArea;
+
+            // Never larger than the work area: on a small or heavily scaled screen a window asked for more was cut off by
+            // the screen's edge, its bottom — and the buttons there — out of reach.
+            size = new Windows.Graphics.SizeInt32(Math.Min(size.Width, work.Width), Math.Min(size.Height, work.Height));
             (int x, int y) = Hangly.Core.Geometry.Centring.Origin(work.X, work.Y, work.Width, work.Height, size.Width, size.Height);
 
             // Moved and sized in one call, so the window never spends a frame on one
@@ -128,6 +132,24 @@ public static class WindowPlacement
     /// <c>AllowSetForegroundWindow</c> before it leaves (see <c>SingleInstance</c>), so
     /// this cannot steal focus from something the person is using.
     /// </remarks>
+    /// <summary>Whether <paramref name="window"/> is on screen; false, rather than a throw, once it has closed.</summary>
+    /// <remarks>
+    /// A closed WinUI window's <c>AppWindow</c> is gone, and asking it anything throws or returns null. The tray asks
+    /// these questions from its window procedure, where an exception ends the process: 17 fatal crash reports from
+    /// 16 installations (2.1.0–2.2.0) came from the tray's Library, Create and Quit.
+    /// </remarks>
+    public static bool IsShown(Window? window)
+    {
+        try
+        {
+            return window?.AppWindow?.IsVisible == true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
     public static void BringToFront(Window window)
     {
         Restore(window);

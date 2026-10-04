@@ -56,7 +56,7 @@ extension CollectionCharmCatalog {
                 light: CharmColor(1.00, 0.93, 0.70)
             ),
             sound: .soft,
-            beadCount: 1
+            beadCount: 0
         ),
         Entry(
             kind: .heart,

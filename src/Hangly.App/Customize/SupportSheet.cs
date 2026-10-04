@@ -82,6 +82,29 @@ internal static class SupportSheet
     /// <summary>Shows the sheet over <paramref name="root"/>.</summary>
     public static async Task ShowAsync(FrameworkElement root)
     {
+        // A window shows one ContentDialog at a time, and a second ShowAsync throws "Only a single ContentDialog can
+        // be open at any time" (39 reports, 2.1–2.2): a double click on Support, or Support while another dialog is up.
+        if (isShowing || (root.XamlRoot is { } xamlRoot
+            && Microsoft.UI.Xaml.Media.VisualTreeHelper.GetOpenPopupsForXamlRoot(xamlRoot).Any(popup => popup.Child is ContentDialog)))
+        {
+            return;
+        }
+
+        isShowing = true;
+        try
+        {
+            await ShowSheetAsync(root);
+        }
+        finally
+        {
+            isShowing = false;
+        }
+    }
+
+    private static bool isShowing;
+
+    private static async Task ShowSheetAsync(FrameworkElement root)
+    {
         var address = new TextBlock
         {
             Text = AppInfo.UpiId,

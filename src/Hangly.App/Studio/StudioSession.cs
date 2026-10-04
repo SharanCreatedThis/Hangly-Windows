@@ -205,9 +205,10 @@ internal sealed class StudioSession : IDisposable
             SubjectMask? mask = await segmenter!.SegmentAsync(image, cancel.Token).ConfigureAwait(true);
             found = await Task.Run(() => StudioPipeline.Detect(image, mask), cancel.Token).ConfigureAwait(true);
         }
-        catch (Exception exception) when (exception is OperationCanceledException || cancel.IsCancellationRequested)
+        catch (Exception exception) when (exception is OperationCanceledException or ObjectDisposedException || cancel.IsCancellationRequested)
         {
             // A newer image, or closing the studio, stopped this run; whatever it threw is not a failure.
+            // ObjectDisposedException is the studio closing while the model was still running (13 reports, 2.1–2.2).
             return;
         }
         catch (Exception exception)
@@ -421,6 +422,11 @@ internal sealed class StudioSession : IDisposable
                 InvalidOperationException invalid => invalid.Message,
                 _ => "That setting couldn't be applied to this picture.",
             };
+        }
+        catch (Exception)
+        {
+            // A superseded run's failure belongs to no one: a newer run is already on its way. Left uncaught, it
+            // escaped DebouncedAsync as an unobserved task exception (9 reports, 2.1).
         }
         finally
         {

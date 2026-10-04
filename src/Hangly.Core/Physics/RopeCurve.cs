@@ -184,7 +184,43 @@ public sealed class RopeCurve
     /// place whether the rope is hanging straight or whipping, because a bent tail
     /// covers less cord than a straight one.
     /// </remarks>
-    public double ArcEnteringCircle(Vec2 center, double radius)
+    public double ArcEnteringCircle(Vec2 center, double radius) => ArcEnteringCircleBackward(center, radius);
+
+    /// <summary>
+    /// Where the curve first comes within <paramref name="radius"/> of <paramref name="center"/>, searching from
+    /// <paramref name="start"/> toward the charm: where the cord is first seen to reach a charm. Null if it never does.
+    /// macOS's <c>arc(firstEnteringCircleAround:radius:from:)</c>.
+    /// </summary>
+    public double? ArcFirstEnteringCircle(Vec2 center, double radius, double start = 0)
+    {
+        if (IsEmpty || radius <= 0)
+        {
+            return null;
+        }
+
+        for (int index = 1; index < samples.Count; index++)
+        {
+            if (cumulative[index] < start)
+            {
+                continue;
+            }
+
+            double inner = samples[index].DistanceTo(center);
+            if (inner >= radius)
+            {
+                continue;
+            }
+
+            double outer = samples[index - 1].DistanceTo(center);
+            double reach = outer - inner;
+            double fraction = reach > Precision.UlpOfOne ? Math.Clamp((outer - radius) / reach, 0, 1) : 0;
+            return Math.Max(start, cumulative[index - 1] + ((cumulative[index] - cumulative[index - 1]) * fraction));
+        }
+
+        return null;
+    }
+
+    private double ArcEnteringCircleBackward(Vec2 center, double radius)
     {
         if (IsEmpty)
         {

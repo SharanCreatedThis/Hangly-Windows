@@ -48,6 +48,9 @@ public static class LaunchIntent
     /// <summary>Passed by the updater when it restarts the app after applying an update.</summary>
     public const string UpdatedArgument = "--updated";
 
+    /// <summary>With <see cref="UpdatedArgument"/>: the update was Update in Background, and the new version opens nothing.</summary>
+    public const string SilentlyArgument = "--silently";
+
     /// <summary>How soon after the PC starts an argument-less launch is taken for an old sign-in entry.</summary>
     public static readonly TimeSpan BootGrace = TimeSpan.FromMinutes(3);
 

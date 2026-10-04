@@ -356,8 +356,18 @@ public sealed partial class StudioView : UserControl
             return null;
         }
 
-        IReadOnlyList<IStorageItem> items = await view.GetStorageItemsAsync();
-        return items.OfType<StorageFile>().Select(file => file.Path).FirstOrDefault(StudioImageLoader.Handles);
+        try
+        {
+            IReadOnlyList<IStorageItem> items = await view.GetStorageItemsAsync();
+            return items.OfType<StorageFile>().Select(file => file.Path).FirstOrDefault(StudioImageLoader.Handles);
+        }
+        catch (System.Runtime.InteropServices.COMException exception)
+        {
+            // The app the files were dragged from went away, or stopped answering, before handing them over
+            // (RPC_E_DISCONNECTED; a few reports in 2.1). Nothing was dropped, as far as anyone can tell.
+            Services.Diagnostics.Log($"studio: dropped files could not be read (0x{exception.HResult:X8})");
+            return null;
+        }
     }
 
     private void OnRemovalChanged(object sender, SelectionChangedEventArgs args)

@@ -26,15 +26,92 @@ public sealed partial class RopeSimulation
         double restLength = Configuration.SegmentLength * ReelFraction;
         double largestCorrection = 0;
         bool elastic = Physics == RopePhysics.Elastic;
+
+        // A figure's body does not stretch: the links between its hands stay rigid on an elastic rope too.
+        HashSet<int> held = elastic ? HeldLinks() : [];
         for (int index = 0; index < Points.Length - 1; index++)
         {
-            double correction = elastic
+            double correction = elastic && !held.Contains(index)
                 ? SolveElasticLink(index, restLength, Configuration.FixedTimeStep)
                 : SolveLink(index, index + 1, restLength);
             largestCorrection = Math.Max(largestCorrection, correction);
         }
 
+        return Math.Max(largestCorrection, SolveHeldSpans(restLength));
+    }
+
+    /// <summary>
+    /// The rope a figure holds in two hands is its body, and a body does not bend: the stretch between its hands is held
+    /// at its full length, which every link inside it already at rest can only be by lying straight.
+    /// </summary>
+    /// <remarks>
+    /// Without it Spider-Man was a bead the rope bent through at its middle, while his picture is a rigid figure holding
+    /// the rope at two hands: whenever the rope bent at him, the rope below came out of his body to one side of his lower
+    /// hand, and was drawn running sideways into it.
+    /// </remarks>
+    internal double SolveHeldSpans(double restLength)
+    {
+        double largestCorrection = 0;
+        foreach (CharmStackLayout.Slot slot in CharmLayout.Slots)
+        {
+            if (slot.HoldsRope && HeldSpan(slot) is (int first, int last))
+            {
+                largestCorrection = Math.Max(largestCorrection, SolveLink(first, last, (last - first) * restLength));
+            }
+        }
+
         return largestCorrection;
+    }
+
+    /// <summary>The links between every holding figure's hands.</summary>
+    /// <remarks>
+    /// Left elastic, they stretched under load past the length the span is held at — a hard pull on Elastic, or Gwen
+    /// swinging — and could only fit it by buckling sideways: the node Spider-Man is drawn at bowed off the line
+    /// between his hands, carrying him off the rope, and the rope stepped sideways to reach each hand.
+    /// </remarks>
+    internal HashSet<int> HeldLinks()
+    {
+        var links = new HashSet<int>();
+        foreach (CharmStackLayout.Slot slot in CharmLayout.Slots)
+        {
+            if (slot.HoldsRope && HeldSpan(slot) is (int first, int last))
+            {
+                for (int link = first; link < last; link++)
+                {
+                    links.Add(link);
+                }
+            }
+        }
+
+        return links;
+    }
+
+    /// <summary>
+    /// Where a charm is drawn: its node — or, for a figure holding the rope in two hands, midway between them, so its
+    /// hands are exactly where the cord meets them whatever its node is doing.
+    /// </summary>
+    public Vec2 DrawnCenter(CharmStackLayout.Slot slot) =>
+        slot.HoldsRope && HeldSpan(slot) is (int first, int last)
+            ? (PositionOfNode(first) + PositionOfNode(last)) * 0.5
+            : PositionOfNode(slot.Node);
+
+    /// <summary>The first and last nodes between a holding figure's hands; null when it spans too little rope.</summary>
+    public (int First, int Last)? HeldSpan(CharmStackLayout.Slot slot)
+    {
+        if (Configuration.SegmentLength <= 0)
+        {
+            return null;
+        }
+
+        int reach = (int)Math.Round(slot.Radius * slot.KnotInset / Configuration.SegmentLength);
+        if (reach < 1)
+        {
+            return null;
+        }
+
+        int first = Math.Max(0, slot.Node - reach);
+        int last = Math.Min(Points.Length - 1, slot.Node + reach);
+        return last > first + 1 ? (first, last) : null;
     }
 
     /// <returns>The magnitude of the correction applied to this link.</returns>

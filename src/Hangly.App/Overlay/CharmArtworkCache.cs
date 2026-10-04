@@ -10,7 +10,6 @@ using Hangly.Core.Models;
 using Hangly.Core.Physics;
 using Microsoft.Graphics.Canvas;
 using SkiaSharp;
-using Svg.Skia;
 
 namespace Hangly.App.Overlay;
 
@@ -40,10 +39,16 @@ namespace Hangly.App.Overlay;
 /// exactly the body.
 /// </param>
 /// <param name="HangsByOwnCord">The rope drawn in its own artwork is the rope it hangs by.</param>
+/// <param name="Hook">The hook at its top the cord is tied to, if it has one (<see cref="CharmHooks"/>).</param>
+/// <param name="Connector">The jump ring, and cap, joining the rope to that hook.</param>
 /// <param name="CordInset">
 /// Where the drawn cord ends, when that is lower than the charm can be hung from — the
 /// cord then carries on behind the artwork to it. Null for every charm whose cord ends at
 /// its knot.
+/// </param>
+/// <param name="Figure">
+/// For a figure of a picture that hangs by its own rope (<see cref="PictureParts"/>): the picture's rope above it, which
+/// is drawn along the cord in place of a rope style. Null for every other charm.
 /// </param>
 public sealed record CharmDescriptor(
     string Id,
@@ -57,7 +62,11 @@ public sealed record CharmDescriptor(
     Hangly.Core.Audio.CharmSound Sound = Hangly.Core.Audio.CharmSound.Soft,
     double? CordInset = null,
     Rect? DrawRegion = null,
-    bool HangsByOwnCord = false);
+    bool HangsByOwnCord = false,
+    PictureFigure? Figure = null,
+    CharmArtworkHook? Hook = null,
+    HookConnector? Connector = null,
+    double? RopeMeetsInset = null);
 
 /// <summary>Where one charm is drawn: its centre, its radius and how far it is turned.</summary>
 /// <param name="Rotation">From hanging straight down, in radians.</param>
@@ -82,7 +91,7 @@ public readonly record struct CharmHang(Vec2 Center, double Radius, double Rotat
 public sealed class CharmArtworkCache : IDisposable
 {
     private readonly string directory;
-    private readonly Dictionary<string, SKSvg> documents = [];
+    private readonly Dictionary<string, SKPicture?> documents = [];
     private readonly Dictionary<string, SKImage?> naturals = [];
     private readonly Dictionary<(string File, int Level), SKImage?> levels = [];
     private readonly Dictionary<(string File, int Size, Rect Region), CanvasBitmap> rasters = [];
@@ -143,6 +152,67 @@ public sealed class CharmArtworkCache : IDisposable
             new Windows.Foundation.Rect(0, 0, bitmap.SizeInPixels.Width, bitmap.SizeInPixels.Height),
             1f,
             Microsoft.Graphics.Canvas.CanvasImageInterpolation.HighQualityCubic);
+        session.Transform = previous;
+    }
+
+    /// <summary>The charm's glow, in its own shape and colours, where <paramref name="hang"/> puts it.</summary>
+    /// <remarks>
+    /// The charm's own bitmap, blurred out past its edge and recoloured towards its palette: each part glows the
+    /// colour it is, leaning towards the palette's, and lifted so a dark part never casts a dark halo
+    /// (<see cref="GlowTable.GlowColour"/>). It used to be a disc of the palette's colour whatever the charm's shape
+    /// — a ring round a tall figure, a moon behind a slender bell. Effects on the GPU, like the drop shadow, so a
+    /// frame costs no CPU pass at any strength. macOS's <c>CharmRenderer.drawAmbientGlow</c>.
+    /// </remarks>
+    public void DrawGlow(CanvasDrawingSession session, CharmDescriptor? charm, CharmHang hang, GlowStrength strength)
+    {
+        if (charm is null || Place(session, charm, hang, mask: false) is not { Bitmap: { } bitmap } placed)
+        {
+            return;
+        }
+
+        Windows.Foundation.Rect destination = placed.Destination;
+        float scale = (float)(destination.Width / bitmap.SizeInPixels.Width);
+        if (scale <= 0)
+        {
+            return;
+        }
+
+        // In the bitmap's own pixels, like the shadow, and scaled into place afterwards.
+        double shorter = Math.Min(destination.Width, destination.Height);
+        using var blur = new Microsoft.Graphics.Canvas.Effects.GaussianBlurEffect
+        {
+            Source = bitmap,
+            BlurAmount = (float)(shorter * strength.Spread / scale),
+            BorderMode = Microsoft.Graphics.Canvas.Effects.EffectBorderMode.Soft,
+            Optimization = Microsoft.Graphics.Canvas.Effects.EffectOptimization.Speed,
+        };
+
+        CharmColor tint = GlowTable.TintOf(charm.Palette.Primary);
+        float own = (float)GlowTable.OwnColourShare;
+        float Offset(double channel) => (float)((channel * (1 - GlowTable.OwnColourShare)) + GlowTable.Lift);
+        using var colour = new Microsoft.Graphics.Canvas.Effects.ColorMatrixEffect
+        {
+            Source = blur,
+            ColorMatrix = new Microsoft.Graphics.Canvas.Effects.Matrix5x4
+            {
+                M11 = own, M22 = own, M33 = own,
+                M44 = (float)Math.Min(1, GlowTable.Opacity * strength.Intensity),
+                M51 = Offset(tint.Red), M52 = Offset(tint.Green), M53 = Offset(tint.Blue),
+            },
+            ClampOutput = true,
+        };
+
+        using var placedGlow = new Microsoft.Graphics.Canvas.Effects.Transform2DEffect
+        {
+            Source = colour,
+            TransformMatrix =
+                System.Numerics.Matrix3x2.CreateScale(scale)
+                * System.Numerics.Matrix3x2.CreateTranslation((float)destination.X, (float)destination.Y),
+        };
+
+        System.Numerics.Matrix3x2 previous = session.Transform;
+        session.Transform = Turn(hang) * previous;
+        session.DrawImage(placedGlow);
         session.Transform = previous;
     }
 
@@ -375,14 +445,14 @@ public sealed class CharmArtworkCache : IDisposable
     }
 
     /// <summary>The measurement itself, with no cache and no device behind it.</summary>
-    private static CharmArtworkRegions? MeasureDocument(SKSvg? document, CharmCatalogEntry entry)
+    private static CharmArtworkRegions? MeasureDocument(SKPicture? document, CharmCatalogEntry entry)
     {
-        if (document?.Picture is null)
+        if (document is null)
         {
             return null;
         }
 
-        SKRect bounds = document.Picture.CullRect;
+        SKRect bounds = document.CullRect;
         if (bounds.Width <= 0 || bounds.Height <= 0)
         {
             return null;
@@ -396,16 +466,90 @@ public sealed class CharmArtworkCache : IDisposable
         double contentWidth = bounds.Width * scale / side;
 
         byte[]? alpha = AlphaMask(document, bounds, scale, side);
-        return alpha is null
-            ? null
-            : CharmArtworkSplitter.Split(alpha, side, contentWidth, entry.BeadCount, entry.BodyRun, entry.CordDrawn);
+        bool hook = CharmHooks.Ids.Contains(entry.Id);
+        if (alpha is null
+            || CharmArtworkSplitter.Split(alpha, side, contentWidth, entry.BeadCount, entry.BodyRun, entry.CordDrawn, hook)
+                is not CharmArtworkRegions regions)
+        {
+            return null;
+        }
+
+        // Where the cord meets the charm, on a sharper picture of its top than the split: a bail's eye is a few pixels
+        // across at the split's resolution.
+        Rect window = CharmArtworkSplitter.TopWindow(regions.Body);
+        double pixelsPerUnit = Math.Min(CharmArtworkSplitter.TopPixelsPerUnit, CharmArtworkSplitter.TopPixelsAcross / regions.Body.Width);
+        int width = Math.Max(8, (int)Math.Round(window.Width * pixelsPerUnit));
+        int height = Math.Max(8, (int)Math.Round(window.Height * pixelsPerUnit));
+        byte[]? top = AlphaRegion(document, bounds, window, width, height);
+        CharmArtworkRegions refined = top is null ? regions : CharmArtworkSplitter.Refine(regions, top, width, height, window, hook);
+
+        // Where the body's centre line first meets ink, on that line alone: the knot is found across a wider band, which
+        // on a charm whose top is off its centre line — the ball above Ronaldo, the cobra over the lingam — stopped the
+        // cord in mid-air above it (Sharan, 4 Oct).
+        Rect body = refined.Body;
+        var axis = new Rect(body.MidX - (body.Width * 0.004), body.Top, body.Width * 0.008, body.Height);
+        const int AxisRows = 600;
+        if (axis.Width > 0 && axis.Height > 0 && AlphaRegion(document, bounds, axis, 3, AxisRows) is byte[] line)
+        {
+            for (int row = 0; row < AxisRows; row++)
+            {
+                if (line[row * 3] > 40 || line[(row * 3) + 1] > 40 || line[(row * 3) + 2] > 40)
+                {
+                    return refined with { AxisY = axis.Top + ((double)row / AxisRows * axis.Height) };
+                }
+            }
+        }
+
+        return refined;
+    }
+
+    /// <summary>The alpha of <paramref name="region"/> of the artwork's unit square, <paramref name="width"/> × <paramref name="height"/>.</summary>
+    private static byte[]? AlphaRegion(SKPicture document, SKRect bounds, Rect region, int width, int height)
+    {
+        using var surface = SKSurface.Create(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul));
+        if (surface is null)
+        {
+            return null;
+        }
+
+        // The unit square at this many pixels, the artwork centred in it at its longest side, then the region's corner
+        // moved to the origin.
+        float unit = (float)(width / region.Width);
+        float scale = unit / Math.Max(bounds.Width, bounds.Height);
+        SKCanvas canvas = surface.Canvas;
+        canvas.Clear(SKColors.Transparent);
+        canvas.Translate((float)(-region.Left * unit), (float)(-region.Top * unit));
+        canvas.Translate((unit - (bounds.Width * scale)) / 2, (unit - (bounds.Height * scale)) / 2);
+        canvas.Scale(scale);
+        canvas.Translate(-bounds.Left, -bounds.Top);
+        canvas.DrawPicture(document);
+        canvas.Flush();
+
+        using SKImage image = surface.Snapshot();
+        using SKPixmap pixmap = image.PeekPixels();
+        if (pixmap is null)
+        {
+            return null;
+        }
+
+        byte[] pixels = new byte[pixmap.BytesSize];
+        System.Runtime.InteropServices.Marshal.Copy(pixmap.GetPixels(), pixels, 0, pixels.Length);
+        var alpha = new byte[width * height];
+        for (int index = 0; index < alpha.Length; index++)
+        {
+            alpha[index] = pixels[(index * 4) + 3];
+        }
+
+        return alpha;
     }
 
     /// <summary>What happened when every charm in the catalogue was opened and measured.</summary>
+    /// <param name="Unhooked">Charms listed with a hook (<see cref="CharmHooks"/>) whose hook was not found.</param>
     public readonly record struct ArtworkReport(
         IReadOnlyList<string> Missing,
         IReadOnlyList<string> Unmeasured,
-        int Measured);
+        int Measured,
+        IReadOnlyList<string> Unhooked);
 
     /// <summary>
     /// Opens and measures every charm in the catalogue, and says which ones failed.
@@ -423,6 +567,7 @@ public sealed class CharmArtworkCache : IDisposable
     {
         var missing = new List<string>();
         var unmeasured = new List<string>();
+        var unhooked = new List<string>();
         int measured = 0;
 
         foreach (CharmCatalogEntry entry in CharmCatalog.All)
@@ -434,32 +579,33 @@ public sealed class CharmArtworkCache : IDisposable
                 continue;
             }
 
-            using var document = new SKSvg();
-            try
+            using SKPicture? document = ImageSvgPicture.Load(path);
+            if (document is null)
             {
-                document.Load(path);
-            }
-            catch (Exception exception)
-            {
-                missing.Add($"{entry.Id} ({entry.FileName}): {exception.GetType().Name}");
+                missing.Add($"{entry.Id} ({entry.FileName}): not pictures in a wrapper");
                 continue;
             }
 
-            if (MeasureDocument(document, entry) is null)
+            CharmArtworkRegions? regions = MeasureDocument(document, entry);
+            if (regions is null)
             {
                 unmeasured.Add($"{entry.Id} (beads {entry.BeadCount}, body {entry.BodyRun})");
             }
             else
             {
                 measured++;
+                if (CharmHooks.Ids.Contains(entry.Id) && regions.Value.Hook is null)
+                {
+                    unhooked.Add(entry.Id);
+                }
             }
         }
 
-        return new ArtworkReport(missing, unmeasured, measured);
+        return new ArtworkReport(missing, unmeasured, measured, unhooked);
     }
 
     /// <summary>One byte of alpha per pixel of the fitted square, top row first.</summary>
-    private static byte[]? AlphaMask(SKSvg document, SKRect bounds, float scale, int side)
+    private static byte[]? AlphaMask(SKPicture document, SKRect bounds, float scale, int side)
     {
         using var surface = SKSurface.Create(new SKImageInfo(
             side,
@@ -471,7 +617,7 @@ public sealed class CharmArtworkCache : IDisposable
         canvas.Clear(SKColors.Transparent);
         canvas.Translate((side - (bounds.Width * scale)) / 2, (side - (bounds.Height * scale)) / 2);
         canvas.Scale(scale);
-        canvas.DrawPicture(document.Picture);
+        canvas.DrawPicture(document);
         canvas.Flush();
 
         using SKImage image = surface.Snapshot();
@@ -496,19 +642,20 @@ public sealed class CharmArtworkCache : IDisposable
 
     private CanvasBitmap? Raster(string fileName, int pixels, Rect region)
     {
+        RenderTimes.Rasters++;
         if (rasters.TryGetValue((fileName, pixels, region), out CanvasBitmap? cached))
         {
             lastDrawn[(fileName, pixels, region)] = frame;
             return cached;
         }
 
-        SKSvg? document = Document(fileName);
-        if (document?.Picture is null)
+        SKPicture? document = Document(fileName);
+        if (document is null)
         {
             return null;
         }
 
-        SKRect bounds = document.Picture.CullRect;
+        SKRect bounds = document.CullRect;
         if (bounds.Width <= 0 || bounds.Height <= 0)
         {
             return null;
@@ -555,7 +702,7 @@ public sealed class CharmArtworkCache : IDisposable
             (square - (bounds.Width * scale)) / 2,
             (square - (bounds.Height * scale)) / 2);
         canvas.Scale(scale);
-        DrawSource(canvas, fileName, document.Picture, bounds, scale);
+        DrawSource(canvas, fileName, document, bounds, scale);
         canvas.Flush();
 
         using SKImage image = surface.Snapshot();
@@ -585,6 +732,12 @@ public sealed class CharmArtworkCache : IDisposable
     /// pixels to the fitted unit square — or its rope mask: the alpha raised four-fold, in
     /// black.
     /// </summary>
+    /// <summary>
+    /// A column of the artwork rasterised at <paramref name="unit"/> pixels to the unit square, kept like any other raster:
+    /// the picture's own rope, for <see cref="RopeRenderer"/> to lay along the cord.
+    /// </summary>
+    public CanvasBitmap? RasterColumn(string fileName, double unit, Rect region) => RasterRegion(fileName, unit, region, mask: false);
+
     private CanvasBitmap? RasterRegion(string fileName, double unit, Rect region, bool mask)
     {
         int width = Math.Max(1, (int)Math.Ceiling(region.Width * unit));
@@ -596,13 +749,14 @@ public sealed class CharmArtworkCache : IDisposable
             return cached;
         }
 
-        SKSvg? document = Document(fileName);
-        if (document?.Picture is null)
+        RenderTimes.Rasters++;
+        SKPicture? document = Document(fileName);
+        if (document is null)
         {
             return null;
         }
 
-        SKRect bounds = document.Picture.CullRect;
+        SKRect bounds = document.CullRect;
         if (bounds.Width <= 0 || bounds.Height <= 0)
         {
             return null;
@@ -618,7 +772,7 @@ public sealed class CharmArtworkCache : IDisposable
         canvas.Translate(-(float)(region.Left * unit), -(float)(region.Top * unit));
         canvas.Translate((float)((unit - (bounds.Width * scale)) / 2), (float)((unit - (bounds.Height * scale)) / 2));
         canvas.Scale(scale);
-        DrawSource(canvas, fileName, document.Picture, bounds, scale);
+        DrawSource(canvas, fileName, document, bounds, scale);
         canvas.Flush();
 
         using SKImage image = surface.Snapshot();
@@ -742,7 +896,7 @@ public sealed class CharmArtworkCache : IDisposable
         {
             foreach (string file in documents.Keys.Where(file => !keep.Contains(file)).ToList())
             {
-                documents[file].Dispose();
+                documents[file]?.Dispose();
                 documents.Remove(file);
             }
         }
@@ -920,11 +1074,12 @@ public sealed class CharmArtworkCache : IDisposable
     /// </remarks>
     private static readonly SKSamplingOptions Downscale = new(SKCubicResampler.Mitchell);
 
-    private SKSvg? Document(string fileName)
+    /// <summary>The artwork as a picture, read once per file; see <see cref="ImageSvgPicture"/>.</summary>
+    private SKPicture? Document(string fileName)
     {
         lock (gate)
         {
-            if (documents.TryGetValue(fileName, out SKSvg? cached))
+            if (documents.TryGetValue(fileName, out SKPicture? cached))
             {
                 return cached;
             }
@@ -935,10 +1090,9 @@ public sealed class CharmArtworkCache : IDisposable
                 return null;
             }
 
-            var svg = new SKSvg();
-            svg.Load(path);
-            documents[fileName] = svg;
-            return svg;
+            SKPicture? picture = ImageSvgPicture.Load(path);
+            documents[fileName] = picture;
+            return picture;
         }
     }
 
@@ -963,9 +1117,9 @@ public sealed class CharmArtworkCache : IDisposable
             bitmap.Dispose();
         }
 
-        foreach (SKSvg document in documents.Values)
+        foreach (SKPicture? document in documents.Values)
         {
-            document.Dispose();
+            document?.Dispose();
         }
 
         rasters.Clear();

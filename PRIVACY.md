@@ -1,7 +1,8 @@
 # Privacy
 
 Hangly is an ornament that hangs on your desktop. What leaves your PC, and why, is all
-below: the installation registry, a few usage events, crash reports, and the update check.
+below: the installation registry, a few usage events, crash reports, the update check, and the
+announcements check.
 
 ## The installation registry
 
@@ -126,8 +127,20 @@ reads the position of the cursor and the state of the mouse button so the charm 
 picked up, which is information Windows publishes to any process and needs no permission.
 It does not read window contents, other applications, or anything you type.
 
+## Announcements
+
+Every fifteen minutes or so while Hangly runs — and at launch, when the network comes back, on waking from sleep,
+and never more than once a minute — Hangly asks `hangly-sm.web.app/announcements` (Firebase Hosting, in front of the
+same Firebase project as the registry) what news is live: a new collection, say. The request carries the platform and
+nothing else: no installation ID, no nickname, no version, no cookies. When nothing has changed the answer is a few
+hundred bytes. As with any web request, the server sees an IP address; it is not stored.
+
+What has been shown, read or cleared is kept on this computer only, in `%AppData%\Hangly\notifications.json`. Usage
+events record that a card was shown, opened or dismissed (`notification_shown` and the others in
+CHANGELOG.md) by the announcement's ID — never its title or message, and never anything you typed.
+
 ## No other network use
 
-Beyond the registry, usage events, crash reports and the update check, Hangly makes no
-network requests. It loads no remote content and contacts no other service. The links on the About page open in your
+Beyond the registry, usage events, crash reports, the update check and the announcements check,
+Hangly makes no network requests. It loads no remote content and contacts no other service. The links on the About page open in your
 browser; the app does not fetch them.

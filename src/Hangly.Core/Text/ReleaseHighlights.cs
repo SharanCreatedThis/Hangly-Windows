@@ -21,20 +21,19 @@ public sealed record Highlight(string Title, string Text);
 public static class ReleaseHighlights
 {
     /// <summary>The feature version these words describe.</summary>
-    public const string FeatureVersion = "2.2";
+    public const string FeatureVersion = "2.3";
 
-    public const string Heading = "What's new in Hangly 2.2";
+    public const string Heading = "What's new in Hangly 2.3";
 
     public const string Lead = "Hangly updated itself. Here's what's new.";
 
     public static IReadOnlyList<Highlight> Items { get; } =
     [
-        new("Ninety new charms", "One Piece, Harry Potter, Ben 10, Attack on Titan, Naruto, Game of Thrones, Air Jordan and Pokémon, and more in four others."),
-        new("Spirituality", "Tamil Spiritual is now Spirituality, with charms from every faith: Hindu, Buddhist, Muslim and Christian."),
-        new("Charms hang like the real thing", "The cord meets every charm where it actually is, tucked into its own loop instead of stopping short."),
-        new("Every collection, one row", "The collection cards at the top of the Library scroll sideways, so all seventeen are a click away."),
-        new("Delete your own charms", "Right-click a charm you imported or made in Create to delete it."),
-        new("Start over in Create", "Not happy with a picture? The ✕ beside Open removes it without saving."),
+        new("News from the charm", "New charms and collections pop up in glass under your charm, swing with it, and leave on their own. Close one any time with ×."),
+        new("Update from the charm", "When a new version is ready, a card under the charm says what's new. Update Now installs it, or choose Later."),
+        new("Right-click the charm", "Notifications, the Library and Hide Charm, right where the charm hangs."),
+        new("Works with Smart App Control", "Hangly no longer uses the unsigned files Windows 11 blocked, so it starts on every PC."),
+        new("Faster, smaller updates", "The Library opens without freezing, and an update downloads only what changed."),
     ];
 
     /// <summary>Whether this launch opens the release notes.</summary>

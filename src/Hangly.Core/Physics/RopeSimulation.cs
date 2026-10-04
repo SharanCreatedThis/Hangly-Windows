@@ -101,6 +101,9 @@ public sealed partial class RopeSimulation
     /// </summary>
     public double CharmSize { get; internal set; } = 1;
 
+    /// <summary>What the canvas was made for, when that is more than the rope (<c>PictureParts.CanvasRopeLength</c>).</summary>
+    public double? CanvasRopeLength { get; internal set; }
+
     /// <summary>Mass and size of every charm on the rope, from the anchor down.</summary>
     public IReadOnlyList<CharmMetrics> CharmStackMetrics { get; internal set; }
 
@@ -129,6 +132,9 @@ public sealed partial class RopeSimulation
 
     /// <summary>Direction from the knot to each charm's centre, which is how each hangs.</summary>
     internal readonly List<double> CharmOrientations = [];
+
+    /// <summary>Each charm's orientation at the last step, for <see cref="SettledOrientation"/>: a charm turns, it does not jump.</summary>
+    private readonly List<double> previousOrientations = [];
 
     /// <summary>
     /// The stretch of cord each charm covers, from where the cord meets it to where the
@@ -229,6 +235,10 @@ public sealed partial class RopeSimulation
     /// </remarks>
     public double CharmOffsetFromAnchor =>
         Points.Length == 0 ? 0 : Points[^1].Position.X - Anchor.X;
+
+    /// <summary>From the anchor to the charm's node, both axes. Allocation-free, for reading on every tick.</summary>
+    public Vec2 CharmFromAnchor =>
+        Points.Length == 0 ? default : Points[^1].Position - Anchor;
 
     /// <summary>Gives the charm a sideways shove, as though someone had flicked it.</summary>
     /// <remarks>
@@ -358,10 +368,11 @@ public sealed partial class RopeSimulation
     /// nobody asked for — and the charm visibly moves through the wrong position on the
     /// way to the right one.
     /// </remarks>
-    public void Fit(Size canvasSize, double charmSize, double ropeLength)
+    public void Fit(Size canvasSize, double charmSize, double ropeLength, double? canvasRopeLength = null)
     {
         CharmSize = charmSize;
         RopeLength = ropeLength;
+        CanvasRopeLength = canvasRopeLength;
         Resize(canvasSize);
     }
 
@@ -377,7 +388,8 @@ public sealed partial class RopeSimulation
             TimeProfile,
             CharmSize,
             RopeLength,
-            Motion);
+            Motion,
+            CanvasRopeLength);
 
         // A rope that has not started has no motion to preserve, so it is laid out on the
         // new canvas rather than moved onto it. That is the difference between the overlay

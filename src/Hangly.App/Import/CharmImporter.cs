@@ -9,7 +9,6 @@ using Hangly.App.Overlay;
 using Hangly.Core.Import;
 using Hangly.Core.Models;
 using SkiaSharp;
-using Svg.Skia;
 
 namespace Hangly.App.Import;
 
@@ -53,45 +52,13 @@ public static class CharmImporter
     private const double MeaningfulAlphaFraction = 0.02;
 
     /// <summary>Reads, checks and stores a drawing.</summary>
-    public static ImportOutcome Import(string path, CustomCharmStore store)
-    {
-        if (!File.Exists(path))
-        {
-            return ImportOutcome.Refused("That file isn't there any more.");
-        }
-
-        if (!Path.GetExtension(path).Equals(".svg", StringComparison.OrdinalIgnoreCase))
-        {
-            return ImportOutcome.Refused(
-                $"Hangly can import SVG drawings. “{Path.GetFileName(path)}” isn't one.");
-        }
-
-        var file = new FileInfo(path);
-        if (file.Length == 0)
-        {
-            return ImportOutcome.Refused("That file is empty.");
-        }
-
-        if (file.Length > SvgSanitizer.MaximumBytes)
-        {
-            return ImportOutcome.Refused(
-                $"That drawing is {file.Length / (1024 * 1024)} MB. Hangly accepts SVG files up to "
-                + $"{SvgSanitizer.MaximumBytes / (1024 * 1024)} MB.");
-        }
-
-        string markup;
-        try
-        {
-            markup = File.ReadAllText(path);
-        }
-        catch (Exception exception)
-        {
-            Services.Diagnostics.Failure("reading an import", exception);
-            return ImportOutcome.Refused("That file couldn't be read.");
-        }
-
-        return ImportMarkup(markup, NameFor(path), store);
-    }
+    /// <remarks>
+    /// Pictures only — PNG, JPEG and WebP — exactly as Create takes them. SVG drawings are
+    /// not accepted on Windows any more: drawing them needed an unsigned SVG library that
+    /// Smart App Control blocks, which stopped Hangly working on those PCs.
+    /// </remarks>
+    public static ImportOutcome Import(string path, CustomCharmStore store) =>
+        ImportAny(path, NameFor(path), store);
 
     /// <summary>
     /// Everything an import does once the bytes are in hand: clean, measure, keep.
@@ -157,31 +124,16 @@ public static class CharmImporter
             return ImportOutcome.Refused("That file is empty.");
         }
 
-        string extension = Path.GetExtension(path).ToLowerInvariant();
-        if (extension == ".svg")
+        if (Path.GetExtension(path).Equals(".svg", StringComparison.OrdinalIgnoreCase))
         {
-            if (file.Length > SvgSanitizer.MaximumBytes)
-            {
-                return ImportOutcome.Refused(
-                    $"That drawing is {file.Length / (1024 * 1024)} MB. Hangly accepts SVG files up to "
-                    + $"{SvgSanitizer.MaximumBytes / (1024 * 1024)} MB.");
-            }
-
-            try
-            {
-                return ImportMarkup(File.ReadAllText(path), name, store);
-            }
-            catch (Exception exception)
-            {
-                Services.Diagnostics.Failure("reading an import", exception);
-                return ImportOutcome.Refused("That file couldn't be read.");
-            }
+            return ImportOutcome.Refused(
+                "Hangly on Windows uses pictures — PNG, JPG or WebP. Export the drawing as a PNG and add that.");
         }
 
         if (!RasterCharmSource.Handles(path))
         {
             return ImportOutcome.Refused(
-                $"Hangly can use PNG, JPG and SVG. “{Path.GetFileName(path)}” isn't one of those.");
+                $"Hangly can use PNG, JPG and WebP pictures. “{Path.GetFileName(path)}” isn't one of those.");
         }
 
         RasterCharmSource.RasterResult raster = RasterCharmSource.ToSvg(path);
@@ -224,24 +176,15 @@ public static class CharmImporter
     /// <summary>Rasterises once, and reads the weight, the framing and the colour off it.</summary>
     private static Measured? Measure(string markup)
     {
-        using var document = new SKSvg();
-        try
-        {
-            using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(markup));
-            document.Load(stream);
-        }
-        catch (Exception exception)
-        {
-            Services.Diagnostics.Failure("rendering an import", exception);
-            return null;
-        }
-
-        if (document.Picture is null)
+        // Only a wrapper this build can draw is kept, so nothing reaches the store that the
+        // overlay would then fail to show.
+        using SKPicture? document = Overlay.ImageSvgPicture.FromMarkup(markup);
+        if (document is null)
         {
             return null;
         }
 
-        SKRect bounds = document.Picture.CullRect;
+        SKRect bounds = document.CullRect;
         if (bounds.Width <= 0 || bounds.Height <= 0)
         {
             return null;
@@ -260,7 +203,7 @@ public static class CharmImporter
             (AnalysisPixels - (bounds.Width * scale)) / 2,
             (AnalysisPixels - (bounds.Height * scale)) / 2);
         canvas.Scale(scale);
-        canvas.DrawPicture(document.Picture);
+        canvas.DrawPicture(document);
         canvas.Flush();
 
         using SKImage image = surface.Snapshot();

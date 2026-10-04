@@ -390,8 +390,11 @@ internal sealed class LayeredOverlaySurface : IDisposable
             return;
         }
 
+        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+        long t1, t2;
         using (CanvasDrawingSession session = swapChain!.CreateDrawingSession(Microsoft.UI.Colors.Transparent))
         {
+            t1 = System.Diagnostics.Stopwatch.GetTimestamp();
             if (opacity >= 1)
             {
                 draw(session);
@@ -405,11 +408,17 @@ internal sealed class LayeredOverlaySurface : IDisposable
                     draw(session);
                 }
             }
+
+            t2 = System.Diagnostics.Stopwatch.GetTimestamp();
         }
+
+        long t3 = System.Diagnostics.Stopwatch.GetTimestamp();
 
         // Not synchronised to the display here: the frame loop already waited for the
         // compositor, and waiting twice halves the frame rate.
         swapChain.Present(0);
+        long t4 = System.Diagnostics.Stopwatch.GetTimestamp();
+        PresentTimes.Note(t0, t1, t2, t3, t4);
 
         if (origin.X != placedAt.X || origin.Y != placedAt.Y || pixelWidth != placedWidth || pixelHeight != placedHeight)
         {
@@ -697,5 +706,35 @@ internal sealed class LayeredOverlaySurface : IDisposable
             NativeMethods.DestroyWindow(handle);
             handle = IntPtr.Zero;
         }
+    }
+}
+
+/// <summary>For the smoothness checks only: the worst of each part of a present since last asked.</summary>
+internal static class PresentTimes
+{
+    private static readonly double[] Worst = new double[4];
+
+    /// <summary>On only with HANGLY_AUDIT_FRAMES=1; otherwise nothing is recorded.</summary>
+    public static readonly bool On = Environment.GetEnvironmentVariable("HANGLY_AUDIT_FRAMES") == "1";
+
+    public static void Note(long t0, long t1, long t2, long t3, long t4)
+    {
+        if (!On)
+        {
+            return;
+        }
+
+        Span<long> marks = [t0, t1, t2, t3, t4];
+        for (int index = 0; index < 4; index++)
+        {
+            Worst[index] = Math.Max(Worst[index], System.Diagnostics.Stopwatch.GetElapsedTime(marks[index], marks[index + 1]).TotalMilliseconds);
+        }
+    }
+
+    public static string Take()
+    {
+        string text = $"session open {Worst[0]:0.0}, renderer {Worst[1]:0.0}, session close {Worst[2]:0.0}, present {Worst[3]:0.0}";
+        Array.Clear(Worst);
+        return text;
     }
 }

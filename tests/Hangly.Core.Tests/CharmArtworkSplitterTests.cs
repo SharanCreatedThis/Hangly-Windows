@@ -122,17 +122,46 @@ public class CharmArtworkSplitterTests
         Assert.InRange(regions.KnotY!.Value * Side, 84, 94);
     }
 
-    [Fact(DisplayName = "A cord threads a hook to the charm it holds")]
-    public void CordThreadsTheHook()
+    [Fact(DisplayName = "A cord is tied to a hook: it ends in the hook's bar, over its eye, and goes no further")]
+    public void CordIsTiedToTheHook()
     {
-        // A ring whose hole is a hook's — rows 14 to 30 — over a body from row 40.
-        CharmArtworkRegions regions = SplitWhole(Mask(
-            (140, 10, 180, 13), (140, 10, 147, 34), (173, 10, 180, 34), (140, 31, 180, 34), (60, 40, 260, 319)));
+        // A ring whose eye is rows 14 to 30, over a body from row 40.
+        byte[] mask = Mask((140, 10, 180, 13), (140, 10, 147, 34), (173, 10, 180, 34), (140, 31, 180, 34), (60, 40, 260, 319));
+        CharmArtworkRegions regions = CharmArtworkSplitter.Split(mask, Side, 1, 0, 0, hook: true)
+            ?? throw new InvalidOperationException("the splitter refused a silhouette it should read");
 
-        // Through the ring and its hole, and tucked into the body below.
-        Assert.Equal(48.5, regions.KnotY!.Value * Side, 6);
+        CharmArtworkHook hook = regions.Hook ?? throw new InvalidOperationException("the ring is not found");
+        Assert.Equal(10, hook.BarTop * Side, 0);
+        Assert.Equal(14, hook.EyeTop * Side, 0);
+        Assert.Equal(31, hook.EyeBottom * Side, 0);
+        Assert.Equal(160.5, hook.CentreX * Side, 0);
+        Assert.InRange(regions.KnotY!.Value * Side, 10, 14);
         Assert.Equal(10.0 / Side, regions.Body.Top, 6);
+
+        // The same picture on a charm without a hook: in behind its top, not through the ring.
+        CharmArtworkRegions plain = SplitWhole(mask);
+        Assert.Null(plain.Hook);
+        Assert.InRange(plain.KnotY!.Value * Side, 10, 14);
     }
+
+    [Fact(DisplayName = "A ring slotted through its top is still a hook, and its jump ring spans the slot instead of hanging in it")]
+    public void SlottedRingIsSpanned()
+    {
+        // The ring of CordIsTiedToTheHook with its top bar cut through: walls 140–147 and 173–180, the bar only either
+        // side of a slot from 156 to 164.
+        byte[] mask = Mask((140, 10, 155, 13), (165, 10, 180, 13), (140, 10, 147, 34), (173, 10, 180, 34), (140, 31, 180, 34), (60, 40, 260, 319));
+        CharmArtworkRegions regions = CharmArtworkSplitter.Split(mask, Side, 1, 0, 0, hook: true)
+            ?? throw new InvalidOperationException("the splitter refused a silhouette it should read");
+        CharmArtworkHook hook = regions.Hook ?? throw new InvalidOperationException("the slotted ring is not found");
+        Assert.InRange(hook.SlotWidth * Side, 7, 11);
+        Assert.InRange(hook.CentreX * Side, 158, 162);
+        var connector = new HookConnector(hook, regions.Body, HookConnector.Weight.Small);
+        Assert.True(connector.RingRect.Width >= hook.SlotWidth * 1.2, $"a jump ring {connector.RingRect.Width} across a slot {hook.SlotWidth}");
+    }
+
+    [Fact(DisplayName = "Every charm listed with a hook is in the catalogue")]
+    public void EveryHookedCharmExists() =>
+        Assert.All(CharmHooks.Ids, id => Assert.Contains(CharmCatalog.All, entry => entry.Id == id));
 
     [Fact(DisplayName = "A cord stops in a ring above an opening too big to thread")]
     public void KnotStopsAtAnOpenRing()
@@ -160,7 +189,7 @@ public class CharmArtworkSplitterTests
         // A loop whose top wall is rows 10–19 on the centre line, its hole below.
         CharmArtworkRegions regions = SplitWhole(Mask((140, 10, 180, 19), (140, 10, 147, 50), (173, 10, 180, 50), (60, 70, 260, 319)));
 
-        Assert.InRange(regions.KnotY!.Value * Side, 11, 16);
+        Assert.InRange(regions.KnotY!.Value * Side, 11, 19.5);
     }
 
     [Fact(DisplayName = "Asking for no beads leaves the body where it is")]

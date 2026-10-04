@@ -9,6 +9,15 @@ using Hangly.Core.Geometry;
 
 namespace Hangly.Core.Models;
 
+/// <summary>A hook at the top of a charm, in the artwork's unit square. macOS's <c>CharmArtworkRegions.Hook</c>.</summary>
+/// <param name="BarTop">The top of the bar: where the cord first meets the hook.</param>
+/// <param name="EyeTop">The bottom of the bar, which is the top of the eye.</param>
+/// <param name="EyeBottom">The bottom of the eye.</param>
+/// <param name="CentreX">The hook's own centre line, across: a ring is not always quite on the charm's.</param>
+/// <param name="SlotWidth">The width of a slot cut down through the top of the ring, where a cord was once threaded;
+/// zero for a whole ring.</param>
+public readonly record struct CharmArtworkHook(double BarTop, double EyeTop, double EyeBottom, double CentreX, double SlotWidth = 0);
+
 /// <summary>A charm's artwork divided into the parts that hang independently.</summary>
 /// <remarks>
 /// Coordinates are in the artwork's fitted unit square, (0, 0) at the top left.
@@ -20,8 +29,26 @@ namespace Hangly.Core.Models;
 /// first solid part the cord reaches coming down it. Null means the top of the body,
 /// which is where it was always taken to be.
 /// </param>
-public readonly record struct CharmArtworkRegions(Rect Body, IReadOnlyList<Rect> Beads, double? KnotY = null)
+/// <param name="Hook">
+/// The hook, ring or loop at the top of the charm that the cord is tied to (<see cref="CharmHooks"/>), if it has one.
+/// </param>
+/// <param name="AxisY">
+/// Where a cord hanging straight down the body's centre line first meets the artwork, measured on that line alone; null
+/// when not measured or it never does. macOS's <c>VectorImage.axisInk</c>.
+/// </param>
+public readonly record struct CharmArtworkRegions(
+    Rect Body, IReadOnlyList<Rect> Beads, double? KnotY = null, CharmArtworkHook? Hook = null, double? AxisY = null)
 {
+    /// <summary><see cref="AxisY"/> as a fraction of the radius back from the centre, as <see cref="CordInset"/> is.</summary>
+    public double? RopeMeetsInset
+    {
+        get
+        {
+            double longest = Math.Max(Body.Width, Body.Height);
+            return AxisY is double y && longest > 0 ? 2 * (Body.Top + (Body.Height / 2) - y) / longest : null;
+        }
+    }
+
     /// <summary>
     /// Where the drawn cord ends, as a fraction of the charm's radius measured back along
     /// the final link: the top of the body is its height over its longest side, and a cord
@@ -161,7 +188,8 @@ public static class CharmArtworkSplitter
         double contentWidth,
         int beadCount,
         int bodyRun,
-        bool cordDrawn = false)
+        bool cordDrawn = false,
+        bool hook = false)
     {
         if (side <= 0 || alpha.Length < side * side || beadCount < 0 || bodyRun < beadCount)
         {
@@ -231,8 +259,56 @@ public static class CharmArtworkSplitter
         }
 
         Rect body = UnitRect(new Run(bodyTop, bodyBottom, minX, maxX), side);
-        int knot = AttachmentRow(alpha, side, bodyTop, bodyBottom, (minX + maxX) / 2);
-        return new CharmArtworkRegions(body, beads, (knot + 0.5) / side);
+        var regions = new CharmArtworkRegions(body, beads);
+        return Attached(regions, alpha, side, side, new Rect(0, 0, 1, 1), bodyTop, (minX + maxX) / 2, hook);
+    }
+
+    /// <summary>
+    /// <paramref name="regions"/> with where the cord ends, and the hook it is tied to, measured on a sharper picture of
+    /// the charm's top: <paramref name="alpha"/> is <paramref name="window"/> of the unit square, <paramref name="width"/>
+    /// × <paramref name="height"/> pixels. A bail's eye is a few pixels across at the split's resolution.
+    /// </summary>
+    public static CharmArtworkRegions Refine(
+        CharmArtworkRegions regions, ReadOnlySpan<byte> alpha, int width, int height, Rect window, bool hook)
+    {
+        if (width <= 0 || height <= 0 || alpha.Length < width * height || window.Width <= 0)
+        {
+            return regions;
+        }
+
+        double scale = width / window.Width;
+        int bodyRow = Math.Clamp((int)Math.Round((regions.Body.Top - window.Top) * scale), 0, height - 1);
+        return Attached(regions, alpha, width, height, window, bodyRow, width / 2, hook);
+    }
+
+    /// <summary>The window of the unit square <see cref="Refine"/> measures: the body, from a little above its top.</summary>
+    public static Rect TopWindow(Rect body)
+    {
+        double top = Math.Max(0, body.Top - (AttachmentDepthFraction * 2));
+        return new Rect(body.Left, top, body.Width, body.Top + body.Height - top);
+    }
+
+    /// <summary>The most detail <see cref="TopWindow"/> is measured at, in pixels per unit, and the most pixels across.</summary>
+    public const double TopPixelsPerUnit = 1600;
+
+    /// <inheritdoc cref="TopPixelsPerUnit"/>
+    public const double TopPixelsAcross = 640;
+
+    private static CharmArtworkRegions Attached(
+        CharmArtworkRegions regions, ReadOnlySpan<byte> alpha, int width, int height, Rect window, int fromRow, int centre, bool hook)
+    {
+        double scale = width / window.Width;
+        double UnitY(int row) => window.Top + (row / scale);
+        Attachment attachment = Attach(alpha, width, height, fromRow, centre, scale, hook);
+        return regions with
+        {
+            KnotY = UnitY(attachment.Row) + (0.5 / scale),
+            Hook = attachment.Hook is HookRows rows
+                ? new CharmArtworkHook(
+                    UnitY(rows.BarTop), UnitY(rows.EyeTop), UnitY(rows.EyeBottom), window.Left + ((rows.Centre + 0.5) / scale),
+                    rows.Slot / scale)
+                : null,
+        };
     }
 
     /// <summary>
@@ -258,61 +334,68 @@ public static class CharmArtworkSplitter
     public const double TuckFraction = 0.025;
 
     /// <summary>
-    /// The largest opening the cord passes through: the hole in a hook. A larger one is
-    /// the inside of a horseshoe or a frame, and the cord stops above it.
-    /// </summary>
-    public const double HoleFraction = 0.08;
-
-    /// <summary>
-    /// The most open space the cord crosses in all: a ring or two. A dream catcher's web
-    /// is many small openings that add up to far more, and the cord stops in its hoop.
-    /// </summary>
-    public const double OpenFraction = 0.12;
-
-    /// <summary>Alpha at or above this is solid enough to hide the cord behind.</summary>
-    public const byte SolidAlpha = 200;
-
-    /// <summary>
     /// Alpha above this is ink you can see. Some artwork carries a faint halo past its
     /// edge, enough to count as ink at <see cref="AlphaThreshold"/>; a cord that began the
     /// charm there stopped short of the metal by the halo's width.
     /// </summary>
     public const byte VisibleAlpha = 64;
 
-    /// <summary>The row where the cord ends: where it attaches to the charm.</summary>
+    /// <summary>
+    /// The largest eye a hook has, across or down, as a fraction of the artwork's square. A larger opening is the
+    /// inside of a horseshoe or a frame, not a hook's.
+    /// </summary>
+    public const double EyeFraction = 0.16;
+
+    /// <summary>The smallest: smaller is a chink in the artwork, not an eye.</summary>
+    public const double SmallestEyeFraction = 0.006;
+
+    /// <summary>
+    /// How far below the charm's first ink a hook's eye may begin: room for a cord the artwork draws running down into
+    /// its ring.
+    /// </summary>
+    public const double HookReachFraction = 0.2;
+
+    /// <summary>How far apart the columns an eye is looked for down are.</summary>
+    public const double EyeColumnFraction = 0.006;
+
+    private readonly record struct HookRows(int BarTop, int EyeTop, int EyeBottom, int Centre, int Slot = 0);
+
+    private readonly record struct Attachment(int Row, HookRows? Hook = null);
+
+    /// <summary>Where the cord ends, and where the hook it is tied to is. macOS's <c>CharmArtworkSplitter.attachment</c>.</summary>
     /// <remarks>
-    /// The cord comes straight down the body's centre line. It meets the charm at the first
-    /// visible ink — a ring's top, a figure's head — and carries on through anything thin:
-    /// a ring's wall and the hole inside it, a bail, a second ring. It ends a little way
-    /// into the first part solid enough to be what it is tied to, so it passes through a
-    /// hook the way a real one is threaded, and on a charm without one it runs behind the
-    /// artwork rather than stopping at its edge; the renderer takes the charm's silhouette
-    /// out of the rope, so only what shows through a hook is seen. It stops in the hook
-    /// above an opening too big to thread. macOS's <c>CharmArtworkSplitter.attachmentRow</c>.
+    /// <b>A charm with a hook at its top</b> (<see cref="CharmHooks"/>) — a ring, a bail, a loop — has the cord tied to
+    /// it: it ends in the bar above the hook's eye, and is joined to it by an end cap and jump ring (<see cref="HookConnector"/>).
+    /// <b>Any other charm</b> has the cord run a little way in behind its top, out of sight. Which charms have a hook is
+    /// a list, checked by eye against every one: a picture cannot tell a ring from the gap between a figure's arms
+    /// reliably enough, and getting it wrong ties the cord to somebody's elbow.
+    ///
+    /// <para>It used to thread the cord on through every thin part and opening it met — a ring's eye, a bead cap, a
+    /// knot's lattice — to the first part solid enough to stop in, so the cord showed through the hook and through
+    /// every opening below it, down to the bell, instead of being tied to anything.</para>
     /// </remarks>
-    private static int AttachmentRow(ReadOnlySpan<byte> alpha, int side, int top, int bottom, int centre)
+    private static Attachment Attach(
+        ReadOnlySpan<byte> alpha, int width, int height, int top, int centre, double scale, bool hook)
     {
-        (int From, int To) Strip(double fraction)
+        int Pixels(double fraction, int floor) =>
+            Math.Max(floor, (int)Math.Round(fraction * scale, MidpointRounding.AwayFromZero));
+        (int From, int To) Strip(int middle, double fraction)
         {
-            int half = Math.Max(1, (int)Math.Round(fraction * AnalysisPixels, MidpointRounding.AwayFromZero));
-            return (Math.Max(0, centre - half), Math.Min(side - 1, centre + half));
+            int half = Pixels(fraction, 1);
+            return (Math.Max(0, middle - half), Math.Min(width - 1, middle + half));
         }
 
-        static int Count(double fraction, int floor) =>
-            Math.Max(floor, (int)Math.Round(fraction * AnalysisPixels, MidpointRounding.AwayFromZero));
+        int bottom = height - 1;
+        (int From, int To) reach = Strip(centre, KnotReachFraction);
+        (int From, int To) band = Strip(centre, KnotBandFraction);
+        int depth = Pixels(AttachmentDepthFraction, 2);
+        int tuck = Pixels(TuckFraction, 1);
 
-        (int From, int To) reach = Strip(KnotReachFraction);
-        (int From, int To) band = Strip(KnotBandFraction);
-        int depth = Count(AttachmentDepthFraction, 2);
-        int tuck = Count(TuckFraction, 1);
-        int hole = Count(HoleFraction, 1);
-        int open = Count(OpenFraction, 1);
-
-        static bool Any(ReadOnlySpan<byte> alpha, int side, int row, (int From, int To) columns, byte above)
+        static bool Any(ReadOnlySpan<byte> alpha, int width, int row, (int From, int To) columns, byte above)
         {
             for (int x = columns.From; x <= columns.To; x++)
             {
-                if (alpha[(row * side) + x] > above)
+                if (alpha[(row * width) + x] > above)
                 {
                     return true;
                 }
@@ -321,23 +404,10 @@ public static class CharmArtworkSplitter
             return false;
         }
 
-        static bool All(ReadOnlySpan<byte> alpha, int side, int row, (int From, int To) columns, byte atLeast)
-        {
-            for (int x = columns.From; x <= columns.To; x++)
-            {
-                if (alpha[(row * side) + x] < atLeast)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
         int first = -1;
         for (int row = top; row <= bottom; row++)
         {
-            if (Any(alpha, side, row, reach, VisibleAlpha))
+            if (Any(alpha, width, row, reach, VisibleAlpha))
             {
                 first = row;
                 break;
@@ -346,65 +416,290 @@ public static class CharmArtworkSplitter
 
         if (first < 0)
         {
-            return top;
+            return new Attachment(top);
         }
 
-        // Runs of solid rows from where the charm begins; the first deep one is what the
-        // cord is tied to. Thin ones are threaded through, and so are the holes between
-        // them — as long as they are a hook's, not a frame's.
-        int longestStart = -1;
-        int longestLength = 0;
-        int lastInk = first;
-        int gap = 0;
-        int crossed = 0;
-        int current = first;
-        while (current <= bottom)
+        if (hook && Eye(alpha, width, height, first, centre, scale, depth) is (int eyeTop, int eyeBottom, int eyeCentre, int halfWidth))
         {
-            if (!Any(alpha, side, current, band, AlphaThreshold))
+            // The bar is the metal just above the eye, up to a bar's depth: what is above that — a cord the artwork
+            // draws running down into the ring — is cord, not hook.
+            (int From, int To) hookBand = Strip(eyeCentre, KnotBandFraction);
+            int barTop = eyeTop;
+            while (barTop > Math.Max(first, eyeTop - depth) && Any(alpha, width, barTop - 1, hookBand, VisibleAlpha))
             {
-                gap++;
-                crossed++;
-                if (gap > hole || crossed > open)
+                barTop--;
+            }
+
+            barTop = Math.Min(barTop, eyeTop - 1);
+
+            // A ring with a slot cut through the top of it — the classics, drawn for a cord threaded straight through —
+            // has a gap across its bar, down the centre or off to one side. Seen down a slot the bar read as a hairline
+            // and its jump ring came out too small to cover the slot, which showed as a gap. The bar is measured beside
+            // the slot instead, and the jump ring is centred on the slot and spans it. macOS's attachment.
+            int slot = 0, ringCentre = eyeCentre;
+            if (Slotted(alpha, width, eyeCentre, halfWidth, eyeBottom, first) is (int besideBar, int besideEye))
+            {
+                int reachAcross = halfWidth + (halfWidth / 2);
+                for (int row = besideBar; row < besideEye; row++)
                 {
+                    if (ClearRun(alpha, width, row, eyeCentre, reachAcross) is not (int gapCentre, int gapWidth))
+                    {
+                        continue;
+                    }
+
+                    bool open = true;
+                    for (int above = first; above <= row && open; above++)
+                    {
+                        open = alpha[(above * width) + gapCentre] <= AlphaThreshold;
+                    }
+
+                    if (!open)
+                    {
+                        continue;
+                    }
+
+                    (barTop, eyeTop, slot, ringCentre) = (besideBar, besideEye, gapWidth, gapCentre);
                     break;
                 }
-
-                current++;
-                continue;
             }
 
-            gap = 0;
-            lastInk = current;
-            if (!All(alpha, side, current, band, SolidAlpha))
-            {
-                current++;
-                continue;
-            }
-
-            int start = current;
-            while (current <= bottom && All(alpha, side, current, band, SolidAlpha))
-            {
-                current++;
-            }
-
-            int length = current - start;
-            if (length >= depth)
-            {
-                return start + tuck;
-            }
-
-            if (length > longestLength)
-            {
-                longestStart = start;
-                longestLength = length;
-            }
-
-            lastInk = current - 1;
+            return new Attachment(barTop + ((eyeTop - barTop) / 2), new HookRows(barTop, eyeTop, eyeBottom + 1, ringCentre, slot));
         }
 
-        // Nothing deep enough before an opening too big to thread: the most solid part
-        // passed on the way — the hook itself — or the last ink if none.
-        return longestStart < 0 ? lastInk : longestStart + (longestLength / 2);
+        // No hook: in behind the top of the charm, a little way into it.
+        int tucked = first;
+        while (tucked < first + tuck && tucked + 1 <= bottom && Any(alpha, width, tucked + 1, band, VisibleAlpha))
+        {
+            tucked++;
+        }
+
+        return new Attachment(tucked);
+    }
+
+    /// <summary>The eye of a hook at the top of the artwork — its top and bottom rows and its centre — if there is one.</summary>
+    /// <remarks>
+    /// Looked for down a few columns either side of the hook's centre line — a cord the artwork draws through its ring
+    /// covers the centre itself — as the first clear gap below the top that ink closes off: below it, and close by on
+    /// its left and right. An eye's size, no bigger.
+    /// </remarks>
+    /// <summary>The bar of a ring either side of a slot: the ring's outer top there, and where its eye begins.</summary>
+    private static (int BarTop, int EyeTop)? Slotted(ReadOnlySpan<byte> alpha, int width, int centre, int halfWidth, int eyeBottom, int first)
+    {
+        int barTop = int.MaxValue, eyeTop = int.MaxValue;
+        foreach (int side in new[] { -1, 1 })
+        {
+            int x = centre + (side * (int)Math.Round(halfWidth * 0.6));
+            if (x < 0 || x >= width)
+            {
+                continue;
+            }
+
+            int y = first;
+            while (y < eyeBottom && alpha[(y * width) + x] <= VisibleAlpha)
+            {
+                y++;
+            }
+
+            int top = y;
+            while (y < eyeBottom && alpha[(y * width) + x] > AlphaThreshold)
+            {
+                y++;
+            }
+
+            if (y > top && y < eyeBottom)
+            {
+                barTop = Math.Min(barTop, top);
+                eyeTop = Math.Min(eyeTop, y);
+            }
+        }
+
+        return barTop == int.MaxValue || eyeTop <= barTop + 1 ? null : (barTop, eyeTop);
+    }
+
+    /// <summary>The clear run across <paramref name="row"/> nearest <paramref name="centre"/>, between ink either side.</summary>
+    private static (int Centre, int Width)? ClearRun(ReadOnlySpan<byte> alpha, int width, int row, int centre, int within)
+    {
+        int low = Math.Max(0, centre - within), high = Math.Min(width - 1, centre + within);
+        int firstInk = -1, lastInk = -1;
+        for (int x = low; x <= high; x++)
+        {
+            if (alpha[(row * width) + x] > VisibleAlpha)
+            {
+                if (firstInk < 0)
+                {
+                    firstInk = x;
+                }
+
+                lastInk = x;
+            }
+        }
+
+        if (firstInk < 0 || lastInk <= firstInk)
+        {
+            return null;
+        }
+
+        (int Centre, int Width)? best = null;
+        int at = firstInk;
+        while (at <= lastInk)
+        {
+            if (alpha[(row * width) + at] > AlphaThreshold)
+            {
+                at++;
+                continue;
+            }
+
+            int start = at;
+            while (at <= lastInk && alpha[(row * width) + at] <= AlphaThreshold)
+            {
+                at++;
+            }
+
+            int runCentre = (start + at - 1) / 2, runWidth = at - start;
+            if (runWidth >= 2 && (best is null || Math.Abs(runCentre - centre) < Math.Abs(best.Value.Centre - centre)))
+            {
+                best = (runCentre, runWidth);
+            }
+        }
+
+        return best;
+    }
+
+    private static (int Top, int Bottom, int Centre, int HalfWidth)? Eye(
+        ReadOnlySpan<byte> alpha, int width, int height, int first, int centre, double scale, int depth)
+    {
+        int Pixels(double fraction, int floor) =>
+            Math.Max(floor, (int)Math.Round(fraction * scale, MidpointRounding.AwayFromZero));
+        int largest = Pixels(EyeFraction, 2);
+        int smallest = Pixels(SmallestEyeFraction, 2);
+        int reach = Pixels(HookReachFraction, 1);
+        int step = Pixels(EyeColumnFraction, 1);
+        int bottom = Math.Min(height - 1, first + reach + largest);
+
+        // The hook's own centre line: the middle of the ink at the very top. Each run of ink that reaches into the strip
+        // round the charm's centre line is followed out to its ends: cut at the strip's edge, a ring off to one side —
+        // Karuppu's, on the tip of his sword — was measured by the part of it inside, and its jump ring hung off the
+        // ring's side (Sharan, 4 Oct).
+        int wide = Pixels(KnotReachFraction * 1.5, 1);
+        double sum = 0, count = 0;
+        for (int row = first; row <= Math.Min(bottom, first + Math.Max(2, depth / 2)); row++)
+        {
+            int x = 0;
+            while (x < width)
+            {
+                if (alpha[(row * width) + x] <= VisibleAlpha)
+                {
+                    x++;
+                    continue;
+                }
+
+                int end = x;
+                while (end + 1 < width && alpha[(row * width) + end + 1] > VisibleAlpha)
+                {
+                    end++;
+                }
+
+                if (end >= centre - wide && x <= centre + wide)
+                {
+                    sum += (x + end) / 2.0 * (end - x + 1);
+                    count += end - x + 1;
+                }
+
+                x = end + 1;
+            }
+        }
+
+        int hookCentre = count > 0 ? (int)Math.Round(sum / count) : centre;
+
+        bool Clear(ReadOnlySpan<byte> alpha, int x, int y) => alpha[(y * width) + x] <= AlphaThreshold;
+        bool InkWithin(ReadOnlySpan<byte> alpha, int x, int y, int dx, int distance)
+        {
+            for (int travelled = 1; travelled <= distance; travelled++)
+            {
+                int px = x + (dx * travelled);
+                if (px >= 0 && px < width && !Clear(alpha, px, y))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        var found = new List<(int Top, int Bottom, int X)>();
+        foreach (int offset in new[] { 0, -1, 1, -2, 2, -3, 3 })
+        {
+            int x = hookCentre + (offset * step);
+            if (x < 0 || x >= width)
+            {
+                continue;
+            }
+
+            // To this column's own first ink — a ring's top is an arc, lower off the centre line — then down that ink
+            // to the first gap.
+            int y = first;
+            while (y <= Math.Min(bottom, first + largest) && Clear(alpha, x, y))
+            {
+                y++;
+            }
+
+            int inkTop = y;
+            while (y <= bottom && !Clear(alpha, x, y))
+            {
+                y++;
+            }
+
+            if (inkTop > Math.Min(bottom, first + largest) || y <= inkTop || y > bottom)
+            {
+                continue;
+            }
+
+            int gapTop = y;
+            while (y <= bottom && Clear(alpha, x, y))
+            {
+                y++;
+            }
+
+            int length = y - gapTop;
+            if (y > bottom || length < smallest || length > largest)
+            {
+                continue;
+            }
+
+            int middle = gapTop + (length / 2);
+            if (InkWithin(alpha, x, middle, -1, largest) && InkWithin(alpha, x, middle, 1, largest))
+            {
+                found.Add((gapTop, y - 1, x));
+            }
+        }
+
+        if (found.Count == 0)
+        {
+            return null;
+        }
+
+        (int Top, int Bottom, int X) topmost = found.MinBy(eye => eye.Top);
+        if (topmost.Top - first > reach)
+        {
+            return null;
+        }
+
+        var eye = found.Where(other => other.Top <= topmost.Bottom && other.Bottom >= topmost.Top).ToList();
+
+        // Its own centre: the middle of the open span across it, halfway down.
+        int half = (topmost.Top + topmost.Bottom) / 2;
+        int left = topmost.X, right = topmost.X;
+        while (left > 0 && topmost.X - left < largest && Clear(alpha, left - 1, half))
+        {
+            left--;
+        }
+
+        while (right < width - 1 && right - topmost.X < largest && Clear(alpha, right + 1, half))
+        {
+            right++;
+        }
+
+        return (eye.Min(e => e.Top), eye.Max(e => e.Bottom), (left + right) / 2, (right - left) / 2);
     }
 
     /// <summary>Horizontal ink extent of every row, top down.</summary>

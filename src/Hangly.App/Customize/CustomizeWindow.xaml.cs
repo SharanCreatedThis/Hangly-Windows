@@ -120,9 +120,13 @@ public sealed partial class CustomizeWindow : Window
         store.Changed += OnStoreChanged;
         Closed += (_, _) =>
         {
+            IsClosed = true;
             store.Changed -= OnStoreChanged;
         };
     }
+
+    /// <summary>Whether this window has closed for real; a closed WinUI window cannot be shown again.</summary>
+    public bool IsClosed { get; private set; }
 
     /// <summary>Opens at a size the charm grid reads well at.</summary>
     /// <remarks>
@@ -231,7 +235,7 @@ public sealed partial class CustomizeWindow : Window
 
         // Anything cached for a charm that is gone -- a deleted import, or a charm an
         // earlier build had -- goes with it.
-        CharmThumbnails.Prune([.. environment.Charms.All.Select(entry => entry.Id)]);
+        CharmThumbnails.Prune(environment.Charms.All);
 
         slotTiles.CollectionChanged += OnSlotsReordered;
         BuildCollections();
@@ -1065,6 +1069,26 @@ public sealed partial class CustomizeWindow : Window
     /// <summary>Opens a section by its tag: charms, create, appearance or about.</summary>
     public void ShowSectionNamed(string tag) => ShowSection(tag);
 
+    /// <summary>Opens the Library where a notification pointed: one collection, or one charm in the detail panel.</summary>
+    /// <remarks>
+    /// The search is cleared, so what was pointed at is what is seen. A charm is described, not hung: reading about a
+    /// charm is not choosing it. macOS's <c>CharmLibraryViewModel.follow</c>.
+    /// </remarks>
+    public void ShowFromNotification(string? collectionId, string? charmId)
+    {
+        ShowSection("charms");
+        query = string.Empty;
+        SearchBox.Text = string.Empty;
+        bool known = collectionId is not null && environment.Charms.Categories.Any(category => category.Id == collectionId);
+        filter = known ? CharmFilter.Category(collectionId!) : CharmFilter.All;
+        HighlightChips();
+        ShowResults();
+        if (charmId is not null && environment.Charms.Find(charmId) is { } entry && entry.Id == charmId)
+        {
+            ShowDetail(entry);
+        }
+    }
+
     /// <summary>Selects the navigation item carrying <paramref name="tag"/>.</summary>
     /// <remarks>
     /// Selecting the item is what runs <see cref="OnSectionChanged"/>, which owns page
@@ -1101,8 +1125,10 @@ public sealed partial class CustomizeWindow : Window
         UpdateMessage.Text = "Downloading…";
 
         // If this succeeds the process is replaced and nothing after it runs. If it
-        // fails, the installed copy is untouched and the message says so.
-        UpdateMessage.Text = await updater.DownloadAndApplyAsync();
+        // fails, the installed copy is untouched and the message says so. Progress arrives
+        // from the download's thread, so it is handed to this window's own.
+        Microsoft.UI.Dispatching.DispatcherQueue queue = DispatcherQueue;
+        UpdateMessage.Text = await updater.DownloadAndApplyAsync(status => queue.TryEnqueue(() => UpdateMessage.Text = status));
         InstallUpdateButton.IsEnabled = true;
         UpdateNotesPanel.Visibility = Visibility.Collapsed;
     }
@@ -1573,7 +1599,7 @@ public sealed partial class CustomizeWindow : Window
         string? path = Interop.FileDialog.OpenFile(
             WinRT.Interop.WindowNative.GetWindowHandle(this),
             "Import a charm",
-            ("SVG drawings", "*.svg"));
+            ("Pictures", "*.png;*.jpg;*.jpeg;*.webp"));
 
         Services.Diagnostics.Log($"import: chose {path ?? "nothing"}");
         if (path is null)
@@ -1647,7 +1673,8 @@ public sealed partial class CustomizeWindow : Window
         CustomCharmEntry? entry = environment.CustomCharms.Entries
             .FirstOrDefault(candidate => candidate.CharmId == id);
 
-        if (entry is null)
+        // One ContentDialog per window at a time; a second ShowAsync throws (see SupportSheet).
+        if (entry is null || Microsoft.UI.Xaml.Media.VisualTreeHelper.GetOpenPopupsForXamlRoot(Root.XamlRoot).Any(popup => popup.Child is ContentDialog))
         {
             return;
         }

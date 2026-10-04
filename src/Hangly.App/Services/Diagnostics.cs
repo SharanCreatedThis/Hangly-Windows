@@ -93,7 +93,7 @@ public static class Diagnostics
             File.WriteAllText(
                 LogPath,
                 $"Hangly {typeof(Diagnostics).Assembly.GetName().Version}" +
-                $" · {Environment.OSVersion}" +
+                $" · Windows {AppInfo.WindowsVersion}" +
                 $" · {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}" +
                 $" · {DateTimeOffset.Now:O}{Environment.NewLine}");
         }
@@ -150,6 +150,12 @@ public static class Diagnostics
             foreach (string charm in report.Unmeasured)
             {
                 Log($"  UNMEASURED {charm}");
+            }
+
+            // Listed with a hook the cord is tied to, and none found: the cord runs in behind its top instead.
+            foreach (string charm in report.Unhooked)
+            {
+                Log($"  NO HOOK   {charm}");
             }
         }
         catch (Exception exception)

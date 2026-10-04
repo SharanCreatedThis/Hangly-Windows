@@ -33,7 +33,7 @@ namespace Hangly.App;
 /// original's Observation stream, with an event standing in for
 /// <c>withObservationTracking</c>.</para>
 /// </remarks>
-public sealed class AppEnvironment : IDisposable
+public sealed partial class AppEnvironment : IDisposable
 {
     private readonly SettingsStore store;
     private readonly ILaunchAtLogin launchAtLogin;
@@ -69,6 +69,11 @@ public sealed class AppEnvironment : IDisposable
     private readonly bool updatedLaunch = Environment.GetCommandLineArgs()
         .Skip(1)
         .Contains(Hangly.Core.Lifecycle.LaunchIntent.UpdatedArgument, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The restart after Update in Background: nothing at all is opened, not even the release notes.</summary>
+    private readonly bool silentUpdatedLaunch = Environment.GetCommandLineArgs()
+        .Skip(1)
+        .Contains(Hangly.Core.Lifecycle.LaunchIntent.SilentlyArgument, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>When this process started, for <see cref="Hangly.Core.Lifecycle.UpdateTiming.SettleAfterLaunch"/>.</summary>
     private readonly long startedAt = Environment.TickCount64;
@@ -206,7 +211,7 @@ public sealed class AppEnvironment : IDisposable
         updateWait.Interval = Hangly.Core.Lifecycle.UpdateTiming.CheckEvery;
         updateWait.Tick += (timer, _) =>
         {
-            bool windowOpen = customize?.AppWindow.IsVisible == true || Onboarding.ProcessLifetime.AnyVisible;
+            bool windowOpen = Interop.WindowPlacement.IsShown(customize) || Onboarding.ProcessLifetime.AnyVisible;
             Hangly.Core.Lifecycle.UpdateMoment moment = UpdateMomentReader.Read(
                 TimeSpan.FromMilliseconds(Environment.TickCount64 - startedAt), windowOpen);
             if (!Hangly.Core.Lifecycle.UpdateTiming.ShouldInstall(moment))
@@ -225,11 +230,27 @@ public sealed class AppEnvironment : IDisposable
         Diagnostics.Log("update downloaded; waiting for a quiet moment to install it");
     }
 
+    /// <summary>
+    /// A minute after launch, renders any Library thumbnail not yet on disk on a low-priority
+    /// thread, so the Library never renders one while somebody is waiting on it.
+    /// </summary>
+    private void WarmThumbnailsLater()
+    {
+        IReadOnlyList<CharmCatalogEntry> charms = Charms.All;
+        _ = Task.Delay(TimeSpan.FromMinutes(1)).ContinueWith(
+            _ => Customize.CharmThumbnails.WarmInBackground(charms),
+            TaskScheduler.Default);
+    }
+
     /// <summary>How long after launch the first check runs.</summary>
     private const int UpdateCheckDelaySeconds = 20;
 
     /// <summary>How often a running Hangly checks again.</summary>
-    private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromHours(24);
+    /// <summary>
+    /// Every hour, as the macOS build's Sparkle does: a new release is offered on the update card within the hour (Sharan,
+    /// 4 Oct: once a day left people days behind). The feed is one small file on the CDN.
+    /// </summary>
+    private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromHours(1);
 
     /// <summary>
     /// Hangly was opened again while running: the Library, in front — or the welcome card,
@@ -249,7 +270,7 @@ public sealed class AppEnvironment : IDisposable
 
     private void OnRelaunched()
     {
-        if (activeWelcome is { } welcome && welcome.AppWindow.IsVisible)
+        if (activeWelcome is { } welcome && Interop.WindowPlacement.IsShown(welcome))
         {
             Diagnostics.Log("relaunched while the welcome card is up; bringing it forward");
             Interop.WindowPlacement.BringToFront(welcome);
@@ -297,6 +318,13 @@ public sealed class AppEnvironment : IDisposable
 
     public void ShowWelcomeIfNeeded()
     {
+        // Update in Background asked for a silent restart: nothing opened (Sharan, 4 Oct).
+        if (updatedLaunch && silentUpdatedLaunch)
+        {
+            Diagnostics.Log("restarted by Update in Background: nothing opened");
+            return;
+        }
+
         // After an update to a new feature version, the release notes and nothing else: not the Enjoying Hangly card
         // as well. The restart after an update never asks for a name either; a later launch does.
         if (releaseNotesDue && (updatedLaunch || !Onboarding.WelcomeWindow.IsNeeded(store.Settings)))
@@ -370,6 +398,9 @@ public sealed class AppEnvironment : IDisposable
         // the entry while Hangly was not running, so the stored flag is corrected from
         // the system before anything reads it.
         Diagnostics.Log($"bootstrap starting; settings at {SettingsStore.DefaultPath}");
+
+        // Before the overlay reads the rope: a charm it can no longer draw must not be on it.
+        RemoveVectorImports();
 
         // Before the overlay reads the rope, and before the launch is counted: a launch
         // count of zero is how a new install is told from somebody updating. Marked done
@@ -456,6 +487,10 @@ public sealed class AppEnvironment : IDisposable
             Diagnostics.Log("carrying on without a tray icon; the overlay still runs");
         }
 
+        // Before anything below can bring the overlay up — a settings write does — so the first
+        // time the charm appears is already heard.
+        StartNotifications();
+
         store.Changed += OnSettingsChanged;
 
         // After the tray and before the overlay. The support card is scheduled off this count, which the quiet
@@ -492,6 +527,7 @@ public sealed class AppEnvironment : IDisposable
 
         // Last, and on its own thread, so nothing above waits on a network call.
         CheckForUpdateQuietly();
+        WarmThumbnailsLater();
         StartAuditCycle();
         OpenAuditPage();
     }
@@ -716,6 +752,55 @@ public sealed class AppEnvironment : IDisposable
     }
 
     /// <summary>
+    /// Deletes every imported charm that is a vector drawing rather than pictures in a wrapper.
+    /// </summary>
+    /// <remarks>
+    /// Windows no longer draws SVG drawings (<see cref="Core.Import.ImageSvg"/> says why), so
+    /// these would show as the plain bead. Charms made in Create or from a photograph are
+    /// pictures in a wrapper and are kept. Each goes the way a delete from the Library goes —
+    /// off the rope, out of favourites and recents — and only once: after this there are none.
+    /// </remarks>
+    private void RemoveVectorImports()
+    {
+        List<CustomCharmEntry> drawings = [.. CustomCharmsStore.Entries.Where(IsVectorDrawing)];
+
+        foreach (CustomCharmEntry drawing in drawings)
+        {
+            DeleteCharm(drawing.Id);
+        }
+
+        if (drawings.Count > 0)
+        {
+            Diagnostics.Log($"removed {drawings.Count} imported SVG drawing(s) this build cannot draw");
+        }
+    }
+
+    /// <summary>Whether this import is, beyond doubt, a vector drawing.</summary>
+    /// <remarks>
+    /// Only a file that was read and found not to be pictures in a wrapper. One that could not
+    /// be read — missing, locked, unreadable — is left alone: nothing is deleted on a guess.
+    /// </remarks>
+    private bool IsVectorDrawing(CustomCharmEntry entry)
+    {
+        if (CustomCharmsStore.PathFor(entry) is not string path)
+        {
+            return false;
+        }
+
+        string markup;
+        try
+        {
+            markup = File.ReadAllText(path);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+
+        return markup.Length > 0 && Core.Import.ImageSvg.Parse(markup) is null;
+    }
+
+    /// <summary>
     /// Deletes an import, and takes it off the rope and out of the Library with it.
     /// </summary>
     /// <remarks>
@@ -792,7 +877,14 @@ public sealed class AppEnvironment : IDisposable
         xamlQueue ??= Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
         overlay.FileDropped += OnFileDroppedOnCharm;
         overlay.SwingsToBank += () => xamlQueue?.TryEnqueue(BankSwings);
-        overlay.ClockChanged += () => xamlQueue?.TryEnqueue(FollowTheClock);
+        overlay.ClockChanged += () => xamlQueue?.TryEnqueue(() =>
+        {
+            FollowTheClock();
+            NotificationsAfterWake();
+        });
+        OverlayWindow built = overlay;
+        overlay.GraphicsDeviceLost += () => xamlQueue?.TryEnqueue(() => RecoverFromDeviceLoss(built));
+        HookNotifications(overlay);
         Diagnostics.Log("overlay window constructed");
 
         // Returns as soon as the frame loop is running. The window itself is created on
@@ -837,7 +929,7 @@ public sealed class AppEnvironment : IDisposable
     {
         // Hangly is not usable until it has a name: while the welcome card is waiting for
         // one, the Library, Create and the rest bring the card forward instead. As on macOS.
-        if (activeWelcome is { } waiting && waiting.AppWindow.IsVisible && Onboarding.WelcomeWindow.IsNeeded(store.Settings))
+        if (activeWelcome is { } waiting && Interop.WindowPlacement.IsShown(waiting) && Onboarding.WelcomeWindow.IsNeeded(store.Settings))
         {
             Interop.WindowPlacement.BringToFront(waiting);
             return;
@@ -846,7 +938,15 @@ public sealed class AppEnvironment : IDisposable
         try
         {
             // Built once and kept. It hides on close rather than closing, so there is
-            // nothing to rebuild.
+            // nothing to rebuild — unless it closed for real anyway, in which case every
+            // call on it throws "the WinUI Desktop Window object has already been closed"
+            // and the Library never opens again until a restart. Seen in crash reports.
+            if (customize is { IsClosed: true })
+            {
+                Diagnostics.Log("customize window had closed; building a new one");
+                customize = null;
+            }
+
             bool created = customize is null;
             customize ??= new Customize.CustomizeWindow(store, launchAtLogin, registry, this);
             if (created)
@@ -871,6 +971,7 @@ public sealed class AppEnvironment : IDisposable
             // BringToFront restores, activates, and takes the foreground when this was
             // asked for from outside — Hangly opened again.
             Interop.WindowPlacement.BringToFront(customize);
+            CloseStaleCustomize();
         }
         catch (Exception exception)
         {
@@ -917,7 +1018,98 @@ public sealed class AppEnvironment : IDisposable
         overlay = null;
         artwork?.Dispose();
         artwork = null;
+        CharmGone();
     }
+
+    /// <summary>The graphics device went away under the overlay: build a new one on a new device.</summary>
+    /// <remarks>
+    /// After two seconds, because a driver that is being updated or reset is not ready the moment it fails.
+    /// <c>CanvasDevice.GetSharedDevice</c> makes a new device once the old one is lost. Measured on the VM: one display
+    /// adapter disabled and re-enabled is four losses in fifteen seconds, each recovered. At most eight within ten
+    /// minutes, so a GPU that fails on every frame cannot turn this into a loop, while a laptop that sleeps for days
+    /// still recovers every time.
+    /// </remarks>
+    private void RecoverFromDeviceLoss(OverlayWindow lost)
+    {
+        if (overlay != lost)
+        {
+            return;
+        }
+
+        HideOverlay();
+        notificationCard?.DeviceLost();
+
+        // The Library, Create and About window stays white after a device loss, even after a restore (measured on
+        // the VM; the same launch without the loss draws normally). It is replaced rather than left blank: set aside
+        // now, and closed only once its replacement exists — WinUI ends the process when its last window closes, and
+        // Customize is often the only one.
+        bool customizeWasOpen = Interop.WindowPlacement.IsShown(customize);
+        if (customize is not null)
+        {
+            staleCustomize ??= customize;
+            customize = null;
+        }
+        DateTimeOffset now = DateTimeOffset.Now;
+        if (now - recoveryWindowStart > TimeSpan.FromMinutes(10))
+        {
+            recoveryWindowStart = now;
+            deviceRecoveries = 0;
+        }
+
+        if (++deviceRecoveries > 8)
+        {
+            Diagnostics.Failure("overlay", new InvalidOperationException("graphics device lost more than eight times in ten minutes; not rebuilding again"));
+            return;
+        }
+
+        Microsoft.UI.Dispatching.DispatcherQueueTimer? wait = xamlQueue?.CreateTimer();
+        if (wait is null)
+        {
+            return;
+        }
+
+        wait.Interval = TimeSpan.FromSeconds(2);
+        wait.IsRepeating = false;
+        wait.Tick += (_, _) =>
+        {
+            if (overlay is null && store.Settings.Overlay.IsEnabled)
+            {
+                ShowOverlay();
+                Diagnostics.Log($"overlay rebuilt after the graphics device was lost ({deviceRecoveries})");
+            }
+
+            if (customizeWasOpen && customize is null)
+            {
+                OpenCustomize();
+                Diagnostics.Log("customize window rebuilt after the graphics device was lost");
+            }
+        };
+        wait.Start();
+    }
+
+    private int deviceRecoveries;
+
+    /// <summary>A Customize window drawn on a lost device, kept only until its replacement is open.</summary>
+    private Customize.CustomizeWindow? staleCustomize;
+
+    private void CloseStaleCustomize()
+    {
+        if (staleCustomize is not { } stale)
+        {
+            return;
+        }
+
+        staleCustomize = null;
+        try
+        {
+            stale.AllowClose();
+        }
+        catch (Exception exception)
+        {
+            Diagnostics.Failure("closing a customize window drawn on a lost device", exception);
+        }
+    }
+    private DateTimeOffset recoveryWindowStart = DateTimeOffset.MinValue;
 
     private void OnSettingsChanged(AppSettings settings)
     {
@@ -929,6 +1121,10 @@ public sealed class AppEnvironment : IDisposable
         }
 
         ShowOverlay();
+        if (notificationCard is not null)
+        {
+            notificationCard.OnDesktop = settings.Overlay.WindowMode == WindowMode.Desktop;
+        }
 
         // Rebuilding the charms means measuring artwork, so it happens only when the
         // charms actually changed rather than on every slider move.
@@ -1097,8 +1293,9 @@ public sealed class AppEnvironment : IDisposable
             new MenuEntry("Charms", Children: charms),
             new MenuEntry("Rope", Children: ropes),
             .. DisplayMenu(settings.Overlay),
-            MenuEntry.Separator,
-            new MenuEntry("Quit Hangly", Quit),
+
+            // No Notifications and no Quit (Sharan, 4 Oct): notifications are not kept anywhere to open, and Hangly is
+            // meant to stay running; the macOS menu bar matches.
         ];
     }
 
@@ -1171,19 +1368,50 @@ public sealed class AppEnvironment : IDisposable
     /// <summary>Ends the process: the swings saved, and every held window released so WinUI can exit.</summary>
     private void Exit()
     {
-        updateWait?.Stop();
-        BankSwings();
-        customize?.AllowClose();
+        // Once: Quit can arrive twice (the tray and a relaunch, or a double click on a slow menu).
+        if (Interlocked.Exchange(ref exiting, 1) == 1)
+        {
+            return;
+        }
+
+        // Each step on its own, so one failing cannot stop the process from ending: an exception here used to
+        // leave through the tray's window procedure as a fatal crash, with the app half torn down.
+        Step("stopping the update timer", () => updateWait?.Stop());
+        Step("saving swings", BankSwings);
+        Step("closing customize", () => customize?.AllowClose());
+        Step("closing a stale customize", CloseStaleCustomize);
         customize = null;
-        Onboarding.ProcessLifetime.Release();
-        Application.Current.Exit();
+        Step("releasing onboarding windows", Onboarding.ProcessLifetime.Release);
+        if (Application.Current is { } app)
+        {
+            app.Exit();
+        }
+        else
+        {
+            Environment.Exit(0);
+        }
+
+        static void Step(string what, Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception exception)
+            {
+                Diagnostics.Failure($"quitting: {what}", exception);
+            }
+        }
     }
+
+    private int exiting;
 
     private void OnNetworkAvailabilityChanged(object? sender, System.Net.NetworkInformation.NetworkAvailabilityEventArgs args)
     {
         if (args.IsAvailable)
         {
             registry.NetworkBecameAvailable();
+            announcements?.NetworkBecameAvailable();
         }
     }
 
@@ -1191,6 +1419,7 @@ public sealed class AppEnvironment : IDisposable
     {
         System.Net.NetworkInformation.NetworkChange.NetworkAvailabilityChanged -= OnNetworkAvailabilityChanged;
         store.Changed -= OnSettingsChanged;
+        StopNotifications();
         audio?.Dispose();
         HideOverlay();
         tray?.Dispose();

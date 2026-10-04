@@ -38,7 +38,7 @@ public static class RopeSwatches
     /// <summary>The swatch for <paramref name="style"/>, drawing it the first time; null if it cannot be drawn.</summary>
     public static string? PathFor(RopeStyle style)
     {
-        string target = Path.Combine(Directory, $"{style}@2x-v2.png");
+        string target = Path.Combine(Directory, $"{style}@2x-v3.png");
         if (File.Exists(target))
         {
             return target;
