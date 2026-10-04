@@ -22,7 +22,7 @@ public sealed partial class AppEnvironment
     private NotificationPresenter? notifications;
     private AnnouncementFeed? announcements;
     private NotificationCardWindow? notificationCard;
-    private NotificationCenterWindow? notificationCenter;
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? auditSwing;
 
     /// <summary>Starts fetching and showing. In bootstrap, before the overlay, on the XAML thread.</summary>
     private void StartNotifications()
@@ -42,10 +42,10 @@ public sealed partial class AppEnvironment
                 notificationStore,
                 Updates,
                 AppInfo.Version,
-                isOnboarding: () => activeWelcome is { } welcome && welcome.AppWindow.IsVisible,
+                isOnboarding: () => activeWelcome is { } welcome && Interop.WindowPlacement.IsShown(welcome),
                 perform: Perform);
-            notifications.OpenCenter = OpenNotifications;
             notifications.CharmReturned = () => announcements?.Request(FetchTrigger.CharmVisible);
+            notifications.ExitForUpdate = Exit;
             notificationCard = new NotificationCardWindow(queue) { OnDesktop = store.Settings.Overlay.WindowMode == Core.Models.WindowMode.Desktop };
             notificationCard.Command += OnCardCommand;
             notificationCard.HoverChanged += hovering => notifications.SetHovering(hovering);
@@ -89,6 +89,21 @@ public sealed partial class AppEnvironment
 
         window.CharmMoved += () => queue.TryEnqueue(Follow);
         queue.TryEnqueue(Follow);
+
+        // The card swings with the overlay's own frames, on its thread; a rebuilt overlay (a lost graphics device)
+        // hooks in again here.
+        NotificationCardWindow card = notificationCard!;
+        window.Framed += (direction, elapsed) => card.OnOverlayFrame(direction, elapsed);
+
+        // For the screenshot scripts only, and never in an installed copy: a push every eight seconds, to watch the
+        // card swing with the charm without anybody's mouse.
+        if (Environment.GetEnvironmentVariable("HANGLY_AUDIT_SWING") == "1" && !Updater.IsInstalled && auditSwing is null)
+        {
+            auditSwing = queue.CreateTimer();
+            auditSwing.Interval = TimeSpan.FromSeconds(8);
+            auditSwing.Tick += (_, _) => overlay?.Nudge();
+            auditSwing.Start();
+        }
         window.CharmRightClicked += () => queue.TryEnqueue(ShowCharmMenu);
     }
 
@@ -102,7 +117,7 @@ public sealed partial class AppEnvironment
         }
 
         notificationCard.Column = overlay?.RestColumn;
-        notificationCard.Show(notifications.Card, notifications.ShowsBell, notifications.UnreadCount);
+        notificationCard.Show(notifications.Card);
     }
 
     private void OnCardCommand(CardCommand command)
@@ -115,7 +130,7 @@ public sealed partial class AppEnvironment
         switch (command)
         {
             case CardCommand.UpdateNow:
-                presenter.UpdateNow();
+                presenter.UpdateInBackground();
                 break;
             case CardCommand.Later:
                 presenter.RemindLater();
@@ -123,63 +138,26 @@ public sealed partial class AppEnvironment
             case CardCommand.Skip:
                 presenter.SkipVersion();
                 break;
-            case CardCommand.Close when presenter.Card is { IsUpdate: true }:
-                presenter.RemindLater(DismissReason.Closed);
-                break;
             case CardCommand.Close:
                 presenter.CloseBroadcast();
                 break;
             case CardCommand.Open:
                 presenter.OpenBroadcast();
                 break;
-            case CardCommand.Bell:
-                presenter.ShowCenter("bell");
-                break;
         }
     }
 
-    /// <summary>The Notification Center, made once and brought back.</summary>
-    private void OpenNotifications()
-    {
-        if (notifications is null)
-        {
-            return;
-        }
-
-        try
-        {
-            notificationCenter ??= new NotificationCenterWindow(notifications);
-            notificationCenter.Present();
-        }
-        catch (Exception exception)
-        {
-            Diagnostics.Failure("notification center", exception);
-        }
-    }
-
-    /// <summary>Right-click on the charm: Notifications first, because it is the one thing only here.</summary>
+    /// <summary>
+    /// Right-click on the charm. There is no Notifications item: notifications show under the charm and leave after their
+    /// time, and are not kept anywhere to open (Sharan, 4 Oct).
+    /// </summary>
     private void ShowCharmMenu()
     {
-        int unread = notifications?.UnreadCount ?? 0;
         tray?.ShowMenu(
         [
-            new MenuEntry(unread > 0 ? $"Notifications ({unread})" : "Notifications", () => notifications?.ShowCenter("charm_menu")),
-            MenuEntry.Separator,
             new MenuEntry("Library", OpenLibrary),
             new MenuEntry("Hide Charm", () => store.UpdateOverlay(overlay => overlay with { IsEnabled = false })),
         ]);
-    }
-
-    /// <summary>The tray's line for the Center, with the unread count when there is one.</summary>
-    private List<MenuEntry> NotificationsMenu()
-    {
-        if (notifications is null)
-        {
-            return [];
-        }
-
-        int unread = notifications.UnreadCount;
-        return [new MenuEntry(unread > 0 ? $"Notifications ({unread})" : "Notifications…", () => notifications.ShowCenter("tray"))];
     }
 
     /// <summary>What a notification's button asks for.</summary>
@@ -197,9 +175,6 @@ public sealed partial class AppEnvironment
                 break;
             case AnnouncementAction.OpenCreate:
                 OpenCreate();
-                break;
-            case AnnouncementAction.OpenNotifications:
-                notifications?.ShowCenter("card");
                 break;
             case AnnouncementAction.OpenUrl when Uri.TryCreate(action.Target, UriKind.Absolute, out Uri? uri) && uri.Scheme == Uri.UriSchemeHttps:
                 _ = Windows.System.Launcher.LaunchUriAsync(uri);

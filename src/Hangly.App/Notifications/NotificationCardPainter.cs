@@ -2,7 +2,7 @@
 //  NotificationCardPainter.cs
 //  Hangly
 //
-//  The card and the bell, laid out and drawn with Win2D.
+//  The pop-up, laid out and drawn with Win2D.
 //
 
 using System.Numerics;
@@ -25,13 +25,15 @@ public enum CardCommand
     Skip,
     Close,
     Open,
-    Bell,
 }
 
 /// <summary>One card, measured: where everything goes and what each part does when pressed.</summary>
 internal sealed class CardLayout : IDisposable
 {
     public required Rect Bounds { get; init; }
+
+    /// <summary>Whether the card has its ×: a broadcast can be sent away; the update card cannot (Sharan, 4 Oct).</summary>
+    public bool Closable { get; init; } = true;
 
     public required float Radius { get; init; }
 
@@ -51,7 +53,8 @@ internal sealed class CardLayout : IDisposable
 
     public double? ProgressFraction { get; set; }
 
-    public bool IsBell { get; init; }
+    /// <summary>Where Hangly's icon goes, on a broadcast: whose pop-up it is, as a system banner shows.</summary>
+    public Rect? AppIcon { get; set; }
 
     public void Dispose()
     {
@@ -74,35 +77,48 @@ internal enum TextRole
 }
 
 /// <summary>Light or dark, as Windows' own app theme is set.</summary>
-internal sealed record CardTheme(Color Fill, Color Sheen, Color Stroke, Color Primary, Color Secondary, Color Accent, Color Track)
+/// <remarks>
+/// <b>The fill is the glass's body:</b> 84% in dark, 87% in light — as translucent as it can be and still keep the words
+/// clear on any wallpaper or page behind it. Over white, the dark card's fill comes out a mid grey with white text;
+/// over black, the light card's comes out a pale grey with near-black text: both well past 7:1. The rim and the sheen do
+/// the rest of what glass looks like: light caught along the top edge, and falling away down the card.
+/// </remarks>
+internal sealed record CardTheme(
+    Color Fill, Color FillLow, Color Sheen, Color RimTop, Color RimBottom, Color Primary, Color Secondary, Color Accent, Color Track)
 {
     public static readonly CardTheme Dark = new(
-        Color.FromArgb(232, 30, 31, 36),
+        Color.FromArgb(214, 36, 37, 44),
+        Color.FromArgb(222, 26, 27, 33),
+        Color.FromArgb(34, 255, 255, 255),
+        Color.FromArgb(96, 255, 255, 255),
         Color.FromArgb(22, 255, 255, 255),
-        Color.FromArgb(40, 255, 255, 255),
-        Color.FromArgb(255, 245, 245, 247),
-        Color.FromArgb(160, 255, 255, 255),
+        Color.FromArgb(255, 246, 246, 248),
+        Color.FromArgb(172, 255, 255, 255),
         Color.FromArgb(255, 0x8F, 0x7E, 0xFF),
         Color.FromArgb(40, 255, 255, 255));
 
     public static readonly CardTheme Light = new(
-        Color.FromArgb(236, 250, 250, 252),
-        Color.FromArgb(140, 255, 255, 255),
-        Color.FromArgb(26, 0, 0, 0),
-        Color.FromArgb(255, 28, 28, 30),
-        Color.FromArgb(140, 0, 0, 0),
+        Color.FromArgb(222, 252, 252, 254),
+        Color.FromArgb(230, 242, 242, 247),
+        Color.FromArgb(150, 255, 255, 255),
+        Color.FromArgb(230, 255, 255, 255),
+        Color.FromArgb(30, 0, 0, 0),
+        Color.FromArgb(255, 24, 24, 27),
+        Color.FromArgb(150, 0, 0, 0),
         Color.FromArgb(255, 0x6D, 0x5A, 0xE5),
         Color.FromArgb(30, 0, 0, 0));
 }
 
 /// <summary>
-/// The card's look, macOS's <c>NotificationCardView</c> drawn by hand: a 296-point card with 20-point corners and
-/// 16 points of padding; the title semibold at 14, the body at 12.5; the accent pill for the main button.
+/// The card's look, macOS's <c>NotificationCardView</c> drawn by hand: a 296-point card with 22-point corners; the
+/// title semibold at 13.5, the body at 12.5; Hangly's icon beside a broadcast; the accent pill for the main button.
 /// </summary>
 /// <remarks>
-/// <b>The glass.</b> Windows cannot blur what is behind a window whose pixels have their own alpha, so the material
-/// is a deep tint — 91% in either theme — with a sheen falling from the top edge, a hairline highlight and two soft
-/// shadows, near and far. The glyphs are Segoe MDL2 Assets, which every Windows 10 and 11 has.
+/// <b>The glass.</b> Windows cannot blur what is behind a window whose pixels have their own alpha, and its acrylic
+/// backdrop turns solid on a window that is not active — which this one never is (tried on Windows 11, 3 Oct 2026).
+/// So the glass is drawn: a translucent body (<see cref="CardTheme"/>), a sheen falling from the top edge, a rim bright
+/// at the top and faint at the bottom, and two soft shadows. The glyphs are Segoe MDL2 Assets, which every Windows 10
+/// and 11 has.
 /// </remarks>
 internal static class NotificationCardPainter
 {
@@ -112,47 +128,44 @@ internal static class NotificationCardPainter
     private const string Display = "Segoe UI Variable Display";
     private const string Glyphs = "Segoe MDL2 Assets";
 
-    public static CardLayout Layout(ICanvasResourceCreator device, CardPresentation? card, int bellCount)
-    {
-        return card is null ? Bell(device, bellCount) : card.IsUpdate ? Update(device, card) : Broadcast(device, card.Broadcast!);
-    }
+    public const float Radius = 22;
+    private const float IconSide = 30;
+    private const float IconGap = 11;
 
-    private static CardLayout Bell(ICanvasResourceCreator device, int count)
-    {
-        CanvasTextLayout glyph = Text(device, "", Glyphs, 11.5f, bold: false, 40);
-        CanvasTextLayout number = Text(device, count.ToString(System.Globalization.CultureInfo.CurrentCulture), Display, 12, bold: true, 60);
-        float width = 10 + (float)glyph.LayoutBounds.Width + 6 + (float)number.LayoutBounds.Width + 10;
-        var layout = new CardLayout { Bounds = new Rect(0, 0, width, 26), Radius = 13, IsBell = true };
-        layout.Texts.Add((glyph, new Vector2(10, 13 - ((float)glyph.LayoutBounds.Height / 2)), TextRole.Glyph));
-        layout.Texts.Add((number, new Vector2(10 + (float)glyph.LayoutBounds.Width + 6, 13 - ((float)number.LayoutBounds.Height / 2)), TextRole.Title));
-        layout.Targets.Add((layout.Bounds, CardCommand.Bell));
-        return layout;
-    }
+    public static CardLayout Layout(ICanvasResourceCreator device, CardPresentation card) =>
+        card.IsUpdate ? Update(device, card) : Broadcast(device, card.Broadcast!);
 
     private static CardLayout Broadcast(ICanvasResourceCreator device, Announcement announcement)
     {
-        float inner = Width - (2 * Padding);
-        CanvasTextLayout title = Text(device, announcement.Title, Display, 14, bold: true, inner - 18);
+        const float top = 15;
+        float left = Padding + IconSide + IconGap;
+        float inner = Width - left - Padding;
+        CanvasTextLayout title = Text(device, announcement.Title, Display, 13.5f, bold: true, inner - 20);
         CanvasTextLayout message = Text(device, announcement.Message, Font, 12.5f, bold: false, inner);
-        float y = Padding;
-        var texts = new List<(CanvasTextLayout, Vector2, TextRole)> { (title, new Vector2(Padding, y), TextRole.Title) };
-        y += (float)title.LayoutBounds.Height + 3;
-        texts.Add((message, new Vector2(Padding, y), TextRole.Secondary));
+        float y = top;
+        var texts = new List<(CanvasTextLayout, Vector2, TextRole)> { (title, new Vector2(left, y), TextRole.Title) };
+        y += (float)title.LayoutBounds.Height + 2;
+        texts.Add((message, new Vector2(left, y), TextRole.Secondary));
         y += (float)message.LayoutBounds.Height;
 
         var buttons = new List<(Rect, CardCommand, bool)>();
-        if (announcement.ButtonTitle is { } label)
+        if (announcement.ButtonTitle is { } label && NotificationAction.From(announcement.ActionType, announcement.ActionTarget) is not null)
         {
             y += 10;
             CanvasTextLayout text = Text(device, label, Font, 12.5f, bold: true, inner);
-            float width = (float)text.LayoutBounds.Width + 28;
-            var button = new Rect(Padding, y, width, 30);
+            float width = Math.Min((float)text.LayoutBounds.Width + 28, inner);
+            var button = new Rect(left, y, width, 30);
             texts.Add((text, Centre(button, text), TextRole.ButtonPrimary));
             buttons.Add((button, CardCommand.Open, true));
             y += 30;
         }
 
-        var layout = new CardLayout { Bounds = new Rect(0, 0, Width, y + Padding), Radius = 20 };
+        var layout = new CardLayout
+        {
+            Bounds = new Rect(0, 0, Width, Math.Max(y, top + IconSide) + top),
+            Radius = Radius,
+            AppIcon = new Rect(Padding, top, IconSide, IconSide),
+        };
         layout.Texts.AddRange(texts);
         Finish(layout, buttons);
         return layout;
@@ -165,7 +178,7 @@ internal static class NotificationCardPainter
         CanvasTextLayout title = Text(device, $"Hangly {version} Available", Display, 14, bold: true, inner - 58);
         CanvasTextLayout subtitle = Text(
             device, card.Highlights.Count == 0 ? "New charms, fixes and refinements." : "What's new", Font, 11.5f, bold: false, inner - 58);
-        var layout = new CardLayout { Bounds = default, Radius = 20 };
+        var layout = new CardLayout { Bounds = default, Radius = Radius };
         var texts = new List<(CanvasTextLayout, Vector2, TextRole)>();
         var buttons = new List<(Rect, CardCommand, bool)>();
 
@@ -194,22 +207,8 @@ internal static class NotificationCardPainter
         switch (card.Stage)
         {
             case UpdateNowStage.Idle:
-                y = PrimaryButton(device, "Update Now", CardCommand.UpdateNow, y, inner, texts, buttons);
-                y += 8;
-                CanvasTextLayout later = Text(device, "Later", Font, 11.5f, bold: true, inner);
-                CanvasTextLayout dot = Text(device, "·", Font, 11.5f, bold: false, inner);
-                CanvasTextLayout skip = Text(device, "Skip This Version", Font, 11.5f, bold: true, inner);
-                float total = (float)(later.LayoutBounds.Width + 14 + dot.LayoutBounds.Width + 14 + skip.LayoutBounds.Width);
-                float x = Padding + ((inner - total) / 2);
-                float height = (float)later.LayoutBounds.Height;
-                buttons.Add((new Rect(x - 4, y - 3, later.LayoutBounds.Width + 8, height + 6), CardCommand.Later, false));
-                texts.Add((later, new Vector2(x, y), TextRole.ButtonQuiet));
-                x += (float)later.LayoutBounds.Width + 14;
-                texts.Add((dot, new Vector2(x, y), TextRole.Secondary));
-                x += (float)dot.LayoutBounds.Width + 14;
-                buttons.Add((new Rect(x - 4, y - 3, skip.LayoutBounds.Width + 8, height + 6), CardCommand.Skip, false));
-                texts.Add((skip, new Vector2(x, y), TextRole.ButtonQuiet));
-                y += height;
+                // One button (Sharan, 4 Oct): no Later, no Skip This Version.
+                y = PrimaryButton(device, "Update in Background", CardCommand.UpdateNow, y, inner, texts, buttons);
                 break;
             case UpdateNowStage.Failed:
                 CanvasTextLayout failed = Text(device, "Couldn't update. Hangly is unchanged.", Font, 12, bold: false, inner);
@@ -233,7 +232,7 @@ internal static class NotificationCardPainter
                 break;
         }
 
-        var measured = new CardLayout { Bounds = new Rect(0, 0, Width, y + Padding), Radius = 20 };
+        var measured = new CardLayout { Bounds = new Rect(0, 0, Width, y + Padding), Radius = Radius, Closable = false };
         measured.Badge = layout.Badge;
         measured.BadgeGlyph = layout.BadgeGlyph;
         measured.Progress = layout.Progress;
@@ -265,10 +264,13 @@ internal static class NotificationCardPainter
     {
         layout.Buttons.AddRange(buttons);
         layout.Targets.AddRange(buttons.Select(button => (button.Bounds, button.Command)));
-        layout.Targets.Insert(0, (CloseBounds(layout), CardCommand.Close));
+        if (layout.Closable)
+        {
+            layout.Targets.Insert(0, (CloseBounds(layout), CardCommand.Close));
+        }
     }
 
-    public static Rect CloseBounds(CardLayout layout) => new(layout.Bounds.Width - 28, 8, 20, 20);
+    public static Rect CloseBounds(CardLayout layout) => new(layout.Bounds.Width - 29, 9, 20, 20);
 
     private static Vector2 Centre(Rect box, CanvasTextLayout text) => new(
         (float)(box.X + ((box.Width - text.LayoutBounds.Width) / 2) - text.LayoutBounds.X),
@@ -301,20 +303,47 @@ internal static class NotificationCardPainter
         double time)
     {
         float width = (float)layout.Bounds.Width, height = (float)layout.Bounds.Height, radius = layout.Radius;
-        DrawShadow(session, width, height, radius, 18, 10, 0.20f);
-        DrawShadow(session, width, height, radius, 1.5f, 1, 0.10f);
+        // Soft and low: enough to lift the card off the desktop, never enough to read as a box.
+        DrawShadow(session, width, height, radius, 14, 7, 0.14f);
+        DrawShadow(session, width, height, radius, 1, 0.5f, 0.08f);
 
-        session.FillRoundedRectangle(0, 0, width, height, radius, radius, theme.Fill);
+        // The body, a touch denser towards the bottom, as thick glass looks.
+        using (var body = new CanvasLinearGradientBrush(session, theme.Fill, theme.FillLow)
+        {
+            StartPoint = new Vector2(0, 0),
+            EndPoint = new Vector2(0, height),
+        })
+        {
+            session.FillRoundedRectangle(0, 0, width, height, radius, radius, body);
+        }
+
         using (var sheen = new CanvasLinearGradientBrush(session, theme.Sheen, Color.FromArgb(0, theme.Sheen.R, theme.Sheen.G, theme.Sheen.B))
         {
             StartPoint = new Vector2(0, 0),
-            EndPoint = new Vector2(0, Math.Min(height, 70)),
+            EndPoint = new Vector2(0, Math.Min(height, 56)),
         })
         {
             session.FillRoundedRectangle(0, 0, width, height, radius, radius, sheen);
         }
 
-        session.DrawRoundedRectangle(0.5f, 0.5f, width - 1, height - 1, radius - 0.5f, radius - 0.5f, theme.Stroke, 1);
+        // The rim: light caught along the top edge, fading down the sides.
+        using (var rim = new CanvasLinearGradientBrush(session, theme.RimTop, theme.RimBottom)
+        {
+            StartPoint = new Vector2(0, 0),
+            EndPoint = new Vector2(0, height),
+        })
+        {
+            session.DrawRoundedRectangle(0.5f, 0.5f, width - 1, height - 1, radius - 0.5f, radius - 0.5f, rim, 1);
+        }
+
+        if (layout.AppIcon is Rect iconBounds)
+        {
+            using CanvasBitmap? icon = AppIconImage.Create(session);
+            if (icon is not null)
+            {
+                session.DrawImage(icon, iconBounds, icon.Bounds, 1, CanvasImageInterpolation.HighQualityCubic);
+            }
+        }
 
         if (layout.Badge is Rect badge)
         {
@@ -374,19 +403,24 @@ internal static class NotificationCardPainter
             }
         }
 
-        if (layout.IsBell)
+        // The ×, on a broadcast: always there, quietly — a pop-up that leaves on its own must also be easy to send away —
+        // and clearer while the pointer is on the card. The update card has none.
+        if (!layout.Closable)
         {
-            session.FillCircle(new Vector2(width - 3, 3), 3.5f, theme.Accent);
+            return;
         }
-        else if (cardHovered)
-        {
-            Rect close = CloseBounds(layout);
-            var centre = new Vector2((float)(close.X + 10), (float)(close.Y + 10));
-            session.FillCircle(centre, 10, hovered == CardCommand.Close ? theme.Track : Color.FromArgb(20, theme.Primary.R, theme.Primary.G, theme.Primary.B));
-            session.DrawCircle(centre, 9.5f, theme.Stroke, 1);
-            using CanvasTextLayout cross = new(session, "", new CanvasTextFormat { FontFamily = Glyphs, FontSize = 8 }, 20, 20);
-            session.DrawTextLayout(cross, centre.X - (float)(cross.LayoutBounds.Width / 2) - (float)cross.LayoutBounds.X, centre.Y - (float)(cross.LayoutBounds.Height / 2) - (float)cross.LayoutBounds.Y, theme.Secondary);
-        }
+
+        Rect close = CloseBounds(layout);
+        var closeCentre = new Vector2((float)(close.X + 10), (float)(close.Y + 10));
+        byte closeFill = hovered == CardCommand.Close ? (byte)46 : cardHovered ? (byte)26 : (byte)15;
+        session.FillCircle(closeCentre, 10, Color.FromArgb(closeFill, theme.Primary.R, theme.Primary.G, theme.Primary.B));
+        using CanvasTextLayout cross = new(session, "\uE8BB", new CanvasTextFormat { FontFamily = Glyphs, FontSize = 8 }, 20, 20);
+        Color crossColour = cardHovered ? theme.Primary : theme.Secondary;
+        session.DrawTextLayout(
+            cross,
+            closeCentre.X - (float)(cross.LayoutBounds.Width / 2) - (float)cross.LayoutBounds.X,
+            closeCentre.Y - (float)(cross.LayoutBounds.Height / 2) - (float)cross.LayoutBounds.Y,
+            crossColour);
     }
 
     private static void DrawShadow(CanvasDrawingSession session, float width, float height, float radius, float blur, float offset, float opacity)

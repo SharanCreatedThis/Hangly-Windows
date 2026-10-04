@@ -151,6 +151,12 @@ public static class Diagnostics
             {
                 Log($"  UNMEASURED {charm}");
             }
+
+            // Listed with a hook the cord is tied to, and none found: the cord runs in behind its top instead.
+            foreach (string charm in report.Unhooked)
+            {
+                Log($"  NO HOOK   {charm}");
+            }
         }
         catch (Exception exception)
         {

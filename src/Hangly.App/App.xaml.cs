@@ -42,6 +42,11 @@ public partial class App : Application
     {
         Diagnostics.Log("OnLaunched");
 
+        // No blocking full collections in the middle of a swing. Measured on the VM: full collections every few seconds
+        // while the rope moved, up to 12 ms each — a dropped frame each time. Background collection still runs, and the
+        // runtime still blocks if memory really runs short; Hangly's heap is a few megabytes.
+        System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
+
         try
         {
             environment = new AppEnvironment();

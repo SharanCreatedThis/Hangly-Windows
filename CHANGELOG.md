@@ -10,26 +10,92 @@ Headings are `## <version> — <date>`. Nothing else is a version heading.
 
 **Added**
 
-- **Notification Center.** News about new charms and collections arrives under your charm, once,
-  and then waits in the Notification Center — open it from the bell, by right-clicking the charm,
-  or from the tray's new Notifications line. Search, mark as read, mark all as read, clear.
-- **Update from the charm.** When a new version is ready, a card under the charm says what is new.
-  Update Now downloads it with live progress, installs it and restarts Hangly; Later asks again in
-  an hour; Skip This Version stops asking until the next one.
+- **Pop-ups from the charm.** News about new charms and collections pops up under your charm in
+  glass, **swings with it**, and leaves on its own after its time — or at once with the ×, which
+  is always there. It holds still while the pointer is on it. Nothing is kept afterwards and no
+  dot is left behind.
+- **Update in Background.** The update card has one button: press it and the card goes, the
+  update downloads and Hangly restarts into the new version by itself. Hangly now looks for a new
+  version every hour, so the card appears soon after a release.
+- **No notification window, nothing kept.** Every notification appears under the charm and
+  leaves on its own; there is no Notification Center and no history. The tray menu no longer has
+  Notifications or Quit Hangly.
+- **The welcome card always fits.** With Windows' text made bigger, the name card's Continue
+  button could fall below the window and the Library could not be reached. The card now sizes
+  itself to what it shows, scrolls if the screen is small, and Enter continues.
 - **Hangly works on PCs with Smart App Control.** Windows 11's Smart App Control, and the App
   Control policies many companies set, block unsigned program files. Hangly drew SVG through a
   set of unsigned libraries, so on those PCs the charms could not be drawn, the overlay did not
   start, and Setup ended with "Install Partially Succeeded". Hangly no longer uses them: charm
   artwork is read and drawn with Microsoft's own signed graphics library.
-- **Right-click the charm** for Notifications, the Library and Hide Charm.
+- **Right-click the charm** for the Library and Hide Charm.
 
 **Fixed**
 
+- **Every rope looks real.** Each of the nine ropes is now drawn from a photographic render of the
+  real thing — twisted gold thread, braided leather, polished gold and silver chain, spun silk, a
+  midnight braid, temple thread, silver satin cord and a twisted neon tube — laid along the cord so
+  the twist and the links follow every bend as it swings. Before, each was a coloured line with a
+  pattern painted on it. Neon is now a twisted magenta-and-cyan tube.
+  On Gold Chain and Silver Chain the chain's own last link passes through the charm's ring, as in
+  real jewellery: no extra ring, and no gap.
+- **No more charms flipping upside down while you play with them.** Dragged close to the hook or
+  whipped round, a charm could suddenly turn its back on the rope or spin in a single frame. Lifted
+  toward the top it now stays upright, stops just under its hook, and the slack rope drapes below;
+  the rope no longer shoots off along the top of the screen. It turns smoothly at every angle.
+- **Charms with a ring hang like fine jewellery.** A tiny jump ring passes through the charm's own
+  ring, and on heavy charms a small end cap finishes the rope. The hardware is sized to the charm and
+  always smaller than what it holds, so the charm stays the star. The metal follows the rope: gold,
+  brass, silver, gunmetal or neon blue, and the rope curves smoothly into rings that sit off-centre — a
+  sneaker's heel, a camera's corner — with no kink above the clasp; left alone, the rope falls
+  dead straight into the ring. The star and the Himmeli hang
+  from their own loops too, and the classics — ornament, star, heart, diamond, horseshoe,
+  scarab and Himmeli — whose rings were drawn open at the top now have whole rings, so they hang
+  from a jump ring with no gap.
+- **Ropes meet every charm properly.** A charm without a ring now has the rope run right down
+  behind it, so there is no gap between rope and charm on figures like Ronaldo, Usopp or the
+  Shiva lingam, and nothing shows through openings below. The daruma and the Chinese knot are
+  shown whole, hanging from their own cord loops; Karuppu, FC Barcelona and the Deathly Hallows
+  hang cleanly from their rings and tip.
+- **The glow takes each charm's own shape.** It used to be a circle of colour behind every
+  charm, whatever its shape: a ring round a tall Spider-Man, a moon behind a slender bell. Now
+  it follows the charm's outline — the Snitch's wings, a dreamcatcher's feathers, both figures
+  of Spider-Man and Gwen — and each part glows its own colour, leaning towards the charm's.
+- **Spider-Man and Gwen swing for real.** The charm used to be one stiff picture that turned
+  about the anchor like a clock hand, with only Spider-Man grabbable. Now Spider-Man and Gwen
+  are two weights on one cord:
+  - The picture's own rope, knots and all, bends between them and above them.
+  - It stretches with Elastic.
+  - A flick sends the pair tumbling like a double pendulum.
+  - Either one can be grabbed, thrown, or dropped onto.
+  - The size slider scales the whole picture as one, rope included, so Spider-Man stays the
+    same distance from Gwen as in the artwork; the rope is always whole, at every size.
+  - Spider-Man holds the rope straight through his hands, and his body never stretches on
+    Elastic, so the rope no longer steps out sideways from his hands in a swing or a stretch.
+  - The rope is drawn exactly as the artwork has it: the fold hanging from his lower hand and
+    the twist above his upper one stay on his hands instead of opening out beside them.
 - **The Library opens without freezing.** Charm thumbnails are made in the background instead of
   while the window waits, and kept where Windows' clean-up does not delete them, so the first
   Library open after an update no longer locks up for seconds.
-- **Installing an update while one is downloading works.** Install now waits for the download
-  already under way instead of failing with "That update couldn't be installed".
+- **"That update couldn't be installed" is fixed.** Install and restart, in About or the tray,
+  started a second download while Hangly was already downloading the update in the background,
+  and Windows refused it. Install now joins the download already under way, shows its progress,
+  and waits up to a minute and a half if another update step is still finishing.
+- **The charm comes back after a graphics driver update, a GPU reset or sleep.** When Windows
+  took the graphics device away, the charm disappeared until Hangly was restarted, and the
+  Library window went blank. Both are now rebuilt on the new device within a few seconds.
+- **The tray menu no longer crashes Hangly.** Library, Create or Quit could end the app if they
+  were picked while a window was opening or closing.
+- **The tray icon appears even when Hangly starts before the taskbar.** At sign-in Hangly could
+  start before Windows' taskbar was ready, and then run all session without a tray icon. It now
+  keeps trying for two minutes.
+- **The Library opens again after its window was closed for real,** instead of doing nothing until
+  a restart.
+- **Smaller fixes:** Support no longer fails when pressed twice; Creator Studio no longer reports
+  an error when closed while it is still finding the subject, or when a dragged file's source app
+  goes away; update downloads that fail because the network dropped are no longer reported as
+  errors; an installation whose saved identity was lost registers again instead of being refused
+  for good.
 - **Smaller updates.** From this version, an update downloads only what changed — under a
   megabyte instead of 300 MB.
 

@@ -57,6 +57,7 @@ public sealed class OverlayWindow : IDisposable
     private readonly RopeSimulation rope;
     private readonly RopeRenderer renderer;
     private readonly SimulationClock clock = new();
+    private readonly DisplayTiming displayTiming = new();
     private readonly LayeredOverlaySurface surface;
 
     private Thread? thread;
@@ -143,6 +144,26 @@ public sealed class OverlayWindow : IDisposable
 
     /// <summary>Whether the charm is on screen: not hidden for full-screen video.</summary>
     public bool IsCharmShown => !isHiddenForFullscreen;
+
+    /// <summary>The rope's direction now, from the anchor to the charm, as a unit vector in screen space (y down).</summary>
+    /// <remarks>
+    /// For the notification card, which hangs on the line of the rope and swings with it. Written by the frame loop on
+    /// every tick that moves the rope, read from the XAML thread: the two numbers travel together in one box.
+    /// </remarks>
+    public (double Dx, double Dy)? SwingDirection => swing is { } box ? (box.Dx, box.Dy) : null;
+
+    /// <summary>Whether the rope is moving now (not asleep, or held).</summary>
+    public bool IsMoving => !isIdle;
+
+    /// <summary>
+    /// Every frame of the loop, on its thread, paced to the compositor: the rope's direction (anchor to charm, a unit
+    /// vector, y down) and the frame's length. For the notification card, which swings with the charm.
+    /// </summary>
+    public event Action<(double Dx, double Dy), double>? Framed;
+
+    private volatile SwingBox? swing;
+
+    private sealed record SwingBox(double Dx, double Dy);
 
     private volatile AnchorBox? restAnchor;
 
@@ -271,7 +292,9 @@ public sealed class OverlayWindow : IDisposable
 
             while (isRunning)
             {
+                Seg(0);
                 PumpMessages();
+                Seg(1);
 
                 // Moving: paced to the compositor, which is what CompositionTarget.Rendering
                 // did while there was still a XAML tree to hang it on. Settled: nothing is
@@ -279,15 +302,20 @@ public sealed class OverlayWindow : IDisposable
                 // arrives or the idle interval passes, and polls the cursor at that rate.
                 // Waiting on the compositor here woke the thread at the display's full rate
                 // to do nothing on three frames in four.
+                double? displayDelta = null;
                 if (isIdle)
                 {
                     NativeMethods.MsgWaitForMultipleObjectsEx(
                         0, IntPtr.Zero, IdleWaitMs, NativeMethods.QsAllInput, NativeMethods.MwmoInputAvailable);
+                    displayTiming.Reset();
                 }
                 else
                 {
                     NativeMethods.DwmFlush();
+                    displayDelta = displayTiming.Advance();
                 }
+
+                Seg(2);
 
                 // Taken rather than read, so a second change arriving between the read and
                 // the clear is not the one that gets dropped.
@@ -354,13 +382,25 @@ public sealed class OverlayWindow : IDisposable
                     WatchFullscreen();
                 }
 
+                Seg(3);
                 HoldTopmost();
-                clock.Advance();
+                Seg(4);
+                clock.Advance(displayDelta);
+                Seg(5);
             }
         }
         catch (Exception exception)
         {
-            Diagnostics.Failure("overlay frame loop", exception);
+            deviceLost = IsDeviceLoss(exception);
+            if (deviceLost)
+            {
+                // Not a bug to report: a driver update, a GPU reset, sleep or Remote Desktop took the device away.
+                Diagnostics.Log($"overlay: graphics device lost ({exception.GetType().Name} 0x{exception.HResult:X8}); the app rebuilds the overlay");
+            }
+            else
+            {
+                Diagnostics.Failure("overlay frame loop", exception);
+            }
         }
         finally
         {
@@ -374,8 +414,30 @@ public sealed class OverlayWindow : IDisposable
             FullscreenWatcher.Unhook(foregroundHook);
             foregroundHook = IntPtr.Zero;
             surface.Dispose();
+            if (deviceLost)
+            {
+                GraphicsDeviceLost?.Invoke();
+            }
         }
     }
+
+    private bool deviceLost;
+
+    /// <summary>The frame loop ended because the graphics device went away. Raised on the overlay's thread, once.</summary>
+    /// <remarks>
+    /// Before this, the loop ended, the window went with it, and the charm was gone until Hangly was restarted:
+    /// 191 reports from 151 installations (2.1.0–2.2.0), every one DXGI_ERROR_DEVICE_REMOVED from
+    /// <c>CreateDrawingSession</c>. Drawing cannot carry on with the old device; the app builds a new overlay.
+    /// </remarks>
+    public event Action? GraphicsDeviceLost;
+
+    /// <summary>Whether an exception means the Direct3D device is gone (removed, reset, hung), not a bug.</summary>
+    public static bool IsDeviceLoss(Exception exception) => (uint)exception.HResult is
+        0x887A0005 // DXGI_ERROR_DEVICE_REMOVED
+        or 0x887A0006 // DXGI_ERROR_DEVICE_HUNG
+        or 0x887A0007 // DXGI_ERROR_DEVICE_RESET
+        or 0x887A0020 // DXGI_ERROR_DRIVER_INTERNAL_ERROR
+        or 0x8899000C; // D2DERR_RECREATE_TARGET
 
     /// <summary>Whether the display's scale no longer matches what the overlay was fitted at.</summary>
     /// <remarks>
@@ -578,7 +640,11 @@ public sealed class OverlayWindow : IDisposable
 
         // The canvas is measured in points and the desktop in pixels, so the size the
         // rope is fitted to is scaled up exactly once, here, and never again.
-        Size canvas = OverlayMetrics.CanvasSize(settings.CharmSize, settings.RopeLength, settings.RopePhysics);
+        // Spider-Man and Gwen bring a rope of their own length, and the canvas is made for all of it.
+        double? pictureRope = PictureParts.RopeLength(settings);
+        double ropeLength = pictureRope ?? settings.RopeLength;
+        double? canvasRope = PictureParts.CanvasRopeLength(settings);
+        Size canvas = OverlayMetrics.CanvasSize(settings.CharmSize, canvasRope ?? ropeLength, settings.RopePhysics, stretchOf: ropeLength);
         var pixels = new Size(canvas.Width * scale, canvas.Height * scale);
 
         frame = ScreenPlacement.Frame(
@@ -596,13 +662,24 @@ public sealed class OverlayWindow : IDisposable
 
         // Fitted to the canvas an unstretched rope would have: an elastic rope's extra room is
         // below it, to stretch into, and must not make the rope itself any longer.
-        double stretchRoom = OverlayMetrics.StretchRoom(settings.RopeLength, settings.RopePhysics);
-        rope.Fit(new Size(CanvasSize.Width, CanvasSize.Height - stretchRoom), settings.CharmSize, settings.RopeLength);
+        // The rope's own stretch: Gwen below its end stretches nothing.
+        double stretchRoom = OverlayMetrics.StretchRoom(ropeLength, settings.RopePhysics);
+        rope.Fit(new Size(CanvasSize.Width, CanvasSize.Height - stretchRoom), settings.CharmSize, ropeLength, canvasRope);
         NoteRestAnchor(rope.Snapshot());
         CharmMoved?.Invoke();
     }
 
     /// <summary>Where the card hangs from: see <see cref="RestAnchor"/>.</summary>
+    private void NoteSwing()
+    {
+        Vec2 offset = rope.CharmFromAnchor;
+        double length = offset.Magnitude;
+        if (length > 1)
+        {
+            swing = new SwingBox(offset.X / length, offset.Y / length);
+        }
+    }
+
     private void NoteRestAnchor(RopeSnapshot snapshot)
     {
         if (snapshot.Charms.Count == 0 || snapshot.Points.Count == 0)
@@ -689,16 +766,26 @@ public sealed class OverlayWindow : IDisposable
 
     private void OnTick(double deltaTime)
     {
+        long tickStarted = AuditFrames ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;
         PollPointer();
+        Sub(0);
         rope.Step(deltaTime);
+        Sub(1);
         SoundCollisions();
+        Sub(2);
         CountSwings();
+        Sub(3);
 
         // A settled rope is a still image. Stop redrawing it, and drop the tick rate —
         // the clock keeps running because the same tick is what notices the cursor
         // arriving over the charm. A layered window keeps the last frame it was given, so
         // not presenting leaves the settled rope on screen rather than blanking it.
         isIdle = rope.IsSleeping && !rope.IsDragging;
+        if (!isIdle || swing is null)
+        {
+            NoteSwing();
+        }
+
         if (isIdle != wasIdle)
         {
             wasIdle = isIdle;
@@ -711,8 +798,126 @@ public sealed class OverlayWindow : IDisposable
         }
         if ((!rope.IsSleeping || rope.IsDragging) && !isHiddenForFullscreen)
         {
+            Sub(4);
+            long allocated = AuditFrames ? GC.GetAllocatedBytesForCurrentThread() : 0;
             Draw(onlyIfMoved: true);
+            if (AuditFrames)
+            {
+                drawBytesWorst = Math.Max(drawBytesWorst, GC.GetAllocatedBytesForCurrentThread() - allocated);
+                drawBytesTotal += GC.GetAllocatedBytesForCurrentThread() - allocated;
+            }
+
+            Sub(5);
         }
+
+        if (Framed is { } framed && swing is { } direction)
+        {
+            framed((direction.Dx, direction.Dy), deltaTime);
+        }
+
+        if (AuditFrames && !isIdle)
+        {
+            NoteFrame(deltaTime, rope.LastStepCount, System.Diagnostics.Stopwatch.GetElapsedTime(tickStarted).TotalMilliseconds);
+        }
+    }
+
+    // Where each loop's time goes, for the smoothness checks only: pump, wait, checks, topmost, tick.
+    private static readonly string[] SegmentNames = ["", "pump", "wait", "checks", "topmost", "tick"];
+    private readonly double[] segmentWorst = new double[6];
+    private long segmentAt;
+    private long segmentLogged = System.Diagnostics.Stopwatch.GetTimestamp();
+
+    private void Seg(int index)
+    {
+        if (!AuditFrames)
+        {
+            return;
+        }
+
+        long now = System.Diagnostics.Stopwatch.GetTimestamp();
+        if (index > 0 && !isIdle)
+        {
+            segmentWorst[index] = Math.Max(segmentWorst[index], System.Diagnostics.Stopwatch.GetElapsedTime(segmentAt, now).TotalMilliseconds);
+        }
+
+        segmentAt = now;
+        if (index == 5 && System.Diagnostics.Stopwatch.GetElapsedTime(segmentLogged, now).TotalSeconds >= 3)
+        {
+            Diagnostics.Log("loop worst ms: " + string.Join(", ", Enumerable.Range(1, 5).Select(k => $"{SegmentNames[k]} {segmentWorst[k]:0.0}"))
+                + "; in the tick: " + string.Join(", ", Enumerable.Range(1, 5).Select(k => $"{SubNames[k]} {subWorst[k]:0.0}"))
+                + $"; GC gen0/1/2 {GC.CollectionCount(0)}/{GC.CollectionCount(1)}/{GC.CollectionCount(2)}"
+                + $"; draw allocated {drawBytesTotal / 1024} KB, worst frame {drawBytesWorst / 1024} KB"
+                + $"; GC paused {(GC.GetTotalPauseDuration() - gcPausedBefore).TotalMilliseconds:0.0} ms, last gen2 {LastFullGc()}");
+            gcPausedBefore = GC.GetTotalPauseDuration();
+            Diagnostics.Log("present worst ms: " + PresentTimes.Take() + "; renderer: " + RenderTimes.Take());
+            drawBytesWorst = 0;
+            drawBytesTotal = 0;
+            Array.Clear(segmentWorst);
+            Array.Clear(subWorst);
+            segmentLogged = now;
+        }
+    }
+
+    private static readonly string[] SubNames = ["", "step", "sounds", "swings", "rest", "draw"];
+    private readonly double[] subWorst = new double[6];
+    private long subAt;
+    private long drawBytesWorst;
+    private TimeSpan gcPausedBefore = GC.GetTotalPauseDuration();
+
+    private static string LastFullGc()
+    {
+        GCMemoryInfo info = GC.GetGCMemoryInfo(GCKind.Background);
+        GCMemoryInfo blocking = GC.GetGCMemoryInfo(GCKind.FullBlocking);
+        return $"background #{info.Index} pause {(info.PauseDurations.Length > 0 ? info.PauseDurations[0].TotalMilliseconds : 0):0.0}, " +
+            $"blocking #{blocking.Index} pause {(blocking.PauseDurations.Length > 0 ? blocking.PauseDurations[0].TotalMilliseconds : 0):0.0}, " +
+            $"heap {info.HeapSizeBytes / (1024 * 1024)} MB, load {info.MemoryLoadBytes / (1024 * 1024)}/{info.HighMemoryLoadThresholdBytes / (1024 * 1024)} MB";
+    }
+    private long drawBytesTotal;
+
+    private void Sub(int index)
+    {
+        if (!AuditFrames)
+        {
+            return;
+        }
+
+        long now = System.Diagnostics.Stopwatch.GetTimestamp();
+        if (index > 0)
+        {
+            subWorst[index] = Math.Max(subWorst[index], System.Diagnostics.Stopwatch.GetElapsedTime(subAt, now).TotalMilliseconds);
+        }
+
+        subAt = now;
+    }
+
+    // Frame timing, for the smoothness checks only (HANGLY_AUDIT_FRAMES=1): how even the frames are while the rope moves.
+    private static readonly bool AuditFrames = Environment.GetEnvironmentVariable("HANGLY_AUDIT_FRAMES") == "1";
+    private readonly List<double> auditDeltas = [];
+    private readonly Dictionary<int, int> auditSteps = [];
+    private double auditWorst;
+    private long auditSince = System.Diagnostics.Stopwatch.GetTimestamp();
+
+    private void NoteFrame(double delta, int steps, double workMs)
+    {
+        auditDeltas.Add(delta * 1000);
+        auditSteps[steps] = auditSteps.GetValueOrDefault(steps) + 1;
+        auditWorst = Math.Max(auditWorst, workMs);
+        if (System.Diagnostics.Stopwatch.GetElapsedTime(auditSince).TotalSeconds < 3 || auditDeltas.Count < 20)
+        {
+            return;
+        }
+
+        auditDeltas.Sort();
+        double median = auditDeltas[auditDeltas.Count / 2];
+        int late = auditDeltas.Count(d => d > median * 1.5);
+        Diagnostics.Log(
+            $"frames: {auditDeltas.Count} moving, interval median {median:0.0} ms, min {auditDeltas[0]:0.0}, max {auditDeltas[^1]:0.0}, " +
+            $"late {late}; physics steps per frame {string.Join(" ", auditSteps.OrderBy(pair => pair.Key).Select(pair => $"{pair.Key}x{pair.Value}"))}; " +
+            $"worst frame work {auditWorst:0.0} ms");
+        auditDeltas.Clear();
+        auditSteps.Clear();
+        auditWorst = 0;
+        auditSince = System.Diagnostics.Stopwatch.GetTimestamp();
     }
 
     /// <summary>One swing is one crossing of the vertical; the rule is <see cref="SwingCounter"/>.</summary>
@@ -808,7 +1013,7 @@ public sealed class OverlayWindow : IDisposable
     private Hangly.Core.Geometry.Rect? lastPainted;
 
     /// <summary>Whether the rope is settled and nobody is holding it.</summary>
-    private bool isIdle;
+    private volatile bool isIdle;
 
     /// <summary>
     /// How long the settled loop waits between looks at the cursor: thirty a second, the
@@ -1058,10 +1263,13 @@ public static class OverlayMetrics
             ? BaseHeight * ElasticTable.CanvasAllowance(RopeConfiguration.Layout.LengthFraction, ropeLength)
             : 0;
 
-    public static Size CanvasSize(double charmSize, double ropeLength, RopePhysics physics = RopePhysics.Standard)
+    /// <param name="stretchOf">The length that stretches, when the canvas is made for more than the rope (a picture
+    /// hanging below its rope's end); the rope's own length otherwise.</param>
+    public static Size CanvasSize(
+        double charmSize, double ropeLength, RopePhysics physics = RopePhysics.Standard, double? stretchOf = null)
     {
         Size room = RopeConfiguration.Layout.CanvasScale(charmSize, ropeLength);
-        double height = (BaseHeight * room.Height) + StretchRoom(ropeLength, physics);
+        double height = (BaseHeight * room.Height) + StretchRoom(stretchOf ?? ropeLength, physics);
 
         // How far the charm's centre can get from the anchor. `unit` in
         // RopeConfiguration.Fitted always works out to BaseHeight, because the canvas is

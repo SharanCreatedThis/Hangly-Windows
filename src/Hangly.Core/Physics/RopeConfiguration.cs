@@ -228,10 +228,14 @@ public readonly record struct RopeConfiguration
         RopeTimeProfile profile = RopeTimeProfileTable.Baseline,
         double charmSize = 1,
         double ropeLength = 1,
-        RopeMotion motion = RopeMotion.Full)
+        RopeMotion motion = RopeMotion.Full,
+        double? canvasRopeLength = null)
     {
         RopeConfiguration configuration = Default;
-        Size room = Layout.CanvasScale(charmSize, ropeLength);
+
+        // The canvas may be made for more than the rope (a picture that hangs below its rope's end): measured against
+        // what it was made for, so the rope keeps the length it was given within it.
+        Size room = Layout.CanvasScale(charmSize, canvasRopeLength ?? ropeLength);
 
         // The height the shipped canvas would have had. Every proportion below is taken
         // against this rather than against the canvas actually handed over, which is
@@ -375,7 +379,7 @@ public readonly record struct RopeConfiguration
         /// </remarks>
         public static int[] Attachments(int charmCount, int segmentCount)
         {
-            int charms = Math.Max(1, Math.Min(charmCount, CharmStack.MaximumCount));
+            int charms = Math.Max(1, Math.Min(charmCount, CharmStack.MaximumOnRope));
             var nodes = new int[charms];
             for (int index = 1; index <= charms; index++)
             {
@@ -402,7 +406,7 @@ public readonly record struct RopeConfiguration
         /// shipped.
         /// </remarks>
         public static double CharmScale(int charmCount) =>
-            Math.Max(1, Math.Min(charmCount, CharmStack.MaximumCount)) switch
+            Math.Max(1, Math.Min(charmCount, CharmStack.MaximumOnRope)) switch
             {
                 1 => 1.0,
                 2 => 0.92,

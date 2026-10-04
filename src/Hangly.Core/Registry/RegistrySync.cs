@@ -122,6 +122,24 @@ public sealed class RegistrySync
             RegistryResponse response = await registry.SubmitAsync(RegistryRequest.From(record)).ConfigureAwait(false);
             OnOwner(() => Accepted(response, sent));
         }
+        catch (RegistryException exception) when (exception.Status == 403 && !startedOver)
+        {
+            // The key does not match: see InstallationStore.StartOverIfNeverAccepted. Once a launch at most.
+            OnOwner(() =>
+            {
+                startedOver = true;
+                if (Store.StartOverIfNeverAccepted(now()))
+                {
+                    analytics.SetInstallationId(Store.Record!.InstallationId);
+                    inFlight = null;
+                    _ = Sync();
+                }
+                else
+                {
+                    Failed(exception.Failure);
+                }
+            });
+        }
         catch (RegistryException exception)
         {
             OnOwner(() => Failed(exception.Failure));
@@ -131,6 +149,8 @@ public sealed class RegistrySync
             OnOwner(() => Failed(RegistryFailure.Unreachable));
         }
     }
+
+    private bool startedOver;
 
     private void Accepted(RegistryResponse response, UploadedFacts sent)
     {

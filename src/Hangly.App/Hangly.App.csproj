@@ -154,6 +154,8 @@
   <ItemGroup>
     <!-- Copied whole, exactly as the macOS bundle copies Assets/Charms. -->
     <Content Include="Assets/Charms/**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets/Connectors/*.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets/Ropes/*.png" CopyToOutputDirectory="PreserveNewest" />
     <!-- The Spider-Man entrance's sound slot: whatever is there is copied; empty is silent. -->
     <Content Include="Assets/Sounds/*.wav" CopyToOutputDirectory="PreserveNewest" />
 

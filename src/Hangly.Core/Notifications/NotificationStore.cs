@@ -16,51 +16,15 @@ public enum NotificationKind
     Broadcast,
 }
 
-/// <summary>One entry in the Notification Center.</summary>
-public sealed record NotificationItem
-{
-    /// <summary>The announcement's ID, or <c>update-&lt;version&gt;</c>.</summary>
-    public required string Id { get; init; }
-
-    public NotificationKind Kind { get; init; }
-
-    public string Title { get; init; } = string.Empty;
-
-    public string Message { get; init; } = string.Empty;
-
-    /// <summary>An update's bullet points.</summary>
-    public IReadOnlyList<string> Highlights { get; init; } = [];
-
-    public AnnouncementAction ActionType { get; init; }
-
-    public string ActionTarget { get; init; } = string.Empty;
-
-    public string? ButtonTitle { get; init; }
-
-    public DateTimeOffset ReceivedAt { get; init; }
-
-    public DateTimeOffset? ExpireAt { get; init; }
-
-    public DateTimeOffset? ReadAt { get; init; }
-
-    /// <summary>For an update: the version it offers.</summary>
-    public string? Version { get; init; }
-
-    [JsonIgnore]
-    public bool IsRead => ReadAt is not null;
-}
-
 /// <summary>Everything the notifications remember, in one document.</summary>
 public sealed record NotificationState
 {
-    /// <summary>Newest first, at most <see cref="NotificationStore.HistoryLimit"/>.</summary>
-    public IReadOnlyList<NotificationItem> History { get; init; } = [];
-
-    /// <summary>Every broadcast that has had its card, or went straight to the Center. Never a card again.</summary>
+    /// <summary>
+    /// Every broadcast that has had its card, by ID alone: never shown again. Nothing else of a notification is kept — no
+    /// history, no read state (Sharan, 4 Oct: a notification shows under the charm, leaves after its time, and is gone;
+    /// there is no Notification Center to keep it in).
+    /// </summary>
     public IReadOnlyList<string> ShownNotifications { get; init; } = [];
-
-    /// <summary>Read, by ID — kept past the history for the same reason.</summary>
-    public IReadOnlyList<string> ReadNotifications { get; init; } = [];
 
     /// <summary>Received but not yet shown: waiting for their start, for the charm, or for the card before them.</summary>
     public IReadOnlyList<Announcement> Waiting { get; init; } = [];
@@ -82,7 +46,6 @@ public sealed record NotificationState
 /// </remarks>
 public sealed class NotificationStore
 {
-    public const int HistoryLimit = 1000;
     public const int RememberedLimit = 2000;
 
     private static readonly JsonSerializerOptions Json = new(AnnouncementFeedParser.Options)
@@ -115,12 +78,10 @@ public sealed class NotificationStore
         }
     }
 
-    public int UnreadCount => State.History.Count(item => !item.IsRead);
-
     // Receiving
 
     /// <summary>
-    /// Takes in what the feed sent: new broadcasts wait for their card; <c>Low</c> ones go straight to the Center.
+    /// Takes in what the feed sent: new broadcasts wait for their card, whatever their priority.
     /// Anything already shown, cleared or expired is ignored, and a waiting one the dashboard withdrew is dropped.
     /// </summary>
     public void Receive(IEnumerable<Announcement> announcements, bool includeTest, DateTimeOffset now, string? etag = null)
@@ -149,15 +110,7 @@ public sealed class NotificationStore
                     continue;
                 }
 
-                if (announcement.Priority == AnnouncementPriority.Low)
-                {
-                    Remember(shown, announcement.Id);
-                    next = Record(next, ItemFor(announcement, now));
-                }
-                else
-                {
-                    waiting.Add(announcement);
-                }
+                waiting.Add(announcement);
             }
 
             return next with { Waiting = waiting, ShownNotifications = shown, LastFetchAt = now, FeedETag = etag };
@@ -168,8 +121,8 @@ public sealed class NotificationStore
     public void NoteUnchanged(DateTimeOffset now) => Mutate(current => current with { LastFetchAt = now });
 
     /// <summary>
-    /// A waiting broadcast that reached its expiry without its card — the PC was asleep, the charm hidden — is not
-    /// lost: it goes into the Center, unread, and is never shown as a card.
+    /// A waiting broadcast that reached its expiry without its card — the PC was asleep, the charm hidden — has missed
+    /// its moment. A broadcast is a pop-up and nothing more, so it is let go, and remembered so it is never shown late.
     /// </summary>
     public void Expire(DateTimeOffset now)
     {
@@ -185,7 +138,6 @@ public sealed class NotificationStore
             foreach (Announcement missed in current.Waiting.Where(a => a.ExpireAt <= now))
             {
                 Remember(shown, missed.Id);
-                next = Record(next, ItemFor(missed, now));
             }
 
             return next with { ShownNotifications = shown };
@@ -194,68 +146,15 @@ public sealed class NotificationStore
 
     // Showing
 
-    /// <summary>A broadcast's card has appeared: never again as a card, and in the Center as unread.</summary>
+    /// <summary>
+    /// A broadcast's card has appeared: never again. It is a pop-up, not a message to keep.
+    /// </summary>
     public void MarkShown(Announcement announcement, DateTimeOffset now) => Mutate(current =>
     {
         List<string> shown = [.. current.ShownNotifications];
         Remember(shown, announcement.Id);
-        return Record(
-            current with { Waiting = [.. current.Waiting.Where(a => a.Id != announcement.Id)], ShownNotifications = shown },
-            ItemFor(announcement, now));
+        return current with { Waiting = [.. current.Waiting.Where(a => a.Id != announcement.Id)], ShownNotifications = shown };
     });
-
-    /// <summary>The update reminder, as one Center entry per version.</summary>
-    public void RecordUpdate(string version, IReadOnlyList<string> highlights, DateTimeOffset now)
-    {
-        string id = $"update-{version}";
-        if (State.History.Any(item => item.Id == id && item.ButtonTitle is not null))
-        {
-            return;
-        }
-
-        Mutate(current => Record(
-            current with { History = [.. current.History.Where(item => item.Kind != NotificationKind.Update)] },
-            new NotificationItem
-            {
-                Id = id,
-                Kind = NotificationKind.Update,
-                Title = $"Hangly {ShortVersion(version)} Available",
-                Message = "A new version of Hangly is ready.",
-                Highlights = highlights,
-                ButtonTitle = "Update Now",
-                ReceivedAt = now,
-                Version = version,
-            }));
-    }
-
-    /// <summary>
-    /// No update on offer any more. One this copy now runs becomes a record that it was installed — read, with no button —
-    /// so the Center keeps the history; one withdrawn before it was installed goes.
-    /// </summary>
-    public void SettleUpdate(string current, DateTimeOffset now)
-    {
-        if (State.History.FirstOrDefault(item => item.Kind == NotificationKind.Update && item.ButtonTitle is not null) is not { } offered)
-        {
-            return;
-        }
-
-        Mutate(state =>
-        {
-            if (offered.Version is not { } version || VersionOrder.IsNewer(version, current))
-            {
-                return state with { History = [.. state.History.Where(item => item.Id != offered.Id)] };
-            }
-
-            NotificationItem installed = offered with
-            {
-                Title = $"Updated to Hangly {ShortVersion(version)}",
-                Message = "You're on the newest version.",
-                ButtonTitle = null,
-                ReadAt = offered.ReadAt ?? now,
-            };
-            return state with { History = [.. state.History.Select(item => item.Id == offered.Id ? installed : item)] };
-        });
-    }
 
     public void UpdateReminderState(Func<UpdateReminderState, UpdateReminderState> change) => Mutate(current =>
     {
@@ -265,67 +164,12 @@ public sealed class NotificationStore
         return next == current.Update ? current : current with { Update = next };
     });
 
-    // Reading
-
-    public void MarkRead(string id, DateTimeOffset now) => Mutate(current =>
-    {
-        if (current.History.FirstOrDefault(item => item.Id == id) is not { IsRead: false })
-        {
-            return current;
-        }
-
-        List<string> read = [.. current.ReadNotifications];
-        Remember(read, id);
-        return current with
-        {
-            History = [.. current.History.Select(item => item.Id == id ? item with { ReadAt = now } : item)],
-            ReadNotifications = read,
-        };
-    });
-
-    public void MarkAllRead(DateTimeOffset now) => Mutate(current =>
-    {
-        if (current.History.All(item => item.IsRead))
-        {
-            return current;
-        }
-
-        List<string> read = [.. current.ReadNotifications];
-        foreach (NotificationItem item in current.History.Where(item => !item.IsRead))
-        {
-            Remember(read, item.Id);
-        }
-
-        return current with
-        {
-            History = [.. current.History.Select(item => item.IsRead ? item : item with { ReadAt = now })],
-            ReadNotifications = read,
-        };
-    });
-
-    /// <summary>Dismiss all: the Center is emptied. Nothing cleared comes back as a card.</summary>
-    public void ClearAll() => Mutate(current =>
-    {
-        if (current.History.Count == 0)
-        {
-            return current;
-        }
-
-        List<string> read = [.. current.ReadNotifications];
-        foreach (NotificationItem item in current.History)
-        {
-            Remember(read, item.Id);
-        }
-
-        return current with { History = [], ReadNotifications = read };
-    });
-
     // Storage
 
     /// <summary>Applies a change; each operation returns the same document when it changes nothing, and that is not written.</summary>
     /// <remarks>
-    /// By reference, not by content: comparing the serialised document was the first way, and with a thousand entries
-    /// it cost two serialisations of the whole history on every evaluation, most of which change nothing.
+    /// By reference, not by content: comparing the serialised document would cost two serialisations on every
+    /// evaluation, most of which change nothing.
     /// </remarks>
     private void Mutate(Func<NotificationState, NotificationState> change)
     {
@@ -454,9 +298,7 @@ public sealed class NotificationStore
             DateTimeOffset? lastFetch = root.TryGetProperty("lastFetchAt", out JsonElement fetched) && fetched.TryGetDateTimeOffset(out DateTimeOffset at) ? at : null;
             return new NotificationState
             {
-                History = Each<NotificationItem>("history"),
                 ShownNotifications = Each<string>("shownNotifications"),
-                ReadNotifications = Each<string>("readNotifications"),
                 Waiting = Each<Announcement>("waiting"),
                 Update = One<UpdateReminderState>("update") ?? new UpdateReminderState(),
                 LastFetchAt = lastFetch,
@@ -482,30 +324,6 @@ public sealed class NotificationStore
             list.RemoveRange(0, list.Count - RememberedLimit);
         }
     }
-
-    private static NotificationState Record(NotificationState current, NotificationItem item)
-    {
-        if (current.ReadNotifications.Contains(item.Id))
-        {
-            item = item with { ReadAt = item.ReadAt ?? item.ReceivedAt };
-        }
-
-        List<NotificationItem> history = [item, .. current.History.Where(existing => existing.Id != item.Id)];
-        return current with { History = [.. history.Take(HistoryLimit)] };
-    }
-
-    public static NotificationItem ItemFor(Announcement announcement, DateTimeOffset now) => new()
-    {
-        Id = announcement.Id,
-        Kind = NotificationKind.Broadcast,
-        Title = announcement.Title,
-        Message = announcement.Message,
-        ActionType = announcement.ActionType,
-        ActionTarget = announcement.ActionTarget,
-        ButtonTitle = announcement.ButtonTitle,
-        ReceivedAt = now,
-        ExpireAt = announcement.ExpireAt,
-    };
 
     /// <summary>"2.3" for 2.3.0, as a headline says it; "2.3.1" stays whole.</summary>
     public static string ShortVersion(string version) =>

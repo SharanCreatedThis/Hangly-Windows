@@ -82,6 +82,32 @@ public sealed class InstallationStore
         return created;
     }
 
+    /// <summary>A new ID and key for an installation the registry has never accepted and now refuses (403).</summary>
+    /// <remarks>
+    /// How an installation gets there: <c>installation.json</c> lost or corrupt, and the old analytics ID adopted again
+    /// with a new key. The registry already has that ID under the old key, so every upload is refused, for ever: the
+    /// installation is frozen and later counted as uninstalled (RELEASE-GATE OPS-K8). A record that has never been
+    /// accepted (<see cref="InstallationRecord.LastSeen"/> null) owns nothing on the server, so starting again loses
+    /// nothing. One that has been accepted is never reset here, so a server fault cannot churn established IDs.
+    /// </remarks>
+    /// <returns>Whether the record was replaced.</returns>
+    public bool StartOverIfNeverAccepted(DateTimeOffset now)
+    {
+        if (Record is not InstallationRecord current || current.LastSeen is not null || current.Uploaded is not null)
+        {
+            return false;
+        }
+
+        Record = current with
+        {
+            InstallationId = Guid.NewGuid(),
+            WriteKey = MakeWriteKey(),
+            CreatedAt = now,
+        };
+        Save();
+        return true;
+    }
+
     /// <summary>Changes the record and writes it at once. The ID and write key are init-only and cannot change.</summary>
     public void Update(Func<InstallationRecord, InstallationRecord> change)
     {

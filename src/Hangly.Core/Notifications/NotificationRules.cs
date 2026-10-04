@@ -21,8 +21,14 @@ public sealed record UpdateReminderState
     /// <summary>While it sleeps: when it comes back.</summary>
     public DateTimeOffset? NextShowAt { get; init; }
 
-    /// <summary>Skip This Version. A later version reminds again.</summary>
+    /// <summary>Skip This Version (no longer offered; kept so a skip made earlier still holds). A later version reminds again.</summary>
     public string? SkippedVersion { get; init; }
+
+    /// <summary>
+    /// Update in Background: accepted and installing — not reminded about again this run (cleared at launch, so an update
+    /// that never happened is offered again).
+    /// </summary>
+    public string? AcceptedVersion { get; init; }
 }
 
 /// <summary>What the update card should be doing.</summary>
@@ -59,14 +65,17 @@ public static class UpdateReminder
             return new(ReminderKind.None);
         }
 
-        if (state.SkippedVersion == available)
+        if (state.SkippedVersion == available || state.AcceptedVersion == available)
         {
             return new(ReminderKind.None);
         }
 
         if (state.Version != available)
         {
-            state = new UpdateReminderState { Version = available, NextShowAt = now, SkippedVersion = state.SkippedVersion };
+            state = new UpdateReminderState
+            {
+                Version = available, NextShowAt = now, SkippedVersion = state.SkippedVersion, AcceptedVersion = state.AcceptedVersion,
+            };
         }
 
         if (state.VisibleUntil is DateTimeOffset until)
@@ -104,6 +113,10 @@ public static class UpdateReminder
     /// <summary>Skip This Version: never again for this one.</summary>
     public static UpdateReminderState Skip(UpdateReminderState state) =>
         state with { SkippedVersion = state.Version, VisibleUntil = null, NextShowAt = null };
+
+    /// <summary>Update in Background: this version is installing by itself; the card is not shown for it again this run.</summary>
+    public static UpdateReminderState Accept(UpdateReminderState state) =>
+        state with { AcceptedVersion = state.Version, VisibleUntil = null, NextShowAt = null };
 }
 
 /// <summary>Dotted versions compared number by number: 2.10.0 is newer than 2.9.9.</summary>
@@ -143,12 +156,13 @@ public static class NotificationQueue
 {
     /// <summary>
     /// The next card, if any: <c>High</c> broadcasts first, then the update reminder, then <c>Normal</c> broadcasts,
-    /// oldest start first. <c>Low</c> never gets a card.
+    /// then <c>Low</c>, oldest start first within each. A broadcast is a pop-up and nothing else — it is not kept in the
+    /// Center — so every priority gets its card.
     /// </summary>
     public static NotificationCard? Next(IEnumerable<Announcement> waiting, string? updateDue, DateTimeOffset now)
     {
         List<Announcement> live = [.. waiting
-            .Where(a => a.IsLive(now) && a.Priority != AnnouncementPriority.Low)
+            .Where(a => a.IsLive(now))
             .OrderBy(a => a.StartAt)
             .ThenBy(a => a.Id, StringComparer.Ordinal)];
         if (live.FirstOrDefault(a => a.Priority == AnnouncementPriority.High) is { } urgent)
@@ -161,7 +175,8 @@ public static class NotificationQueue
             return NotificationCard.Update(updateDue);
         }
 
-        return live.Count > 0 ? NotificationCard.Of(live[0]) : null;
+        Announcement? next = live.FirstOrDefault(a => a.Priority == AnnouncementPriority.Normal) ?? live.FirstOrDefault();
+        return next is null ? null : NotificationCard.Of(next);
     }
 
     /// <summary>The soonest moment something waiting becomes live, for a one-shot timer.</summary>

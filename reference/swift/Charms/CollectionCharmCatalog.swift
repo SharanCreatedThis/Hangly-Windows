@@ -267,7 +267,7 @@ enum CollectionCharmCatalog {
             kind: .panchangJie,
             sourceFileName: "Pánchang Jié.svg",
             mass: 2.45,
-            radiusRatio: 0.16,
+            radiusRatio: 0.22,
             palette: CharmPalette(
                 primary: CharmColor(0.88, 0.14, 0.18),
                 secondary: CharmColor(0.62, 0.08, 0.10),
@@ -275,13 +275,13 @@ enum CollectionCharmCatalog {
                 light: CharmColor(1.00, 0.62, 0.60)
             ),
             sound: .soft,
-            beadCount: 1
+            beadCount: 0
         ),
         Entry(
             kind: .daruma,
             sourceFileName: "Daruma.svg",
             mass: 3.65,
-            radiusRatio: 0.154,
+            radiusRatio: 0.255,
             palette: CharmPalette(
                 primary: CharmColor(0.88, 0.12, 0.12),
                 secondary: CharmColor(0.62, 0.06, 0.06),
@@ -289,7 +289,7 @@ enum CollectionCharmCatalog {
                 light: CharmColor(1.00, 0.50, 0.40)
             ),
             sound: .wood,
-            beadCount: 3
+            beadCount: 0
         ),
         Entry(
             kind: .manekiNeko,
@@ -345,7 +345,7 @@ enum CollectionCharmCatalog {
                 light: CharmColor(0.99, 0.90, 0.60)
             ),
             sound: .soft,
-            beadCount: 1
+            beadCount: 0
         ),
         Entry(
             kind: .dreamCatcher,

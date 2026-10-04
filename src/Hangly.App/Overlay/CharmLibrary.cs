@@ -42,7 +42,35 @@ public static class CharmLibrary
         var charms = new List<CharmDescriptor>(places.Count);
         foreach (RopeCharm place in places)
         {
-            charms.Add(Describe(artwork, index.Find(place.Id), place.Size));
+            CharmCatalogEntry entry = index.Find(place.Id);
+            IReadOnlyList<PictureFigure> figures = PictureParts.FiguresOf(entry.Id);
+            if (figures.Count == 0)
+            {
+                charms.Add(Describe(artwork, entry, place.Size));
+                continue;
+            }
+
+            // A picture that hangs by its own rope hangs as the figures on it: Spider-Man and Gwen, each a weight of its
+            // own on one cord (PictureParts).
+            foreach (PictureFigure figure in figures)
+            {
+                charms.Add(new CharmDescriptor(
+                    entry.Id,
+                    entry.DisplayName,
+                    entry.FileName,
+                    // The picture's size is carried by its rope (PictureParts.RopeLength), which scales the whole of
+                    // it; scaling the figures again would grow them on a rope that had already grown.
+                    figure.Metrics,
+                    entry.Palette,
+                    [],
+                    figure.Region,
+                    [],
+                    entry.Sound,
+                    CordInset: null,
+                    DrawRegion: figure.Region,
+                    HangsByOwnCord: false,
+                    Figure: figure));
+            }
         }
 
         // Settings clamping guarantees at least one, but this is the last place before
@@ -113,6 +141,11 @@ public static class CharmLibrary
                 ? measured.CordInset
                 : null,
             regions is { } body ? DrawRegionAround(body.Body, entry) : null,
-            entry.HangsByOwnCord);
+            entry.HangsByOwnCord,
+            Hook: entry.HangsByOwnCord ? null : regions?.Hook,
+            Connector: !entry.HangsByOwnCord && regions is { Hook: CharmArtworkHook hook } measuredHook
+                ? new HookConnector(hook, measuredHook.Body, HookConnector.WeightOf(entry.Mass))
+                : null,
+            RopeMeetsInset: entry.HangsByOwnCord ? null : regions?.RopeMeetsInset);
     }
 }

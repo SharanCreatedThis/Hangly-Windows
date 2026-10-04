@@ -47,7 +47,7 @@ public sealed partial class RopeSimulation
                     : new ArcSpan(CordLength, CordLength);
 
                 placements[slot] = new CharmPlacement(
-                    Center: PositionOfNode(charm.Node),
+                    Center: DrawnCenter(charm),
                     Radius: charm.Radius,
                     Angle: slot < CharmOrientations.Count ? CharmOrientations[slot] : Math.PI / 2,
                     KnotInset: charm.KnotInset,

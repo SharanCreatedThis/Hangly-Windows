@@ -22,7 +22,18 @@ public enum GlowLevel
 /// <summary>How the halo is drawn: how far it reaches, and how much colour it carries.</summary>
 /// <param name="Reach">Where the glow has faded to nothing, in charm radii from the centre.</param>
 /// <param name="Intensity">Multiplier on the Soft halo's opacity at every point.</param>
-public readonly record struct GlowStrength(double Reach, double Intensity);
+public readonly record struct GlowStrength(double Reach, double Intensity)
+{
+    /// <summary>
+    /// How far the glow spreads past the charm's own outline, as the blur's standard deviation against the charm's
+    /// shorter side: it fades out three of those past the edge. macOS's <c>GlowStrength.spread</c>.
+    /// </summary>
+    /// <remarks>
+    /// Soft's 0.06 fades out 0.18 of the charm's size past its edge — on a round charm, 1.36 radii from its centre,
+    /// where the disc it replaces faded out — and Strong's 0.11 at 1.66 radii, inside the 1.7 the layout reserves.
+    /// </remarks>
+    public double Spread => 0.06 * (Reach - 1) / 0.35;
+}
 
 /// <summary>The numbers behind each level. Identical to macOS's <c>GlowLevel.strength</c>, pinned by the same tests.</summary>
 /// <remarks>
@@ -42,6 +53,50 @@ public static class GlowTable
         GlowLevel.Strong => "Strong",
         _ => "Soft",
     };
+
+    /// <summary>The glow's alpha where the charm is solid, at Soft; Strong multiplies it by its intensity.</summary>
+    /// <remarks>Most of it is under the charm: what shows is its edge fading out, at about half this.</remarks>
+    public const double Opacity = 0.3;
+
+    /// <summary>How much of the glow's colour is the artwork's own; the rest is the palette's.</summary>
+    public const double OwnColourShare = 0.5;
+
+    /// <summary>Light added to every glow, so a dark part of a charm never casts a dark halo.</summary>
+    public const double Lift = 0.12;
+
+    /// <summary>
+    /// The palette colour a glow leans towards: the palette's primary, brightened to <c>0.85</c> at its brightest
+    /// channel — a neutral light for a black palette — so the glow is light, not paint.
+    /// </summary>
+    /// <remarks>
+    /// The glow used to be a disc of the palette's colour whatever the charm's shape — a ring round a tall figure, a
+    /// moon behind a slender bell. It is now the charm's own outline blurred out past its edge, in its own colours
+    /// (red off a red suit, purple off a purple skirt) leaning towards this one: macOS's <c>RGBABitmap.glow</c>.
+    /// </remarks>
+    public static CharmColor TintOf(CharmColor primary)
+    {
+        double brightest = Math.Max(primary.Red, Math.Max(primary.Green, primary.Blue));
+        if (brightest <= 0.001)
+        {
+            return new CharmColor(0.85, 0.85, 0.85);
+        }
+
+        double lift = 0.85 / brightest;
+        return new CharmColor(
+            Math.Min(1, primary.Red * lift), Math.Min(1, primary.Green * lift), Math.Min(1, primary.Blue * lift));
+    }
+
+    /// <summary>
+    /// The glow's colour over a part of the charm coloured <paramref name="own"/>: half its own, half
+    /// <see cref="TintOf"/> the palette's, lifted. What the overlay's colour matrix computes on the GPU.
+    /// </summary>
+    public static CharmColor GlowColour(CharmColor own, CharmColor primary)
+    {
+        CharmColor tint = TintOf(primary);
+        double Mix(double mine, double theirs) =>
+            Math.Min(1, (mine * OwnColourShare) + (theirs * (1 - OwnColourShare)) + Lift);
+        return new CharmColor(Mix(own.Red, tint.Red), Mix(own.Green, tint.Green), Mix(own.Blue, tint.Blue));
+    }
 
     /// <summary>The halo for <paramref name="level"/>, or null for none.</summary>
     public static GlowStrength? StrengthOf(GlowLevel level) => level switch

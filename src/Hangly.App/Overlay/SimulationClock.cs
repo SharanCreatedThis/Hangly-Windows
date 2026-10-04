@@ -74,7 +74,9 @@ public sealed class SimulationClock
     }
 
     /// <summary>Accounts for one compositor frame, and delivers a tick if it is due.</summary>
-    public void Advance()
+    /// <param name="displayDelta">The display time this frame stands for, when the compositor has said
+    /// (<see cref="DisplayTiming"/>); the stopwatch's measure otherwise.</param>
+    public void Advance(double? displayDelta = null)
     {
         if (!isRunning)
         {
@@ -82,7 +84,7 @@ public sealed class SimulationClock
         }
 
         double now = stopwatch.Elapsed.TotalSeconds;
-        double delta = now - lastTimestamp;
+        double delta = displayDelta ?? (now - lastTimestamp);
         lastTimestamp = now;
 
         // The first frame has no predecessor to measure against.

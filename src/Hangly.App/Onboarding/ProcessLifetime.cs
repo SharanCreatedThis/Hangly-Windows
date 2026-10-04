@@ -79,7 +79,7 @@ public static class ProcessLifetime
     public static void Dismiss(Window window) => window.AppWindow.Hide();
 
     /// <summary>Whether any onboarding window (welcome, a card) is on screen.</summary>
-    public static bool AnyVisible => Held.Any(window => window.AppWindow.IsVisible);
+    public static bool AnyVisible => Held.Any(Interop.WindowPlacement.IsShown);
 
     /// <summary>Lets the process end. Called on the way out, and nowhere else.</summary>
     public static void Release()
@@ -89,7 +89,14 @@ public static class ProcessLifetime
 
         foreach (Window window in windows)
         {
-            window.Close();
+            try
+            {
+                window.Close();
+            }
+            catch (Exception)
+            {
+                // Already closed: nothing to release.
+            }
         }
     }
 }

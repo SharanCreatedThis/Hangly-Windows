@@ -2,7 +2,7 @@
 //  NotificationCardWindow.cs
 //  Hangly
 //
-//  The small transparent window the card and the bell hang in, under the charm.
+//  The small transparent window the pop-up hangs in, under the charm, swinging with it.
 //
 
 using System.Numerics;
@@ -30,8 +30,14 @@ namespace Hangly.App.Notifications;
 ///
 /// <para><b>Motion</b> is macOS's: in by fading and rising ten points on a damped spring (response 0.42, damping
 /// 0.72); out by shrinking to 96%, fading and sliding eight points down in 250 ms; in between a ±1.5-point float on
-/// a 4.2-second sine. The bell floats for its first minute and then rests. Animation effects off in Windows: fades
-/// only, and no float.</para>
+/// a 4.2-second sine. Animation effects off in Windows: fades only, no float and no swing.</para>
+///
+/// <para><b>It swings with the charm.</b> Placed below the charm's resting place, the card then hangs on the line of the
+/// rope: as the charm swings, the card travels the same arc a beat behind, like something hung from it. It is moved
+/// <b>from the overlay's own frame loop</b> (<see cref="OnOverlayFrame"/>), which is paced to the compositor, with an
+/// asynchronous window move — not from a timer on this thread: Windows' timers tick every 15.6 ms unless asked for
+/// better, so a "16 ms" timer fired every 31 and the card moved at half the charm's rate, a step behind it. It holds
+/// still while the pointer is on the card so its buttons and × can be pressed.</para>
 /// </remarks>
 internal sealed class NotificationCardWindow : IDisposable
 {
@@ -49,7 +55,7 @@ internal sealed class NotificationCardWindow : IDisposable
 
     private readonly DispatcherQueue queue;
     private readonly DispatcherQueueTimer frames;
-    private readonly CanvasDevice device = CanvasDevice.GetSharedDevice();
+    private CanvasDevice device = CanvasDevice.GetSharedDevice();
     private readonly System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
     private readonly List<(CardLayout Layout, double Since)> leaving = [];
 
@@ -60,9 +66,7 @@ internal sealed class NotificationCardWindow : IDisposable
     private CanvasSwapChain? swapChain;
     private CardLayout? current;
     private Guid? currentToken;
-    private bool currentIsBell;
     private double enteredAt;
-    private double floatSince;
     private double scale = 1;
     private (int X, int Y) origin = (int.MinValue, int.MinValue);
     private bool isClickThrough = true;
@@ -102,22 +106,38 @@ internal sealed class NotificationCardWindow : IDisposable
     /// <summary>The rope and its charms at rest, in desktop pixels, and the display's scale (<see cref="Overlay.OverlayWindow.RestColumn"/>).</summary>
     public (Hangly.Core.Geometry.Rect Column, double Scale)? Column { get; set; }
 
-    /// <summary>What was last shown, so an evaluation that changed nothing draws nothing.</summary>
-    private (Guid? Token, UpdateNowStage Stage, int? Percent, bool Bell, int Count)? shownAs;
+    /// <summary>Where the window sits with the rope hanging straight, and the card's distance below the anchor, in pixels.</summary>
+    /// <remarks>Written here, read by the overlay's thread: the numbers travel together in one box.</remarks>
+    private volatile Hang? hang;
 
-    /// <summary>Shows <paramref name="card"/>, or the bell when it is null and <paramref name="bellCount"/> is set, or nothing.</summary>
-    public void Show(CardPresentation? card, bool showsBell, int bellCount)
+    private sealed record Hang(int X, int Y, double Length, int Width, int Height);
+
+    /// <summary>Where the swing has carried the card, in pixels: eased on the overlay's thread, read here to place it.</summary>
+    private volatile SwingOffset swing = new(0, 0);
+
+    private sealed record SwingOffset(double X, double Y);
+
+    /// <summary>Whether the overlay should move the card: one is up, the pointer is not on it, and motion is not reduced.</summary>
+    private volatile bool swings;
+
+    /// <summary>How quickly the card catches up with the swing: it trails the charm by about this long.</summary>
+    private const double FollowTime = 0.045;
+
+    /// <summary>What was last shown, so an evaluation that changed nothing draws nothing.</summary>
+    private (Guid? Token, UpdateNowStage Stage, int? Percent)? shownAs;
+
+    /// <summary>Shows <paramref name="card"/>, or nothing. A broadcast is a pop-up: there is no bell between cards.</summary>
+    public void Show(CardPresentation? card)
     {
-        bool wantsBell = card is null && showsBell;
-        var signature = (card?.Token, card?.Stage ?? UpdateNowStage.Idle, card?.Percent, wantsBell, wantsBell ? bellCount : 0);
-        if (signature == shownAs && (current is not null || (card is null && !wantsBell)))
+        var signature = (card?.Token, card?.Stage ?? UpdateNowStage.Idle, card?.Percent);
+        if (signature == shownAs && (current is not null || card is null))
         {
             return;
         }
 
         shownAs = signature;
         double now = clock.Elapsed.TotalSeconds;
-        if (card is null && !wantsBell)
+        if (card is null)
         {
             Leave(now);
         }
@@ -129,10 +149,10 @@ internal sealed class NotificationCardWindow : IDisposable
             }
 
             theme = ReadTheme();
-            // The same card with new words (Update Now's progress), or the bell with a new count: redrawn in place.
-            // Anything else leaves, and the new one arrives.
-            bool same = card is not null ? currentToken == card.Token : currentIsBell;
-            CardLayout layout = NotificationCardPainter.Layout(device, card, bellCount);
+            // The same card with new words (Update Now's progress): redrawn in place. Anything else leaves, and the new
+            // one arrives.
+            bool same = currentToken == card.Token;
+            CardLayout layout = NotificationCardPainter.Layout(device, card);
             if (same)
             {
                 current?.Dispose();
@@ -141,13 +161,11 @@ internal sealed class NotificationCardWindow : IDisposable
             {
                 Leave(now);
                 enteredAt = now;
-                floatSince = now;
             }
 
             current = layout;
             dirty = true;
-            currentToken = card?.Token;
-            currentIsBell = wantsBell;
+            currentToken = card.Token;
             Place();
             if (!isShown)
             {
@@ -198,7 +216,6 @@ internal sealed class NotificationCardWindow : IDisposable
 
         current = null;
         currentToken = null;
-        currentIsBell = false;
     }
 
     // Placing
@@ -234,18 +251,76 @@ internal sealed class NotificationCardWindow : IDisposable
         (double cardX, double cardY, _) = CardPlacement.Place(NotificationCardPainter.Width * scale, CardHeight * scale, column, area, Gap * scale);
 
         // The window is larger than the card: room for its rise above, and its float and shadow around.
-        int x = (int)Math.Round(cardX - inset);
-        int y = (int)Math.Round(cardY - (TopMargin * scale));
+        var next = new Hang(
+            (int)Math.Round(cardX - inset), (int)Math.Round(cardY - (TopMargin * scale)), Math.Max(0, cardY - column.Top), width, height);
+        hang = next;
         if (rescaled || swapChain is null || swapChain.SizeInPixels.Width != width)
         {
             Resize(width, height);
         }
 
-        if ((x, y) != origin || rescaled)
+        SwingOffset offset = swing;
+        MoveTo((next.X + (int)Math.Round(offset.X), next.Y + (int)Math.Round(offset.Y)), resize: rescaled);
+    }
+
+    /// <summary>The window's top-left, in desktop pixels, as last moved — from either thread.</summary>
+    private volatile Origin placedAt = new(int.MinValue, int.MinValue);
+
+    private sealed record Origin(int X, int Y);
+
+    private void MoveTo((int X, int Y) next, bool resize = false, bool async = false)
+    {
+        if (handle == IntPtr.Zero || (placedAt.X == next.X && placedAt.Y == next.Y && !resize))
         {
-            origin = (x, y);
-            NativeMethods.SetWindowPos(handle, IntPtr.Zero, x, y, width, height, NativeMethods.SwpNozorder | NativeMethods.SwpNoactivate);
+            return;
         }
+
+        placedAt = new Origin(next.X, next.Y);
+        origin = next;
+        int width = (int)Math.Round(WindowWidth * scale), height = (int)Math.Round(WindowHeight * scale);
+        uint flags = NativeMethods.SwpNozorder | NativeMethods.SwpNoactivate | (resize ? 0 : NativeMethods.SwpNosize)
+            | (async ? SwpAsyncWindowPos : 0);
+        NativeMethods.SetWindowPos(handle, IntPtr.Zero, next.X, next.Y, width, height, flags);
+    }
+
+    private const uint SwpAsyncWindowPos = 0x4000;
+
+    // Swinging
+
+    /// <summary>
+    /// One frame of the overlay, on its thread: the card goes part of the way to where the swing puts it, by how long the
+    /// frame was. <paramref name="direction"/> is the rope's, anchor to charm, as a unit vector (y down).
+    /// </summary>
+    /// <remarks>
+    /// A card hanging <c>Length</c> below the anchor, on the line of the rope, is the far end of the same pendulum, so it
+    /// travels the same arc, further. The direction is held below the horizontal, so a charm thrown over the top cannot
+    /// fling the card above its anchor. The move is asynchronous: the overlay never waits on this window.
+    /// </remarks>
+    public void OnOverlayFrame((double Dx, double Dy) direction, double elapsed)
+    {
+        if (!swings || hang is not Hang place || handle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        (double dx, double dy) = direction;
+        if (dy < 0.35)
+        {
+            dy = 0.35;
+            dx = Math.CopySign(Math.Sqrt(1 - (dy * dy)), dx);
+        }
+
+        double targetX = place.Length * dx, targetY = (place.Length * dy) - place.Length;
+        double step = 1 - Math.Exp(-Math.Clamp(elapsed, 0, 0.1) / FollowTime);
+        SwingOffset was = swing;
+        double x = was.X + ((targetX - was.X) * step), y = was.Y + ((targetY - was.Y) * step);
+        if (Math.Abs(targetX - x) < 0.3 && Math.Abs(targetY - y) < 0.3)
+        {
+            (x, y) = (targetX, targetY);
+        }
+
+        swing = new SwingOffset(x, y);
+        MoveTo((place.X + (int)Math.Round(x), place.Y + (int)Math.Round(y)), async: true);
     }
 
     /// <summary>Appearance → Window, as the overlay has it: On the Desktop rather than Always on Top.</summary>
@@ -293,14 +368,21 @@ internal sealed class NotificationCardWindow : IDisposable
                 swapChain?.Dispose();
                 swapChain = null;
                 origin = (int.MinValue, int.MinValue);
+                placedAt = new Origin(int.MinValue, int.MinValue);
+                swing = new SwingOffset(0, 0);
+                swings = false;
+                FineTimers(false);
             }
 
             return;
         }
 
-        // Fast while something moves; thirty a second for the float; and for a resting card or bell, the pointer alone —
-        // ten times a second, which is soon enough to pass clicks through, and a bell can be up for hours.
-        frames.Interval = TimeSpan.FromMilliseconds(animating || indeterminate ? 16 : cardHovered ? 33 : 100);
+        // Fast while something animates; and for a resting card, the pointer alone — ten times a second, which is soon
+        // enough to pass clicks through. The swing is not this timer's: the overlay moves the card (OnOverlayFrame).
+        // While it animates, Windows' timer resolution is raised to a millisecond, or "16 ms" means 31.
+        bool fast = animating || indeterminate;
+        FineTimers(fast);
+        frames.Interval = TimeSpan.FromMilliseconds(fast ? 16 : cardHovered ? 33 : 100);
         if (!frames.IsRunning)
         {
             frames.Start();
@@ -334,8 +416,17 @@ internal sealed class NotificationCardWindow : IDisposable
         double now = clock.Elapsed.TotalSeconds;
         PollPointer();
         bool reduced = SystemMotion.ReducesMotion;
+        // Held only while the pointer is reaching for the card — on it, and moved in the last two seconds. A card swinging
+        // under a pointer that was simply left there must not catch on it.
+        bool reaching = cardHovered && now - pointerMovedAt < 2;
+        swings = current is not null && !reduced && !reaching;
+        if (reduced && (swing.X != 0 || swing.Y != 0) && hang is Hang still)
+        {
+            swing = new SwingOffset(0, 0);
+            MoveTo((still.X, still.Y));
+        }
         bool entering = current is not null && now - enteredAt < 1.2;
-        bool floats = current is not null && !reduced && (!currentIsBell || now - floatSince < 60);
+        bool floats = current is not null && !reduced;
         bool indeterminate = current?.Progress is not null && current.ProgressFraction is null;
         SetFloating(floats && !entering);
 
@@ -479,8 +570,15 @@ internal sealed class NotificationCardWindow : IDisposable
             return;
         }
 
+        if (cursor.X != lastCursor.X || cursor.Y != lastCursor.Y)
+        {
+            lastCursor = cursor;
+            pointerMovedAt = clock.Elapsed.TotalSeconds;
+        }
+
         Vector2 at = CardOrigin(current);
-        double x = ((cursor.X - origin.X) / scale) - at.X, y = ((cursor.Y - origin.Y) / scale) - at.Y;
+        Origin where = placedAt;
+        double x = ((cursor.X - where.X) / scale) - at.X, y = ((cursor.Y - where.Y) / scale) - at.Y;
         bool inside = x >= 0 && y >= 0 && x < current.Bounds.Width && y < current.Bounds.Height;
         CardCommand? target = null;
         if (inside)
@@ -505,10 +603,7 @@ internal sealed class NotificationCardWindow : IDisposable
         {
             cardHovered = inside;
             dirty = true;
-            if (!currentIsBell)
-            {
-                HoverChanged?.Invoke(inside);
-            }
+            HoverChanged?.Invoke(inside);
         }
 
         SetClickThrough(!inside && pressed is null);
@@ -597,6 +692,8 @@ internal sealed class NotificationCardWindow : IDisposable
 
         try
         {
+            // Asked again each time: after a lost device the shared device is a new one.
+            device = CanvasDevice.GetSharedDevice();
             if (!isRegistered)
             {
                 var windowClass = new NativeMethods.WndClassEx
@@ -664,9 +761,40 @@ internal sealed class NotificationCardWindow : IDisposable
             ? window.HandleMessage(message, wParam, lParam)
             : NativeMethods.DefWindowProc(hWnd, message, wParam, lParam);
 
+    /// <summary>A millisecond timer resolution while the card animates, and Windows' default again after.</summary>
+    private void FineTimers(bool fine)
+    {
+        if (fine == hasFineTimers)
+        {
+            return;
+        }
+
+        hasFineTimers = fine;
+        _ = fine ? TimeBeginPeriod(1) : TimeEndPeriod(1);
+    }
+
+    private bool hasFineTimers;
+    private NativeMethods.Point lastCursor;
+    private double pointerMovedAt = double.NegativeInfinity;
+
+    [DllImport("winmm.dll", EntryPoint = "timeBeginPeriod")]
+    private static extern uint TimeBeginPeriod(uint milliseconds);
+
+    [DllImport("winmm.dll", EntryPoint = "timeEndPeriod")]
+    private static extern uint TimeEndPeriod(uint milliseconds);
+
+    /// <summary>The graphics device went away: everything drawn on it goes, and the next card builds afresh.</summary>
+    public void DeviceLost()
+    {
+        Dispose();
+        currentToken = null;
+    }
+
     public void Dispose()
     {
         frames.Stop();
+        FineTimers(false);
+        swings = false;
         current?.Dispose();
         current = null;
         foreach ((CardLayout layout, _) in leaving)

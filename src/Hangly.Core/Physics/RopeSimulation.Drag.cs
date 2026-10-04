@@ -126,6 +126,9 @@ public sealed partial class RopeSimulation
     /// and the charm swing around the anchor instead, which is both what a real cord does
     /// and what keeps the stretch bound honest.
     /// </remarks>
+    /// <summary>How far a cord held out level from the anchor reaches, against its reach hanging.</summary>
+    public const double LevelReach = 0.94;
+
     public Vec2 ReachableTarget(Vec2 location)
     {
         // Only the rope *above* the held node can hold it back, so a charm halfway up the
@@ -134,14 +137,40 @@ public sealed partial class RopeSimulation
         double held = (DragIndex ?? (Points.Length - 1)) * Configuration.SegmentLength;
         // An elastic rope can be pulled past its length, as far as its stretch allows.
         double reach = held * Configuration.MaximumReachRatio * (Physics == RopePhysics.Elastic ? ElasticTable.Ceiling : 1);
-        Vec2 offset = location - Anchor;
-        double distance = offset.Magnitude;
-        if (distance <= reach || distance <= Precision.UlpOfOne)
+
+        // Never above the anchor, which is at the very top of the screen: lifted past it, the cord ran up out of the
+        // overlay's top edge and only a sliver of it showed along the top of the screen. The charm comes up to just
+        // under its hook and its slack drapes below it, as it would from a real one.
+        double heldReach = 0;
+        foreach (CharmStackLayout.Slot slot in CharmLayout.Slots)
         {
-            return location;
+            if (slot.Node == DragIndex)
+            {
+                heldReach = slot.KnotRadius;
+            }
         }
 
-        return Anchor + ((offset / distance) * reach);
+        // After the reach, so it only ever brings the charm nearer the anchor, never pulls the cord past its length.
+        Vec2 offset = location - Anchor;
+        double distance = offset.Magnitude;
+        Vec2 reachable = distance > reach && distance > Precision.UlpOfOne ? Anchor + ((offset / distance) * reach) : location;
+        double lowest = Anchor.Y + heldReach;
+        if (reachable.Y >= lowest)
+        {
+            return reachable;
+        }
+
+        // Out sideways along the anchor's line at the same distance, so a cord pulled over the top stays taut rather
+        // than folding back on itself — or, lifted close in, just under the anchor with its slack draped below.
+        // A little short of the reach: a cord held out level sags, and pulled level to its full reach it stretched.
+        double away = Math.Min(distance, reach * LevelReach);
+        double drop = lowest - Anchor.Y;
+        double side = away > drop ? Math.Sqrt((away * away) - (drop * drop)) : 0;
+        double across = Math.Clamp(reachable.X - Anchor.X, -side, side);
+
+        // Pulled far over the top, as far out to its side as the cord reaches level; lifted close in, where it is.
+        double pulled = distance > reach * LevelReach ? (offset.X < 0 ? -side : side) : across;
+        return new Vec2(Anchor.X + pulled, lowest);
     }
 
     /// <summary>

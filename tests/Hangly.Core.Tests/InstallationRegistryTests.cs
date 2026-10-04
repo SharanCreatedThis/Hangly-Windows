@@ -240,6 +240,51 @@ public sealed class InstallationRegistryTests : IDisposable
     }
 
     [Fact]
+    public async Task ANeverAcceptedInstallationRefusedForItsKeyStartsOverWithANewId()
+    {
+        // OPS-K8: the old analytics ID adopted again with a new key, after installation.json was lost.
+        var legacy = Guid.NewGuid();
+        var client = new FakeRegistryClient();
+        client.RefuseWith = request => request.InstallationId == legacy.ToString() ? 403 : null;
+        (RegistrySync sync, _) = MakeSync(client, configure: s => s with { Privacy = s.Privacy with { AnonymousId = legacy } });
+        await sync.Start();
+        await sync.Sync();
+
+        Assert.Equal(2, client.Requests.Count);
+        Assert.NotEqual(legacy, sync.Store.Record!.InstallationId);
+        Assert.NotNull(sync.Store.Record.LastSeen);
+        Assert.Null(sync.LastFailure);
+    }
+
+    [Fact]
+    public async Task AnInstallationTheRegistryHasAcceptedIsNeverResetByARefusal()
+    {
+        var clock = new DateTimeOffset(2026, 10, 3, 10, 0, 0, TimeSpan.Zero);
+        var client = new FakeRegistryClient { LastSeen = () => clock };
+        (RegistrySync sync, _) = MakeSync(client, now: () => clock);
+        await sync.Start();
+        Guid id = sync.Store.Record!.InstallationId;
+
+        client.RefuseWith = _ => 403;
+        clock = clock.AddDays(2);
+        await sync.Sync();
+
+        Assert.Equal(id, sync.Store.Record!.InstallationId);
+        Assert.Equal(RegistryFailure.Refused, sync.LastFailure);
+    }
+
+    [Fact]
+    public async Task OnlyAKeyRefusalStartsOver()
+    {
+        var client = new FakeRegistryClient { RefuseWith = _ => 400 };
+        (RegistrySync sync, _) = MakeSync(client);
+        await sync.Start();
+        Assert.Single(client.Requests);
+        Assert.Equal(RegistryFailure.Refused, sync.LastFailure);
+        Assert.Null(sync.Store.Record!.LastSeen);
+    }
+
+    [Fact]
     public async Task ADayLaterTheHeartbeatIsSentWithinTheDayItIsNot()
     {
         var clock = new DateTimeOffset(2026, 9, 28, 10, 0, 0, TimeSpan.Zero);
@@ -262,6 +307,9 @@ internal sealed class FakeRegistryClient : IRegistryClient
 
     public RegistryFailure? Failure { get; set; }
 
+    /// <summary>Refuses a request with this status, when it answers one; null accepts it.</summary>
+    public Func<RegistryRequest, int?> RefuseWith { get; set; } = _ => null;
+
     public Func<DateTimeOffset> LastSeen { get; set; } = () => DateTimeOffset.UtcNow;
 
     public List<Hangly.Core.Crashes.CrashReport> Crashes { get; } = [];
@@ -275,6 +323,11 @@ internal sealed class FakeRegistryClient : IRegistryClient
     public Task<RegistryResponse> SubmitAsync(RegistryRequest request, CancellationToken cancellation = default)
     {
         Requests.Add(request);
+        if (RefuseWith(request) is int status)
+        {
+            return Task.FromException<RegistryResponse>(new RegistryException(RegistryFailure.Refused, status));
+        }
+
         return Failure is RegistryFailure failure
             ? Task.FromException<RegistryResponse>(new RegistryException(failure))
             : Task.FromResult(new RegistryResponse("Bengaluru", "Karnataka", "IN", LastSeen()));

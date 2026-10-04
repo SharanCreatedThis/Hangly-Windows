@@ -111,7 +111,7 @@ public sealed class NotificationTests : IDisposable
     // The queue
 
     [Fact]
-    public void HighFirstThenTheUpdateThenNormalOldestFirstAndLowNever()
+    public void HighFirstThenTheUpdateThenNormalOldestFirstThenLow()
     {
         Announcement old = Make("old", start: Minutes(-30));
         Announcement fresh = Make("new", start: Minutes(-5));
@@ -120,7 +120,9 @@ public sealed class NotificationTests : IDisposable
         Assert.Equal("urgent", NotificationQueue.Next([fresh, quiet, old, urgent], "2.3.0", Minutes(0))?.Id);
         Assert.Equal("update-2.3.0", NotificationQueue.Next([fresh, old], "2.3.0", Minutes(0))?.Id);
         Assert.Equal("old", NotificationQueue.Next([fresh, old], null, Minutes(0))?.Id);
-        Assert.Null(NotificationQueue.Next([quiet], null, Minutes(0)));
+        // Low waits behind every normal one, however long it has waited, and still gets its pop-up.
+        Assert.Equal("new", NotificationQueue.Next([quiet, fresh], null, Minutes(0))?.Id);
+        Assert.Equal("quiet", NotificationQueue.Next([quiet], null, Minutes(0))?.Id);
     }
 
     [Fact]
@@ -208,7 +210,7 @@ public sealed class NotificationTests : IDisposable
     // The store
 
     [Fact]
-    public void ABroadcastWaitsIsShownOnceAndNeverReturnsAsACard()
+    public void ABroadcastPopsUpOnceLeavesNothingButItsIdAndNeverReturns()
     {
         var store = new NotificationStore(folder);
         Announcement football = Make();
@@ -216,15 +218,12 @@ public sealed class NotificationTests : IDisposable
         Assert.Equal(new[] { "football" }, store.State.Waiting.Select(a => a.Id));
         store.MarkShown(football, Minutes(1));
         Assert.Empty(store.State.Waiting);
-        Assert.Equal(new[] { "football" }, store.State.History.Select(item => item.Id));
-        Assert.Equal(1, store.UnreadCount);
         store.Receive([football], includeTest: false, Minutes(60 * 6));
         Assert.Empty(store.State.Waiting);
-        Assert.Single(store.State.History);
     }
 
     [Fact]
-    public void LowGoesToTheCenterTestOnlyToTestersExpiredNever()
+    public void LowWaitsForItsPopUpTooTestOnlyToTestersExpiredNever()
     {
         var store = new NotificationStore(persist: false);
         store.Receive(
@@ -236,10 +235,10 @@ public sealed class NotificationTests : IDisposable
             ],
             includeTest: false,
             Minutes(0));
-        Assert.Empty(store.State.Waiting);
-        Assert.Equal(new[] { "quiet" }, store.State.History.Select(item => item.Id));
-        store.Receive([Make("tester", audience: AnnouncementAudience.Test)], includeTest: true, Minutes(1));
-        Assert.Equal(new[] { "tester" }, store.State.Waiting.Select(a => a.Id));
+        Assert.Equal(new[] { "quiet" }, store.State.Waiting.Select(a => a.Id));
+        store.Receive(
+            [Make("quiet", AnnouncementPriority.Low), Make("tester", audience: AnnouncementAudience.Test)], includeTest: true, Minutes(1));
+        Assert.Equal(new[] { "quiet", "tester" }, store.State.Waiting.Select(a => a.Id));
     }
 
     [Fact]
@@ -250,35 +249,16 @@ public sealed class NotificationTests : IDisposable
         Announcement edited = Make("b", title: "Six new charms");
         store.Receive([edited], includeTest: false, Minutes(1));
         Assert.Equal(new[] { edited }, store.State.Waiting);
-        Assert.Empty(store.State.History);
     }
 
     [Fact]
-    public void OneThatExpiredBeforeItsCardCouldShowGoesToTheCenterUnread()
+    public void OneThatExpiredBeforeItCouldPopUpIsLetGoAndNeverShownLate()
     {
         var store = new NotificationStore(persist: false);
         store.Receive([Make("missed", expire: Minutes(30))], includeTest: false, Minutes(0));
         store.Expire(Minutes(31));
         Assert.Empty(store.State.Waiting);
-        Assert.Equal(new[] { "missed" }, store.State.History.Select(item => item.Id));
-        Assert.Equal(1, store.UnreadCount);
         Assert.Contains("missed", store.State.ShownNotifications);
-    }
-
-    [Fact]
-    public void AnInstalledUpdateStaysAsARecordAndAWithdrawnOneGoes()
-    {
-        var store = new NotificationStore(persist: false);
-        store.RecordUpdate("2.3.0", ["90 new charms"], Minutes(0));
-        store.SettleUpdate("2.3.0", Minutes(10));
-        Assert.Single(store.State.History);
-        Assert.Equal("Updated to Hangly 2.3", store.State.History[0].Title);
-        Assert.Null(store.State.History[0].ButtonTitle);
-        Assert.True(store.State.History[0].IsRead);
-        store.RecordUpdate("2.4.0", [], Minutes(12));
-        Assert.Equal(new[] { "update-2.4.0" }, store.State.History.Select(item => item.Id));
-        store.SettleUpdate("2.3.0", Minutes(13));
-        Assert.Empty(store.State.History);
     }
 
     [Fact]
@@ -294,7 +274,6 @@ public sealed class NotificationTests : IDisposable
              "aFieldFromTheFuture":{"x":1}}
             """);
         var store = new NotificationStore(folder);
-        Assert.Equal(new[] { "a" }, store.State.History.Select(item => item.Id));
         Assert.Equal(new[] { "a", "b" }, store.State.ShownNotifications);
         Assert.Empty(store.State.Waiting);
         Assert.Equal("2.3.0", store.State.Update.SkippedVersion);
@@ -312,31 +291,37 @@ public sealed class NotificationTests : IDisposable
     }
 
     [Fact]
-    public void AThousandNotificationsStayFast()
+    public void TwoThousandRememberedIdsStayFast()
     {
-        var store = new NotificationStore(folder);
-        for (int index = 0; index < 1000; index++)
-        {
-            store.MarkShown(Make($"s{index}"), Minutes(index));
-        }
+        NotificationStore store = Seeded(Enumerable.Range(0, 2000).Select(index => $"s{index}"));
 
         var watch = System.Diagnostics.Stopwatch.StartNew();
-        store.MarkRead("s500", Minutes(2000));
-        long read = watch.ElapsedMilliseconds;
-        watch.Restart();
-        store.MarkAllRead(Minutes(2001));
-        long all = watch.ElapsedMilliseconds;
+        store.MarkShown(Make("new"), Minutes(2000));
+        long mark = watch.ElapsedMilliseconds;
         watch.Restart();
         store.UpdateReminderState(state => state);
         long unchanged = watch.ElapsedMilliseconds;
         watch.Restart();
         var reopened = new NotificationStore(folder);
         long open = watch.ElapsedMilliseconds;
-        Assert.Equal(1000, reopened.State.History.Count);
-        Assert.True(read < 100, $"mark read {read} ms");
-        Assert.True(all < 100, $"mark all read {all} ms");
+        Assert.Equal(NotificationStore.RememberedLimit, reopened.State.ShownNotifications.Count);
+        Assert.True(mark < 100, $"mark shown {mark} ms");
         Assert.True(unchanged < 5, $"an unchanged reminder {unchanged} ms");
-        Assert.True(open < 400, $"reading 1,000 {open} ms");
+        Assert.True(open < 400, $"reading {open} ms");
+    }
+
+    [Fact]
+    public void AnOlderHanglysCenterHistoryAndReadListAreNotKept()
+    {
+        NotificationStore store = Seeded(["a", "b", "c"]);
+        Assert.Equal(new[] { "a", "b", "c" }, store.State.ShownNotifications); // never shown twice still holds
+        store.MarkShown(Make("d"), Minutes(1));
+        string saved = File.ReadAllText(Path.Combine(folder, "notifications.json"));
+        Assert.DoesNotContain("history", saved, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("readNotifications", saved, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Football", saved, StringComparison.Ordinal);
+        store.Receive([Make("a")], includeTest: false, Minutes(2));
+        Assert.Empty(store.State.Waiting);
     }
 
     // Policies
@@ -414,41 +399,6 @@ public sealed class NotificationTests : IDisposable
     }
 
     [Fact]
-    public void ReadAllReadAndClearedAndClearedStaysCleared()
-    {
-        var store = new NotificationStore(persist: false);
-        foreach (string id in new[] { "a", "b", "c" })
-        {
-            store.MarkShown(Make(id), Minutes(0));
-        }
-
-        store.MarkRead("b", Minutes(1));
-        Assert.Equal(2, store.UnreadCount);
-        store.MarkAllRead(Minutes(2));
-        Assert.Equal(0, store.UnreadCount);
-        store.ClearAll();
-        Assert.Empty(store.State.History);
-        store.Receive([Make("a")], includeTest: false, Minutes(4));
-        Assert.Empty(store.State.Waiting);
-        Assert.Equal(new[] { "a", "b", "c" }, store.State.ReadNotifications.Order());
-    }
-
-    [Fact]
-    public void OneUpdateEntryReplacedByANewerVersionAndRemovedOnceInstalled()
-    {
-        var store = new NotificationStore(persist: false);
-        store.RecordUpdate("2.3.0", ["90 new charms"], Minutes(0));
-        store.RecordUpdate("2.3.0", ["90 new charms"], Minutes(1));
-        Assert.Equal(new[] { "update-2.3.0" }, store.State.History.Select(item => item.Id));
-        Assert.Equal("Hangly 2.3 Available", store.State.History[0].Title);
-        store.RecordUpdate("2.3.1", [], Minutes(2));
-        Assert.Equal(new[] { "update-2.3.1" }, store.State.History.Select(item => item.Id));
-        Assert.Equal("Hangly 2.3.1 Available", store.State.History[0].Title);
-        store.SettleUpdate("2.3.0", Minutes(3));
-        Assert.Empty(store.State.History);
-    }
-
-    [Fact]
     public void EverythingSurvivesARelaunchIncludingWhatIsStillWaiting()
     {
         var store = new NotificationStore(folder);
@@ -457,7 +407,6 @@ public sealed class NotificationTests : IDisposable
         store.UpdateReminderState(state => state with { SkippedVersion = "2.3.0" });
         var reopened = new NotificationStore(folder);
         Assert.Equal(new[] { "waiting" }, reopened.State.Waiting.Select(a => a.Id));
-        Assert.Equal(new[] { "shown" }, reopened.State.History.Select(item => item.Id));
         Assert.Equal(new[] { "shown" }, reopened.State.ShownNotifications);
         Assert.Equal("2.3.0", reopened.State.Update.SkippedVersion);
         // Records holding lists compare those by reference: the fields, then the list's contents.
@@ -470,21 +419,32 @@ public sealed class NotificationTests : IDisposable
     {
         Directory.CreateDirectory(folder);
         File.WriteAllText(Path.Combine(folder, "notifications.json"), "{not json");
-        Assert.Empty(new NotificationStore(folder).State.History);
+        Assert.Empty(new NotificationStore(folder).State.ShownNotifications);
     }
 
     [Fact]
-    public void HistoryKeepsTheNewestThousand()
+    public void WhatHasBeenShownIsRememberedAndNoneOfItFillsTheCenter()
     {
         var store = new NotificationStore(persist: false);
-        for (int index = 0; index < NotificationStore.HistoryLimit + 5; index++)
+        for (int index = 0; index < NotificationStore.RememberedLimit + 5; index++)
         {
             store.MarkShown(Make($"a{index}"), Minutes(index));
         }
 
-        Assert.Equal(NotificationStore.HistoryLimit, store.State.History.Count);
-        Assert.Equal($"a{NotificationStore.HistoryLimit + 4}", store.State.History[0].Id);
-        Assert.Equal(NotificationStore.HistoryLimit + 5, store.State.ShownNotifications.Count);
+        Assert.Equal(NotificationStore.RememberedLimit, store.State.ShownNotifications.Count);
+        Assert.Equal($"a{NotificationStore.RememberedLimit + 4}", store.State.ShownNotifications[^1]);
+    }
+
+    /// <summary>A store whose Center already holds these entries, as an older Hangly left them.</summary>
+    private NotificationStore Seeded(IEnumerable<string> ids)
+    {
+        Directory.CreateDirectory(folder);
+        string[] list = [.. ids];
+        string items = string.Join(",", list.Select((id, index) =>
+            $$"""{"id":"{{id}}","kind":"broadcast","title":"Football {{index}}","message":"M","receivedAt":"2026-10-01T00:00:00+00:00"}"""));
+        string shown = string.Join(",", list.Select(id => $"\"{id}\""));
+        File.WriteAllText(Path.Combine(folder, "notifications.json"), $$"""{"history":[{{items}}],"readNotifications":[{{shown}}],"shownNotifications":[{{shown}}]}""");
+        return new NotificationStore(folder);
     }
 
     [Fact]
@@ -493,7 +453,8 @@ public sealed class NotificationTests : IDisposable
         var store = new NotificationStore(persist: false);
         int changes = 0;
         store.Changed += () => changes++;
-        store.MarkRead("nothing", Minutes(0));
+        store.UpdateReminderState(state => state);
+        store.Expire(Minutes(0));
         Assert.Equal(0, changes);
         store.MarkShown(Make(), Minutes(0));
         Assert.Equal(1, changes);
@@ -512,7 +473,5 @@ public sealed class NotificationTests : IDisposable
         Assert.Equal("2.3.0", AnalyticsEvent.UpdateBannerShown("2.3.0").Parameters["to_version"]);
         Assert.Equal("open_library", AnalyticsEvent.BroadcastClicked("x", "open_library").Parameters["action"]);
         Assert.Equal(100, AnalyticsEvent.BroadcastShown(new string('x', 140)).Parameters["notification_id"].Length);
-        Assert.Equal("notification_center_opened", AnalyticsEvent.NotificationCenterOpened("bell").Name);
-        Assert.Equal("tray", AnalyticsEvent.NotificationCenterOpened("tray").Parameters["source"]);
     }
 }

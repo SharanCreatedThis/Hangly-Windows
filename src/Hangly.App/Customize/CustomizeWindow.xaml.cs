@@ -120,9 +120,13 @@ public sealed partial class CustomizeWindow : Window
         store.Changed += OnStoreChanged;
         Closed += (_, _) =>
         {
+            IsClosed = true;
             store.Changed -= OnStoreChanged;
         };
     }
+
+    /// <summary>Whether this window has closed for real; a closed WinUI window cannot be shown again.</summary>
+    public bool IsClosed { get; private set; }
 
     /// <summary>Opens at a size the charm grid reads well at.</summary>
     /// <remarks>
@@ -1121,8 +1125,10 @@ public sealed partial class CustomizeWindow : Window
         UpdateMessage.Text = "Downloading…";
 
         // If this succeeds the process is replaced and nothing after it runs. If it
-        // fails, the installed copy is untouched and the message says so.
-        UpdateMessage.Text = await updater.DownloadAndApplyAsync();
+        // fails, the installed copy is untouched and the message says so. Progress arrives
+        // from the download's thread, so it is handed to this window's own.
+        Microsoft.UI.Dispatching.DispatcherQueue queue = DispatcherQueue;
+        UpdateMessage.Text = await updater.DownloadAndApplyAsync(status => queue.TryEnqueue(() => UpdateMessage.Text = status));
         InstallUpdateButton.IsEnabled = true;
         UpdateNotesPanel.Visibility = Visibility.Collapsed;
     }
@@ -1667,7 +1673,8 @@ public sealed partial class CustomizeWindow : Window
         CustomCharmEntry? entry = environment.CustomCharms.Entries
             .FirstOrDefault(candidate => candidate.CharmId == id);
 
-        if (entry is null)
+        // One ContentDialog per window at a time; a second ShowAsync throws (see SupportSheet).
+        if (entry is null || Microsoft.UI.Xaml.Media.VisualTreeHelper.GetOpenPopupsForXamlRoot(Root.XamlRoot).Any(popup => popup.Child is ContentDialog))
         {
             return;
         }

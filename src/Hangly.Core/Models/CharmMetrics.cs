@@ -19,7 +19,13 @@ namespace Hangly.Core.Models;
 /// Where the cord terminates, as a fraction of the bounding radius measured back along
 /// the final link. One puts the knot on the bounding circle.
 /// </param>
-public readonly record struct CharmMetrics(double Mass, double RadiusRatio, double KnotInset)
+/// <param name="AlongRope">
+/// Where on the rope this charm's centre hangs, as a fraction of the rope from the anchor — set only for the figures of
+/// a picture that hangs by its own rope (Spider-Man and Gwen), whose places are the artwork's rather than an even share
+/// of the rope. With it, <see cref="RadiusRatio"/> is a fraction of the rope's own length, so the picture keeps its
+/// proportions at any rope length. Null for every other charm. macOS's <c>CharmMetrics.alongRope</c>.
+/// </param>
+public readonly record struct CharmMetrics(double Mass, double RadiusRatio, double KnotInset, double? AlongRope = null)
 {
     /// <summary>The shipped default, matching the plain bead.</summary>
     public static CharmMetrics Default { get; } = new(2.6, 0.126, 0.90);
@@ -41,7 +47,7 @@ public readonly record struct CharmMetrics(double Mass, double RadiusRatio, doub
     /// </remarks>
     public CharmMetrics Scaled(double size) => size.Equals(1)
         ? this
-        : new CharmMetrics(Mass * size, RadiusRatio * size, KnotInset);
+        : new CharmMetrics(Mass * size, RadiusRatio * size, KnotInset, AlongRope);
 
     public static CharmMetrics Interpolate(CharmMetrics start, CharmMetrics end, double progress)
     {
@@ -49,7 +55,8 @@ public readonly record struct CharmMetrics(double Mass, double RadiusRatio, doub
         return new CharmMetrics(
             start.Mass + ((end.Mass - start.Mass) * clamped),
             start.RadiusRatio + ((end.RadiusRatio - start.RadiusRatio) * clamped),
-            start.KnotInset + ((end.KnotInset - start.KnotInset) * clamped));
+            start.KnotInset + ((end.KnotInset - start.KnotInset) * clamped),
+            clamped < 0.5 ? start.AlongRope : end.AlongRope);
     }
 }
 
@@ -91,4 +98,10 @@ public static class CharmStack
 {
     /// <summary>One rope, at most three charms.</summary>
     public const int MaximumCount = 3;
+
+    /// <summary>
+    /// Charms on the cord at most: one more than the places, because a picture that hangs by its own rope (Spider-Man and
+    /// Gwen) hangs as its two figures.
+    /// </summary>
+    public const int MaximumOnRope = MaximumCount + 1;
 }

@@ -39,15 +39,17 @@ public sealed record CardPresentation(
 /// <summary>What a button asks the app to do.</summary>
 public sealed record NotificationAction(AnnouncementAction Type, string Target)
 {
+    /// <remarks>A button that would open the Notification Center, which is gone (Sharan, 4 Oct), is no button at all.</remarks>
     public static NotificationAction? From(AnnouncementAction type, string target) =>
-        type == AnnouncementAction.None || !Announcement.TargetFits(type, target) ? null : new(type, target);
+        type is AnnouncementAction.None or AnnouncementAction.OpenNotifications || !Announcement.TargetFits(type, target)
+            ? null
+            : new(type, target);
 
     public string AnalyticsName => Type switch
     {
         AnnouncementAction.OpenLibrary => "open_library",
         AnnouncementAction.OpenCharm => "open_charm",
         AnnouncementAction.OpenCreate => "open_create",
-        AnnouncementAction.OpenNotifications => "open_notifications",
         _ => "open_url",
     };
 }
@@ -92,6 +94,13 @@ public sealed class NotificationPresenter
         this.isOnboarding = isOnboarding;
         this.perform = perform;
         launchedAt = DateTimeOffset.Now;
+
+        // An update accepted on an earlier run that has not happened — it failed, or Hangly stopped first — is reminded
+        // about again: accepted holds for the run it was accepted in.
+        if (store.State.Update.AcceptedVersion is not null)
+        {
+            store.UpdateReminderState(state => state with { AcceptedVersion = null });
+        }
         wake = queue.CreateTimer();
         wake.IsRepeating = false;
         wake.Tick += (_, _) => Evaluate();
@@ -107,18 +116,8 @@ public sealed class NotificationPresenter
 
     private static readonly bool AuditEvaluations = Environment.GetEnvironmentVariable("HANGLY_AUDIT_NOTIFICATIONS") == "evaluations";
 
-    /// <summary>Opens the Notification Center. Set after construction: the Center is built from this.</summary>
-    public Action OpenCenter { get; set; } = () => { };
-
     /// <summary>Told when the charm comes back on screen, so the feed can look for anything new.</summary>
     public Action CharmReturned { get; set; } = () => { };
-
-    /// <summary>Opens the Center and says where from: <c>bell</c>, <c>charm_menu</c> or <c>tray</c>.</summary>
-    public void ShowCenter(string source)
-    {
-        HanglyAnalytics.Log(AnalyticsEvent.NotificationCenterOpened(source));
-        OpenCenter();
-    }
 
     /// <summary>Raised on the XAML thread whenever the card, the bell or the count may have changed.</summary>
     public event Action? Changed;
@@ -127,11 +126,6 @@ public sealed class NotificationPresenter
 
     /// <summary>Whether the charm is on screen for a card to hang under.</summary>
     public bool IsCharmPresent { get; private set; }
-
-    public int UnreadCount => Store.UnreadCount;
-
-    /// <summary>The bell: something unread, the charm on screen, and no card in the way.</summary>
-    public bool ShowsBell => Card is null && IsCharmPresent && UnreadCount > 0;
 
     /// <summary>The overlay's charm appeared or went away.</summary>
     public void SetCharmPresent(bool present)
@@ -199,15 +193,6 @@ public sealed class NotificationPresenter
         UpdateReminderState state = Store.State.Update;
         ReminderDecision decision = UpdateReminder.Decide(ref state, available, currentVersion, now);
         Store.UpdateReminderState(_ => state);
-        if (available is not null && VersionOrder.IsNewer(available, currentVersion))
-        {
-            Store.RecordUpdate(available, Highlights, now);
-        }
-        else
-        {
-            Store.SettleUpdate(currentVersion, now);
-        }
-
         return decision;
     }
 
@@ -347,7 +332,6 @@ public sealed class NotificationPresenter
 
         HanglyAnalytics.Log(AnalyticsEvent.NotificationClicked(NotificationKind.Update, current.Id, "update_now"));
         HanglyAnalytics.Log(AnalyticsEvent.UpdateBannerClicked(current.Version!));
-        Store.MarkRead(current.Id, DateTimeOffset.Now);
         SetStage(UpdateNowStage.Downloading, updates?.ReadyVersion is null ? 0 : 100);
         updating?.Cancel();
         updating = new CancellationTokenSource();
@@ -365,6 +349,38 @@ public sealed class NotificationPresenter
         if (!started && !cancel.IsCancellationRequested)
         {
             SetStage(UpdateNowStage.Failed);
+        }
+    }
+
+    /// <summary>Asked to end the process once Update in Background has handed the update over; set by the app.</summary>
+    public Action ExitForUpdate { get; set; } = () => { };
+
+    /// <summary>
+    /// Update in Background: the card goes at once — no progress, no message — and the update downloads, installs and
+    /// restarts Hangly into the new version by itself (<see cref="Updater.UpdateInBackgroundAsync"/>). Not shown for this
+    /// version again this run; should the update fail, the next launch reminds again (Sharan, 4 Oct: one button, no Later,
+    /// no Skip, no ×).
+    /// </summary>
+    public async void UpdateInBackground()
+    {
+        if (Card is not { IsUpdate: true } current)
+        {
+            return;
+        }
+
+        HanglyAnalytics.Log(AnalyticsEvent.NotificationClicked(NotificationKind.Update, current.Id, "update_in_background"));
+        HanglyAnalytics.Log(AnalyticsEvent.UpdateBannerClicked(current.Version!));
+        Store.UpdateReminderState(UpdateReminder.Accept);
+        End(DismissReason.Accepted, DateTimeOffset.Now);
+        Evaluate();
+        if (Preview.IsOn || updates is null)
+        {
+            return;
+        }
+
+        if (await updates.UpdateInBackgroundAsync().ConfigureAwait(true))
+        {
+            ExitForUpdate();
         }
     }
 
@@ -399,7 +415,6 @@ public sealed class NotificationPresenter
         DateTimeOffset now = DateTimeOffset.Now;
         HanglyAnalytics.Log(AnalyticsEvent.NotificationClicked(NotificationKind.Broadcast, announcement.Id, action.AnalyticsName));
         HanglyAnalytics.Log(AnalyticsEvent.BroadcastClicked(announcement.Id, action.AnalyticsName));
-        Store.MarkRead(announcement.Id, now);
         Card = null;
         cardEndsAt = null;
         restUntil = now + Breath;
@@ -431,34 +446,6 @@ public sealed class NotificationPresenter
 
         Evaluate();
     }
-
-    /// <summary>An entry in the Center was chosen.</summary>
-    public void Open(NotificationItem item)
-    {
-        Store.MarkRead(item.Id, DateTimeOffset.Now);
-        if (item.Kind == NotificationKind.Update)
-        {
-            HanglyAnalytics.Log(AnalyticsEvent.NotificationClicked(NotificationKind.Update, item.Id, "update_now"));
-            if (item.Version is { } version)
-            {
-                HanglyAnalytics.Log(AnalyticsEvent.UpdateBannerClicked(version));
-            }
-
-            if (updates is not null)
-            {
-                _ = updates.UpdateNowAsync(_ => { }, () => { }, CancellationToken.None);
-            }
-
-            return;
-        }
-
-        if (NotificationAction.From(item.ActionType, item.ActionTarget) is { } action)
-        {
-            HanglyAnalytics.Log(AnalyticsEvent.NotificationClicked(NotificationKind.Broadcast, item.Id, action.AnalyticsName));
-            HanglyAnalytics.Log(AnalyticsEvent.BroadcastClicked(item.Id, action.AnalyticsName));
-            perform(action);
-        }
-    }
 }
 
 /// <summary>
@@ -468,10 +455,22 @@ public sealed class NotificationPresenter
 /// </summary>
 internal static class Preview
 {
-    public const string Version = "2.3.0";
+    /// <summary>
+    /// The version after this one: newer than any build it runs in. A fixed "2.3.0" stopped showing anything once the app
+    /// itself was 2.3.0 — an update to the version already running is no update.
+    /// </summary>
+    public static string Version { get; } = Next(AppInfo.Version);
 
     public const string Notes =
-        "- **90 new charms.** Pokémon, Naruto and more.\n- **Notification Center.** Hangly tells you what is new.\n- **Faster startup.** Opens sooner.";
+        "- **Realistic ropes and chains.** Real thread, leather and metal.\n- **Charms hang from their own rings.** No gaps.\n- **Smoother, lighter overlay.** Less work every frame.";
+
+    private static string Next(string running)
+    {
+        string[] parts = running.Split('.');
+        int major = parts.Length > 0 && int.TryParse(parts[0], out int a) ? a : 0;
+        int minor = parts.Length > 1 && int.TryParse(parts[1], out int b) ? b : 0;
+        return $"{major}.{minor + 1}.0";
+    }
 
     public static bool IsOn { get; } =
         Environment.GetEnvironmentVariable("HANGLY_NOTIFICATION_PREVIEW") is "update" or "update-fail" && !Updater.IsInstalled;

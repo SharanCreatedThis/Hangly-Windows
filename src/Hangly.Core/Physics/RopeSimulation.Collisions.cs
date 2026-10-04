@@ -35,7 +35,7 @@ public sealed partial class RopeSimulation
     /// <summary>More than a frame ever produces; the rest are dropped rather than kept.</summary>
     private const int CollisionBufferLimit = 8;
 
-    private static readonly int MaximumPairs = CharmStack.MaximumCount * (CharmStack.MaximumCount - 1) / 2;
+    private static readonly int MaximumPairs = CharmStack.MaximumOnRope * (CharmStack.MaximumOnRope - 1) / 2;
 
     private readonly bool[] touching = new bool[MaximumPairs];
     private readonly double[] contactDepth = CreateNoContact();

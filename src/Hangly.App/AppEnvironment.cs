@@ -70,6 +70,11 @@ public sealed partial class AppEnvironment : IDisposable
         .Skip(1)
         .Contains(Hangly.Core.Lifecycle.LaunchIntent.UpdatedArgument, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>The restart after Update in Background: nothing at all is opened, not even the release notes.</summary>
+    private readonly bool silentUpdatedLaunch = Environment.GetCommandLineArgs()
+        .Skip(1)
+        .Contains(Hangly.Core.Lifecycle.LaunchIntent.SilentlyArgument, StringComparer.OrdinalIgnoreCase);
+
     /// <summary>When this process started, for <see cref="Hangly.Core.Lifecycle.UpdateTiming.SettleAfterLaunch"/>.</summary>
     private readonly long startedAt = Environment.TickCount64;
 
@@ -206,7 +211,7 @@ public sealed partial class AppEnvironment : IDisposable
         updateWait.Interval = Hangly.Core.Lifecycle.UpdateTiming.CheckEvery;
         updateWait.Tick += (timer, _) =>
         {
-            bool windowOpen = customize?.AppWindow.IsVisible == true || Onboarding.ProcessLifetime.AnyVisible;
+            bool windowOpen = Interop.WindowPlacement.IsShown(customize) || Onboarding.ProcessLifetime.AnyVisible;
             Hangly.Core.Lifecycle.UpdateMoment moment = UpdateMomentReader.Read(
                 TimeSpan.FromMilliseconds(Environment.TickCount64 - startedAt), windowOpen);
             if (!Hangly.Core.Lifecycle.UpdateTiming.ShouldInstall(moment))
@@ -241,7 +246,11 @@ public sealed partial class AppEnvironment : IDisposable
     private const int UpdateCheckDelaySeconds = 20;
 
     /// <summary>How often a running Hangly checks again.</summary>
-    private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromHours(24);
+    /// <summary>
+    /// Every hour, as the macOS build's Sparkle does: a new release is offered on the update card within the hour (Sharan,
+    /// 4 Oct: once a day left people days behind). The feed is one small file on the CDN.
+    /// </summary>
+    private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromHours(1);
 
     /// <summary>
     /// Hangly was opened again while running: the Library, in front — or the welcome card,
@@ -261,7 +270,7 @@ public sealed partial class AppEnvironment : IDisposable
 
     private void OnRelaunched()
     {
-        if (activeWelcome is { } welcome && welcome.AppWindow.IsVisible)
+        if (activeWelcome is { } welcome && Interop.WindowPlacement.IsShown(welcome))
         {
             Diagnostics.Log("relaunched while the welcome card is up; bringing it forward");
             Interop.WindowPlacement.BringToFront(welcome);
@@ -309,6 +318,13 @@ public sealed partial class AppEnvironment : IDisposable
 
     public void ShowWelcomeIfNeeded()
     {
+        // Update in Background asked for a silent restart: nothing opened (Sharan, 4 Oct).
+        if (updatedLaunch && silentUpdatedLaunch)
+        {
+            Diagnostics.Log("restarted by Update in Background: nothing opened");
+            return;
+        }
+
         // After an update to a new feature version, the release notes and nothing else: not the Enjoying Hangly card
         // as well. The restart after an update never asks for a name either; a later launch does.
         if (releaseNotesDue && (updatedLaunch || !Onboarding.WelcomeWindow.IsNeeded(store.Settings)))
@@ -866,6 +882,8 @@ public sealed partial class AppEnvironment : IDisposable
             FollowTheClock();
             NotificationsAfterWake();
         });
+        OverlayWindow built = overlay;
+        overlay.GraphicsDeviceLost += () => xamlQueue?.TryEnqueue(() => RecoverFromDeviceLoss(built));
         HookNotifications(overlay);
         Diagnostics.Log("overlay window constructed");
 
@@ -911,7 +929,7 @@ public sealed partial class AppEnvironment : IDisposable
     {
         // Hangly is not usable until it has a name: while the welcome card is waiting for
         // one, the Library, Create and the rest bring the card forward instead. As on macOS.
-        if (activeWelcome is { } waiting && waiting.AppWindow.IsVisible && Onboarding.WelcomeWindow.IsNeeded(store.Settings))
+        if (activeWelcome is { } waiting && Interop.WindowPlacement.IsShown(waiting) && Onboarding.WelcomeWindow.IsNeeded(store.Settings))
         {
             Interop.WindowPlacement.BringToFront(waiting);
             return;
@@ -920,7 +938,15 @@ public sealed partial class AppEnvironment : IDisposable
         try
         {
             // Built once and kept. It hides on close rather than closing, so there is
-            // nothing to rebuild.
+            // nothing to rebuild — unless it closed for real anyway, in which case every
+            // call on it throws "the WinUI Desktop Window object has already been closed"
+            // and the Library never opens again until a restart. Seen in crash reports.
+            if (customize is { IsClosed: true })
+            {
+                Diagnostics.Log("customize window had closed; building a new one");
+                customize = null;
+            }
+
             bool created = customize is null;
             customize ??= new Customize.CustomizeWindow(store, launchAtLogin, registry, this);
             if (created)
@@ -945,6 +971,7 @@ public sealed partial class AppEnvironment : IDisposable
             // BringToFront restores, activates, and takes the foreground when this was
             // asked for from outside — Hangly opened again.
             Interop.WindowPlacement.BringToFront(customize);
+            CloseStaleCustomize();
         }
         catch (Exception exception)
         {
@@ -993,6 +1020,96 @@ public sealed partial class AppEnvironment : IDisposable
         artwork = null;
         CharmGone();
     }
+
+    /// <summary>The graphics device went away under the overlay: build a new one on a new device.</summary>
+    /// <remarks>
+    /// After two seconds, because a driver that is being updated or reset is not ready the moment it fails.
+    /// <c>CanvasDevice.GetSharedDevice</c> makes a new device once the old one is lost. Measured on the VM: one display
+    /// adapter disabled and re-enabled is four losses in fifteen seconds, each recovered. At most eight within ten
+    /// minutes, so a GPU that fails on every frame cannot turn this into a loop, while a laptop that sleeps for days
+    /// still recovers every time.
+    /// </remarks>
+    private void RecoverFromDeviceLoss(OverlayWindow lost)
+    {
+        if (overlay != lost)
+        {
+            return;
+        }
+
+        HideOverlay();
+        notificationCard?.DeviceLost();
+
+        // The Library, Create and About window stays white after a device loss, even after a restore (measured on
+        // the VM; the same launch without the loss draws normally). It is replaced rather than left blank: set aside
+        // now, and closed only once its replacement exists — WinUI ends the process when its last window closes, and
+        // Customize is often the only one.
+        bool customizeWasOpen = Interop.WindowPlacement.IsShown(customize);
+        if (customize is not null)
+        {
+            staleCustomize ??= customize;
+            customize = null;
+        }
+        DateTimeOffset now = DateTimeOffset.Now;
+        if (now - recoveryWindowStart > TimeSpan.FromMinutes(10))
+        {
+            recoveryWindowStart = now;
+            deviceRecoveries = 0;
+        }
+
+        if (++deviceRecoveries > 8)
+        {
+            Diagnostics.Failure("overlay", new InvalidOperationException("graphics device lost more than eight times in ten minutes; not rebuilding again"));
+            return;
+        }
+
+        Microsoft.UI.Dispatching.DispatcherQueueTimer? wait = xamlQueue?.CreateTimer();
+        if (wait is null)
+        {
+            return;
+        }
+
+        wait.Interval = TimeSpan.FromSeconds(2);
+        wait.IsRepeating = false;
+        wait.Tick += (_, _) =>
+        {
+            if (overlay is null && store.Settings.Overlay.IsEnabled)
+            {
+                ShowOverlay();
+                Diagnostics.Log($"overlay rebuilt after the graphics device was lost ({deviceRecoveries})");
+            }
+
+            if (customizeWasOpen && customize is null)
+            {
+                OpenCustomize();
+                Diagnostics.Log("customize window rebuilt after the graphics device was lost");
+            }
+        };
+        wait.Start();
+    }
+
+    private int deviceRecoveries;
+
+    /// <summary>A Customize window drawn on a lost device, kept only until its replacement is open.</summary>
+    private Customize.CustomizeWindow? staleCustomize;
+
+    private void CloseStaleCustomize()
+    {
+        if (staleCustomize is not { } stale)
+        {
+            return;
+        }
+
+        staleCustomize = null;
+        try
+        {
+            stale.AllowClose();
+        }
+        catch (Exception exception)
+        {
+            Diagnostics.Failure("closing a customize window drawn on a lost device", exception);
+        }
+    }
+    private DateTimeOffset recoveryWindowStart = DateTimeOffset.MinValue;
 
     private void OnSettingsChanged(AppSettings settings)
     {
@@ -1151,7 +1268,6 @@ public sealed partial class AppEnvironment : IDisposable
         return
         [
             .. update,
-            .. NotificationsMenu(),
             new MenuEntry(
                 settings.Overlay.IsEnabled ? "Hide Charm" : "Show Charm",
                 () => store.UpdateOverlay(overlay => overlay with { IsEnabled = !overlay.IsEnabled })),
@@ -1177,8 +1293,9 @@ public sealed partial class AppEnvironment : IDisposable
             new MenuEntry("Charms", Children: charms),
             new MenuEntry("Rope", Children: ropes),
             .. DisplayMenu(settings.Overlay),
-            MenuEntry.Separator,
-            new MenuEntry("Quit Hangly", Quit),
+
+            // No Notifications and no Quit (Sharan, 4 Oct): notifications are not kept anywhere to open, and Hangly is
+            // meant to stay running; the macOS menu bar matches.
         ];
     }
 
@@ -1251,13 +1368,43 @@ public sealed partial class AppEnvironment : IDisposable
     /// <summary>Ends the process: the swings saved, and every held window released so WinUI can exit.</summary>
     private void Exit()
     {
-        updateWait?.Stop();
-        BankSwings();
-        customize?.AllowClose();
+        // Once: Quit can arrive twice (the tray and a relaunch, or a double click on a slow menu).
+        if (Interlocked.Exchange(ref exiting, 1) == 1)
+        {
+            return;
+        }
+
+        // Each step on its own, so one failing cannot stop the process from ending: an exception here used to
+        // leave through the tray's window procedure as a fatal crash, with the app half torn down.
+        Step("stopping the update timer", () => updateWait?.Stop());
+        Step("saving swings", BankSwings);
+        Step("closing customize", () => customize?.AllowClose());
+        Step("closing a stale customize", CloseStaleCustomize);
         customize = null;
-        Onboarding.ProcessLifetime.Release();
-        Application.Current.Exit();
+        Step("releasing onboarding windows", Onboarding.ProcessLifetime.Release);
+        if (Application.Current is { } app)
+        {
+            app.Exit();
+        }
+        else
+        {
+            Environment.Exit(0);
+        }
+
+        static void Step(string what, Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception exception)
+            {
+                Diagnostics.Failure($"quitting: {what}", exception);
+            }
+        }
     }
+
+    private int exiting;
 
     private void OnNetworkAvailabilityChanged(object? sender, System.Net.NetworkInformation.NetworkAvailabilityEventArgs args)
     {

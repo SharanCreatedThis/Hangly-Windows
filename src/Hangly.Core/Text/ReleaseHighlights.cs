@@ -29,7 +29,7 @@ public static class ReleaseHighlights
 
     public static IReadOnlyList<Highlight> Items { get; } =
     [
-        new("Notification Center", "News about new charms and collections now arrives under your charm, once, and waits in the Notification Center."),
+        new("News from the charm", "New charms and collections pop up in glass under your charm, swing with it, and leave on their own. Close one any time with ×."),
         new("Update from the charm", "When a new version is ready, a card under the charm says what's new. Update Now installs it, or choose Later."),
         new("Right-click the charm", "Notifications, the Library and Hide Charm, right where the charm hangs."),
         new("Works with Smart App Control", "Hangly no longer uses the unsigned files Windows 11 blocked, so it starts on every PC."),

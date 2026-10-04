@@ -75,6 +75,9 @@ public sealed partial class RopeSimulation
 
         for (int index = 0; index < Beads.Length; index++)
         {
+            // On the cord, whatever the walls said: folded hard enough, the charm a bead hangs on can put its wall
+            // above the anchor, and a bead past either end of the cord is a bead in mid-air.
+            Beads[index].Arc = Math.Clamp(Beads[index].Arc, 0, Math.Max(Curve.Length, 0));
             Beads[index].PreviousPosition = Beads[index].Position;
             Beads[index].Position = Curve.PointAtArc(Beads[index].Arc);
             Beads[index].Angle = Curve.AngleAtArc(Beads[index].Arc);
@@ -243,7 +246,7 @@ public sealed partial class RopeSimulation
 
         foreach (CharmStackLayout.Slot slot in CharmLayout.Slots)
         {
-            Vec2 center = PositionOfNode(slot.Node);
+            Vec2 center = DrawnCenter(slot);
             ArcSpan span = Curve.Span(center, slot.KnotRadius, slot.Node);
 
             // A rope folded back on itself can re-enter a charm's circle further down,
@@ -264,11 +267,24 @@ public sealed partial class RopeSimulation
             // Taken from the cord rather than from the link above it: the two agree on a
             // straight rope and part company on a whipping one, and it is the cord that
             // has to meet the charm's own loop.
-            Vec2 delta = center - Curve.PointAtArc(span.Lower);
-            CharmOrientations.Add(
-                delta.MagnitudeSquared > Precision.UlpOfOne ? Math.Atan2(delta.Y, delta.X) : Math.PI / 2);
+            // Where the cord is first seen to reach the charm, coming down from the one above: in a fast drag the cord's
+            // last links curl round inside the charm, hidden behind it, and the charm turned to face that hidden curl —
+            // upside down, its ring away from the cord everyone could see arriving.
+            double from = CharmSpans.Count >= 2 ? CharmSpans[^2].Upper : 0;
+            double seen = Curve.ArcFirstEnteringCircle(center, slot.KnotRadius, from) ?? span.Lower;
+            Vec2 delta = center - Curve.PointAtArc(Math.Min(seen, span.Lower));
+            // A figure that holds the rope in two hands lies along the rope between them (SolveHeldSpans).
+            if (slot.HoldsRope && HeldSpan(slot) is (int first, int last))
+            {
+                delta = PositionOfNode(last) - PositionOfNode(first);
+            }
+
+            double toward = delta.MagnitudeSquared > Precision.UlpOfOne ? Math.Atan2(delta.Y, delta.X) : Math.PI / 2;
+            CharmOrientations.Add(slot.HoldsRope ? toward : SettledOrientation(toward, slot, CharmOrientations.Count));
         }
 
+        previousOrientations.Clear();
+        previousOrientations.AddRange(CharmOrientations);
         CordLength = CharmSpans.Count > 0 ? CharmSpans[^1].Lower : Curve.Length;
         CordEnd = Curve.PointAtArc(CordLength);
     }
@@ -465,5 +481,70 @@ public sealed partial class RopeSimulation
             double baseMass = 1 / Math.Max(Points[index].InverseMass, Precision.UlpOfOne);
             SetInverseMass(1 / Math.Max(baseMass + load[index], 0.0001), index);
         }
+    }
+
+    /// <summary>
+    /// How a charm hangs, given the way the cord comes into it: along the cord while the cord is pulled tight, easing
+    /// back upright as it goes slack, and never turning faster than a hard swing turns it. macOS's
+    /// <c>settledOrientation</c>.
+    /// </summary>
+    /// <remarks>
+    /// A charm lifted up toward the anchor has a slack cord, which loops down below it and comes up into it from
+    /// underneath. Following the cord turned the charm upside down; a real one, held and lifted, stays upright with the
+    /// slack draped from its ring. And a cord that changes which side it meets the charm from in a single step — a whip,
+    /// a fold — spun the charm round in one frame.
+    /// </remarks>
+    internal double SettledOrientation(double toward, CharmStackLayout.Slot slot, int index)
+    {
+        const double upright = Math.PI / 2;
+
+        // How tight the cord above the charm is: straight-line distance over the length of cord.
+        int above = index == 0 ? 0 : CharmLayout.Slots[index - 1].Node;
+        double path = 0;
+        for (int node = above; node < slot.Node; node++)
+        {
+            path += (PositionOfNode(node + 1) - PositionOfNode(node)).Magnitude;
+        }
+
+        double chord = (PositionOfNode(slot.Node) - PositionOfNode(above)).Magnitude;
+        double tightness = path > Precision.UlpOfOne ? chord / path : 1;
+        double weight = Math.Clamp((tightness - SlackTightness) / (TautTightness - SlackTightness), 0, 1);
+        double eased = weight * weight * (3 - (2 * weight));
+        double target = upright + (ShortestTurn(upright, toward) * eased);
+
+        // Never more than a hard swing's turn in one step.
+        if (index < previousOrientations.Count)
+        {
+            double last = previousOrientations[index];
+            target = last + Math.Clamp(ShortestTurn(last, target), -MaximumTurnPerStep, MaximumTurnPerStep);
+        }
+
+        return target;
+    }
+
+    /// <summary>Below this tightness the cord is slack and the charm hangs upright; above <see cref="TautTightness"/> it hangs along the cord.</summary>
+    public const double SlackTightness = 0.72;
+
+    /// <inheritdoc cref="SlackTightness"/>
+    public const double TautTightness = 0.9;
+
+    /// <summary>The most a charm turns in one step: a quarter turn in about six steps, faster than any swing.</summary>
+    public const double MaximumTurnPerStep = 0.25;
+
+    /// <summary>The signed turn from one angle to another, the short way round.</summary>
+    public static double ShortestTurn(double start, double end)
+    {
+        double turn = (end - start) % (2 * Math.PI);
+        if (turn > Math.PI)
+        {
+            turn -= 2 * Math.PI;
+        }
+
+        if (turn < -Math.PI)
+        {
+            turn += 2 * Math.PI;
+        }
+
+        return turn;
     }
 }
