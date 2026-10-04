@@ -73,8 +73,14 @@ internal static class RopeSurface
     /// </summary>
     private const double Overlap = 0.5;
 
-    private static readonly Dictionary<RopeStyle, Tile?> tiles = [];
-    private static CanvasDevice? device;
+    /// <summary>
+    /// The tiles, one set per graphics device, behind a lock. The overlay's frame loop and the Library's rope swatches
+    /// (the shared device, on the XAML thread) both draw ropes: one cache for both, keyed to one device at a time, was
+    /// corrupted by the two at once in 2.3.0 and could dispose bitmaps the other thread was drawing with (W-ROPECACHE).
+    /// A lost device's set goes with the device.
+    /// </summary>
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<CanvasDevice, Dictionary<RopeStyle, Tile?>> tilesByDevice = [];
+    private static readonly Lock gate = new();
 
     /// <summary>Whether <paramref name="style"/> is drawn from a picture.</summary>
     public static bool Has(ICanvasResourceCreator creator, RopeStyle style) => TileFor(creator, style) is not null;
@@ -283,21 +289,22 @@ internal static class RopeSurface
     /// <summary>A style's tile, decoded once per graphics device; null for a style with no picture.</summary>
     private static Tile? TileFor(ICanvasResourceCreator creator, RopeStyle style)
     {
-        if (!ReferenceEquals(device, creator.Device))
+        lock (gate)
         {
-            foreach (Tile? stale in tiles.Values)
+            Dictionary<RopeStyle, Tile?> tiles = tilesByDevice.GetValue(creator.Device, _ => []);
+            if (!tiles.TryGetValue(style, out Tile? tile))
             {
-                stale?.Strip.Dispose();
+                tile = Load(creator, style);
+                tiles[style] = tile;
             }
 
-            tiles.Clear();
-            device = creator.Device;
+            return tile;
         }
+    }
 
-        if (tiles.TryGetValue(style, out Tile? cached))
-        {
-            return cached;
-        }
+    /// <summary>A style's tile decoded from Assets/Ropes onto <paramref name="creator"/>'s device; null without one.</summary>
+    private static Tile? Load(ICanvasResourceCreator creator, RopeStyle style)
+    {
 
         Tile? tile = null;
         string name = style.ToString();
@@ -341,7 +348,6 @@ internal static class RopeSurface
             }
         }
 
-        tiles[style] = tile;
         return tile;
     }
 
