@@ -6,7 +6,7 @@ pulls the section out and the release workflow hands it to both.
 
 Headings are `## <version> — <date>`. Nothing else is a version heading.
 
-## 2.3.0 — 2026-10-03
+## 2.3.0 — 2026-10-04
 
 **Added**
 
