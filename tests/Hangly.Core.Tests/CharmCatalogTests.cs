@@ -23,7 +23,7 @@ public class CharmCatalogTests
     /// agree, and the generator leaves nothing out.
     /// </remarks>
     [Fact(DisplayName = "A hundred and sixty charms ship, the same as macOS")]
-    public void CountMatchesTheOriginal() => Assert.Equal(160, CharmCatalog.All.Count);
+    public void CountMatchesTheOriginal() => Assert.Equal(161, CharmCatalog.All.Count);
 
     [Fact(DisplayName = "No charm is filed under a category the chips do not offer")]
     public void EveryCharmHasAnOfferedCategory()

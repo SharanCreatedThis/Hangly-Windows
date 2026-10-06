@@ -76,7 +76,7 @@ COLLECTION_BLURBS = {
     "pokemon": "The first partners, a few legends, and the ball that catches them.",
 }
 
-EXPECTED = 160
+EXPECTED = 161
 
 
 def read(path: str) -> str:

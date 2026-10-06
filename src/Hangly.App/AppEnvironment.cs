@@ -529,6 +529,8 @@ public sealed partial class AppEnvironment : IDisposable
         CheckForUpdateQuietly();
         WarmThumbnailsLater();
         StartAuditCycle();
+        StartAuditLifecycle();
+        StartAuditSwing();
         OpenAuditPage();
     }
 
@@ -589,6 +591,109 @@ public sealed partial class AppEnvironment : IDisposable
         };
         timer.Start();
         Diagnostics.Log($"audit cycle: every {seconds} s");
+    }
+
+    /// <summary>
+    /// For the stress check only: with <c>HANGLY_AUDIT_STACK</c> set to a number of charms, hangs that many — past the three
+    /// a person can choose — cycling the ones chosen, so the frame audit can be read at five, ten or twenty. Inert when the
+    /// variable is not set.
+    /// </summary>
+    private static IReadOnlyList<RopeCharm> AuditStack(IReadOnlyList<RopeCharm> chosen)
+    {
+        if (!int.TryParse(Environment.GetEnvironmentVariable("HANGLY_AUDIT_STACK"), out int count) || count <= 0 || chosen.Count == 0)
+        {
+            return chosen;
+        }
+
+        return [.. Enumerable.Range(0, count).Select(index => chosen[index % chosen.Count])];
+    }
+
+    /// <summary>
+    /// For the leak check only: with <c>HANGLY_AUDIT_LIFECYCLE</c> set to a number of rounds, runs every change a person can
+    /// make to the overlay through the settings, as the Library and the tray do — add a charm, add another, remove one,
+    /// remove another, change one, change the rope, hide the charm, show it again — round after round, and after each
+    /// round logs what is still alive after a full collection (<see cref="Hangly.App.Overlay.LiveObjects"/>) and the process's
+    /// memory, handles and threads. Inert when the variable is not set.
+    /// </summary>
+    private void StartAuditLifecycle()
+    {
+        if (!int.TryParse(Environment.GetEnvironmentVariable("HANGLY_AUDIT_LIFECYCLE"), out int rounds) || rounds <= 0)
+        {
+            return;
+        }
+
+        IReadOnlyList<CharmCatalogEntry> all = CharmCatalog.All;
+        RopeStyle[] styles = Enum.GetValues<RopeStyle>();
+        var steps = new List<(string Name, Action<int> Do)>
+        {
+            ("one charm", round => Hang(all[(round * 4) % all.Count].Id)),
+            ("add a charm", round => Hang(all[(round * 4) % all.Count].Id, all[((round * 4) + 1) % all.Count].Id)),
+            ("add a third", round => Hang(all[(round * 4) % all.Count].Id, all[((round * 4) + 1) % all.Count].Id, all[((round * 4) + 2) % all.Count].Id)),
+            ("remove one", round => Hang(all[(round * 4) % all.Count].Id, all[((round * 4) + 1) % all.Count].Id)),
+            ("remove another", round => Hang(all[(round * 4) % all.Count].Id)),
+            ("change the charm", round => Hang(all[((round * 4) + 3) % all.Count].Id)),
+            ("change the rope", round => store.UpdateOverlay(overlay => overlay with { RopeStyle = styles[round % styles.Length] })),
+            ("hide", _ => store.UpdateOverlay(overlay => overlay with { IsEnabled = false })),
+            ("show", _ => store.UpdateOverlay(overlay => overlay with { IsEnabled = true })),
+        };
+
+        void Hang(params string[] ids) => store.UpdateOverlay(overlay => overlay.WithStack(CharmStackState.Of(ids)));
+
+        Microsoft.UI.Dispatching.DispatcherQueueTimer timer =
+            Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().CreateTimer();
+        timer.Interval = TimeSpan.FromSeconds(1.5);
+        int step = 0;
+        Diagnostics.Log($"lifecycle audit: {rounds} rounds of {steps.Count} changes; before: {Hangly.App.Overlay.LiveObjects.Report()}; {ProcessFigures()}");
+        timer.Tick += (_, _) =>
+        {
+            int round = step / steps.Count;
+            steps[step % steps.Count].Do(round);
+            step++;
+            if (step % steps.Count == 0)
+            {
+                Diagnostics.Log($"lifecycle round {round + 1}: {Hangly.App.Overlay.LiveObjects.Report()}; {ProcessFigures()}");
+            }
+
+            if (step >= rounds * steps.Count)
+            {
+                timer.Stop();
+            }
+        };
+        timer.Start();
+    }
+
+    /// <summary>
+    /// For the frame audit only: with <c>HANGLY_AUDIT_SWING</c> set to a number of seconds, pushes the rope every 1.2 s for
+    /// that long — the push the About page's button gives — so a stack keeps swinging without anyone aiming a mouse at it.
+    /// Inert when the variable is not set.
+    /// </summary>
+    private void StartAuditSwing()
+    {
+        if (!int.TryParse(Environment.GetEnvironmentVariable("HANGLY_AUDIT_SWING"), out int seconds) || seconds <= 0)
+        {
+            return;
+        }
+
+        Microsoft.UI.Dispatching.DispatcherQueueTimer timer =
+            Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().CreateTimer();
+        timer.Interval = TimeSpan.FromSeconds(1.2);
+        long until = Environment.TickCount64 + (seconds * 1000L);
+        timer.Tick += (_, _) =>
+        {
+            overlay?.Nudge();
+            if (Environment.TickCount64 > until)
+            {
+                timer.Stop();
+            }
+        };
+        timer.Start();
+    }
+
+    private static string ProcessFigures()
+    {
+        using var process = System.Diagnostics.Process.GetCurrentProcess();
+        return $"managed heap {GC.GetTotalMemory(false) / (1024 * 1024.0):0.0} MB, private {process.PrivateMemorySize64 / (1024 * 1024.0):0.0} MB, " +
+            $"handles {process.HandleCount}, threads {process.Threads.Count}";
     }
 
     /// <summary>
@@ -1133,7 +1238,7 @@ public sealed partial class AppEnvironment : IDisposable
         // part of the metrics the solver is given, so it cannot be applied without
         // rebuilding, and it is cheap to notice here rather than measuring artwork again
         // on every slider move.
-        IReadOnlyList<RopeCharm> places = settings.Overlay.Stack.Places;
+        IReadOnlyList<RopeCharm> places = AuditStack(settings.Overlay.Stack.Places);
         NoteChoices(settings.Overlay);
         if (artwork is not null && !hangingPlaces.SequenceEqual(places))
         {

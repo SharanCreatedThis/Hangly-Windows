@@ -353,6 +353,7 @@ public sealed partial class RopeSimulation
         accumulator = 0;
         DragIndex = null;
         DragVelocity = Vec2.Zero;
+        EndLift();
         LastStepCount = 0;
         RebuildBeads(preservingMotion: false);
         Wake();
@@ -441,6 +442,7 @@ public sealed partial class RopeSimulation
         EnforceAnchor();
         Integrate(timeStep);
         DriveDraggedPoint(timeStep);
+        UpdateLift(timeStep);
         BeginElasticStep();
 
         // Relax until converged, or until the pass budget runs out. Written as a `while`

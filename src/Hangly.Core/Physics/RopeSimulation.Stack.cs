@@ -35,7 +35,10 @@ public sealed partial class RopeSimulation
     /// </remarks>
     public void SetCharmStack(IReadOnlyList<CharmMetrics> metrics)
     {
-        IReadOnlyList<CharmMetrics> stack = metrics.Count == 0 ? [CharmMetrics.Default] : [.. metrics];
+        // No more than the rope is built for (CharmStack.MaximumOnRope): its attachment table and its contact pairs are
+        // sized for that many, and handed more — an audit hanging five, never a person, whose settings stop at three —
+        // the layout read past the end of its table and the frame loop threw (found by the stress audit, 6 Oct).
+        IReadOnlyList<CharmMetrics> stack = metrics.Count == 0 ? [CharmMetrics.Default] : [.. metrics.Take(CharmStack.MaximumOnRope)];
         if (stack.SequenceEqual(CharmStackMetrics))
         {
             return;
@@ -78,15 +81,19 @@ public sealed partial class RopeSimulation
     /// Beads are described in proportions, so the same description survives a rescale; the
     /// simulation turns them into points against their own charm's radius and hangs them
     /// above it.
+    /// <para>Only the top charm's: on a rope of two or three, the charms below hang without
+    /// beads, as they would on one real cord (Sharan, 6 Oct). Dropped here, where they come in,
+    /// so the stack also stops keeping cord for them. macOS's <c>setBeads</c>.</para>
     /// </remarks>
     public void SetBeads(IReadOnlyList<IReadOnlyList<CharmBead>> descriptions)
     {
-        if (DescriptionsMatch(descriptions, BeadDescriptions))
+        IReadOnlyList<CharmBead>[] threaded = [.. descriptions.Select((group, index) => index == 0 ? group : [])];
+        if (DescriptionsMatch(threaded, BeadDescriptions))
         {
             return;
         }
 
-        BeadDescriptions = [.. descriptions.Select(group => (IReadOnlyList<CharmBead>)[.. group])];
+        BeadDescriptions = [.. threaded.Select(group => (IReadOnlyList<CharmBead>)[.. group])];
 
         // The beads are part of what a charm occupies on the cord, so how much room each
         // charm gets depends on them.

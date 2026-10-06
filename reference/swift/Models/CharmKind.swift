@@ -121,6 +121,8 @@ enum CharmKind: String, CaseIterable, Codable, Sendable, Identifiable {
     case ronaldoBicycleKick
     case ballonDor
     case championsLeagueTrophy
+    // Added to Football Legends in 2.3.1.
+    case messi
 
     // The Spirituality collection, added in 2.2.
     case rudraksha

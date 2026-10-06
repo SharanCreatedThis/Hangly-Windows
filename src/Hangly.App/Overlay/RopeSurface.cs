@@ -90,7 +90,7 @@ internal static class RopeSurface
     /// path ends <paramref name="hooked"/> through a charm's ring is laid from that end and stopped where its last link
     /// begins (<see cref="DrawEndLink"/>).
     /// </summary>
-    public static void Draw(CanvasDrawingSession session, CanvasGeometry path, RopeStyle style, double width, bool hooked = false)
+    public static void Draw(CanvasDrawingSession session, CanvasGeometry path, RopeStyle style, double width, bool hooked = false, double alongCord = 0)
     {
         if (width <= 0.3 || TileFor(session, style) is not Tile tile)
         {
@@ -124,7 +124,9 @@ internal static class RopeSurface
             total += System.Numerics.Vector2.Distance(corners[index - 1], corners[index]);
         }
 
-        double phase = 0, stop = total;
+        // Carried on from where the cord above this stretch left off, so the pattern runs on across a charm rather than
+        // starting again below it; a chain hooked through a ring is laid from that end instead.
+        double phase = alongCord / scale, stop = total;
         if (hooked && tile.Link is EndLink link)
         {
             phase = link.EyeRow - (total / scale);
@@ -305,6 +307,7 @@ internal static class RopeSurface
     /// <summary>A style's tile decoded from Assets/Ropes onto <paramref name="creator"/>'s device; null without one.</summary>
     private static Tile? Load(ICanvasResourceCreator creator, RopeStyle style)
     {
+        RenderTimes.FrameUploads++;
 
         Tile? tile = null;
         string name = style.ToString();
@@ -339,6 +342,7 @@ internal static class RopeSurface
                             converted.Height,
                             ropeWidth,
                             style.IsChain() ? EndLinkOf(pixels, converted.Width, converted.Height, converted.RowBytes, ropeWidth) : null);
+                        LiveObjects.Track("rope picture (GPU)", tile.Strip);
                     }
                 }
             }

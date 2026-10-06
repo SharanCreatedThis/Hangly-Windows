@@ -1,0 +1,3879 @@
+{
+  "charms" : {
+    "ace" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.67188,
+        "x" : 0.1625,
+        "y" : 0
+      },
+      "bottomDepth" : 0.21101,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.98026
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.04154
+      },
+      "topDepth" : 0.44029
+    },
+    "airJordan11Concord" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.91875,
+        "x" : 0.04063,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.67244,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.83953
+      },
+      "connectorAnchor" : {
+        "x" : 0.47057,
+        "y" : 0.04307
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.00718,
+        "centreX" : 0.47057,
+        "eyeBottom" : 0.10623,
+        "eyeTop" : 0.04307,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "reviewNote" : "Auto exit is the sole under the shoe's centre; the heel and toe reach lower, which is all the 'high exit' flag saw. Cord drops cleanly from the sole in the audit (6 Oct 2026).",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.01306
+      },
+      "topDepth" : 0.05466
+    },
+    "airJordan1Bred" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.98438,
+        "width" : 0.99375,
+        "x" : 0.00313,
+        "y" : 0.00938
+      },
+      "bottomDepth" : 0.67922,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.84609
+      },
+      "connectorAnchor" : {
+        "x" : 0.47283,
+        "y" : 0.04969
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.01242,
+        "centreX" : 0.47283,
+        "eyeBottom" : 0.1149,
+        "eyeTop" : 0.04969,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "reviewNote" : "Auto exit is the sole under the shoe's centre; the heel and toe reach lower, which is all the 'high exit' flag saw. Cord drops cleanly from the sole in the audit (6 Oct 2026).",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.0143
+      },
+      "topDepth" : 0.05086
+    },
+    "airJordan1Chicago" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.94688,
+        "x" : 0.025,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.65091,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.81138
+      },
+      "connectorAnchor" : {
+        "x" : 0.47107,
+        "y" : 0.04291
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.0074,
+        "centreX" : 0.47107,
+        "eyeBottom" : 0.10356,
+        "eyeTop" : 0.04291,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "reviewNote" : "Auto exit is the sole under the shoe's centre; the heel and toe reach lower, which is all the 'high exit' flag saw. Cord drops cleanly from the sole in the audit (6 Oct 2026).",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00975
+      },
+      "topDepth" : 0.05134
+    },
+    "airJordan3" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.95313,
+        "width" : 0.99375,
+        "x" : 0.00313,
+        "y" : 0.025
+      },
+      "bottomDepth" : 0.72438,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.84469
+      },
+      "connectorAnchor" : {
+        "x" : 0.47283,
+        "y" : 0.06521
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.02795,
+        "centreX" : 0.47283,
+        "eyeBottom" : 0.13198,
+        "eyeTop" : 0.06521,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "reviewNote" : "Auto exit is the sole under the shoe's centre; the heel and toe reach lower, which is all the 'high exit' flag saw. Cord drops cleanly from the sole in the audit (6 Oct 2026).",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.02977
+      },
+      "topDepth" : 0.04924
+    },
+    "airJordan4FireRed" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.93438,
+        "width" : 0.99375,
+        "x" : 0.00313,
+        "y" : 0.03438
+      },
+      "bottomDepth" : 0.70234,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.83482
+      },
+      "connectorAnchor" : {
+        "x" : 0.47749,
+        "y" : 0.07298
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.03571,
+        "centreX" : 0.47749,
+        "eyeBottom" : 0.1413,
+        "eyeTop" : 0.07298,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "reviewNote" : "Auto exit is the sole under the shoe's centre; the heel and toe reach lower, which is all the 'high exit' flag saw. Cord drops cleanly from the sole in the audit (6 Oct 2026).",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.03905
+      },
+      "topDepth" : 0.04672
+    },
+    "airJordan5" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.90938,
+        "width" : 0.99375,
+        "x" : 0.00313,
+        "y" : 0.04688
+      },
+      "bottomDepth" : 0.35314,
+      "bottomExit" : {
+        "x" : 0.7472,
+        "y" : 0.93503
+      },
+      "connectorAnchor" : {
+        "x" : 0.48059,
+        "y" : 0.0854
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.04813,
+        "centreX" : 0.48059,
+        "eyeBottom" : 0.15062,
+        "eyeTop" : 0.0854,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.04839
+      },
+      "topDepth" : 0.04698
+    },
+    "airJordan6Carmine" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.91563,
+        "width" : 0.99375,
+        "x" : 0.00313,
+        "y" : 0.04375
+      },
+      "bottomDepth" : 0.34641,
+      "bottomExit" : {
+        "x" : 0.74844,
+        "y" : 0.94869
+      },
+      "connectorAnchor" : {
+        "x" : 0.48059,
+        "y" : 0.08695
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.04503,
+        "centreX" : 0.48059,
+        "eyeBottom" : 0.15217,
+        "eyeTop" : 0.08695,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.0468
+      },
+      "topDepth" : 0.04578
+    },
+    "akatsukiCloud" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.92813,
+        "width" : 0.99375,
+        "x" : 0.00625,
+        "y" : 0.0375
+      },
+      "bottomDepth" : 0.74559,
+      "bottomExit" : {
+        "x" : 0.50313,
+        "y" : 0.94242
+      },
+      "connectorAnchor" : {
+        "x" : 0.50701,
+        "y" : 0.09161
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.04192,
+        "centreX" : 0.50701,
+        "eyeBottom" : 0.19564,
+        "eyeTop" : 0.09161,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.50313,
+        "y" : 0.04059
+      },
+      "topDepth" : 0.05105
+    },
+    "albusDumbledore" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.45625,
+        "x" : 0.27187,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.97361,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.98172
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00811
+      },
+      "topDepth" : 0.97361
+    },
+    "allahPendant" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 1,
+        "width" : 0.825,
+        "x" : 0.0875,
+        "y" : 0
+      },
+      "bottomDepth" : 0.86333,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99833
+      },
+      "connectorAnchor" : {
+        "x" : 0.50709,
+        "y" : 0.09281
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.04254,
+        "centreX" : 0.50709,
+        "eyeBottom" : 0.13277,
+        "eyeTop" : 0.09281,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00167
+      },
+      "topDepth" : 0.10167
+    },
+    "arminArlert" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.56563,
+        "x" : 0.21563,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.98026,
+      "bottomExit" : {
+        "x" : 0.6151,
+        "y" : 0.99834
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.01642
+      },
+      "topDepth" : 0.75098
+    },
+    "ashAndPikachu" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.90938,
+        "x" : 0.04375,
+        "y" : 0
+      },
+      "bottomDepth" : 0.35,
+      "bottomExit" : {
+        "x" : 0.67236,
+        "y" : 0.98167
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.04167
+      },
+      "topDepth" : 0.65833
+    },
+    "attackTitan" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.65938,
+        "x" : 0.17188,
+        "y" : 0
+      },
+      "bottomDepth" : 0.96833,
+      "bottomExit" : {
+        "x" : 0.50156,
+        "y" : 0.975
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.50156,
+        "y" : 0.00667
+      },
+      "topDepth" : 0.96833
+    },
+    "ballonDor" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.93125,
+        "width" : 0.73125,
+        "x" : 0.13438,
+        "y" : 0.06875
+      },
+      "bottomDepth" : 0.9297,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99845
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.06875
+      },
+      "topDepth" : 0.9297
+    },
+    "batmanSymbol" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.65,
+        "width" : 0.99375,
+        "x" : 0.00313,
+        "y" : 0.175
+      },
+      "bottomDepth" : 0.54167,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.82283
+      },
+      "connectorAnchor" : {
+        "x" : 0.49767,
+        "y" : 0.22096
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.17593,
+        "centreX" : 0.49767,
+        "eyeBottom" : 0.27996,
+        "eyeTop" : 0.22096,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.175
+      },
+      "topDepth" : 0.04442
+    },
+    "benTennyson" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99063,
+        "width" : 0.44063,
+        "x" : 0.27813,
+        "y" : 0.00625
+      },
+      "bottomDepth" : 0.65877,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.67327
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "reviewNote" : "Auto exit is the crotch\/hip, in ink. Below it the centre line is the gap between the legs: an exit there would start the cord in mid-air, and one foot would hang the charm below off to the side. Checked in the audit (6 Oct 2026).",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.01451
+      },
+      "topDepth" : 0.65877
+    },
+    "billieEilish" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.58125,
+        "x" : 0.20625,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.97553,
+      "bottomExit" : {
+        "x" : 0.49688,
+        "y" : 0.98197
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49688,
+        "y" : 0.00644
+      },
+      "topDepth" : 0.97553
+    },
+    "btsMemberFive" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.33438,
+        "x" : 0.33125,
+        "y" : 0
+      },
+      "bottomDepth" : 0.15452,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.92377
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.02991
+      },
+      "topDepth" : 0.00166
+    },
+    "btsMemberFour" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.34063,
+        "x" : 0.33438,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.88057,
+      "bottomExit" : {
+        "x" : 0.50469,
+        "y" : 0.95846
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.50469,
+        "y" : 0.00645
+      },
+      "topDepth" : 0.05981
+    },
+    "btsMemberOne" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.31875,
+        "x" : 0.34063,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.97719,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.98031
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00313
+      },
+      "topDepth" : 0.97719
+    },
+    "btsMemberSeven" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.89375,
+        "width" : 0.37188,
+        "x" : 0.3125,
+        "y" : 0.10313
+      },
+      "bottomDepth" : 0.79395,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.97602
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.12547
+      },
+      "topDepth" : 0.0149
+    },
+    "btsMemberSix" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.30312,
+        "x" : 0.34688,
+        "y" : 0
+      },
+      "bottomDepth" : 0.8922,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99688
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00166
+      },
+      "topDepth" : 0.09969
+    },
+    "btsMemberThree" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.28438,
+        "x" : 0.35625,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.9805,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.98363
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00313
+      },
+      "topDepth" : 0.9805
+    },
+    "btsMemberTwo" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.37813,
+        "x" : 0.30938,
+        "y" : 0
+      },
+      "bottomDepth" : 0.96863,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.97195
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00332
+      },
+      "topDepth" : 0.96863
+    },
+    "buddha" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.7125,
+        "x" : 0.14375,
+        "y" : 0
+      },
+      "bottomDepth" : 0.99355,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99521
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00166
+      },
+      "topDepth" : 0.99355
+    },
+    "bulbasaur" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.94375,
+        "x" : 0.02813,
+        "y" : 0
+      },
+      "bottomDepth" : 0.88223,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99521
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.11298
+      },
+      "topDepth" : 0.88223
+    },
+    "cadetCorpsEmblem" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.64063,
+        "x" : 0.18125,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.82813,
+      "bottomExit" : {
+        "x" : 0.50156,
+        "y" : 0.9505
+      },
+      "connectorAnchor" : {
+        "x" : 0.49906,
+        "y" : 0.04705
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.00601,
+        "centreX" : 0.49906,
+        "eyeBottom" : 0.12212,
+        "eyeTop" : 0.04705,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.50156,
+        "y" : 0.00478
+      },
+      "topDepth" : 0.03975
+    },
+    "camera" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.82188,
+        "width" : 1,
+        "x" : 0,
+        "y" : 0.09063
+      },
+      "bottomDepth" : 0.78078,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.88647
+      },
+      "connectorAnchor" : {
+        "x" : 0.55859,
+        "y" : 0.12344
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.09219,
+        "centreX" : 0.55859,
+        "eyeBottom" : 0.19375,
+        "eyeTop" : 0.12344,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.10569
+      },
+      "topDepth" : 0.78078
+    },
+    "cannonbolt" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.975,
+        "width" : 0.86875,
+        "x" : 0.0625,
+        "y" : 0.01563
+      },
+      "bottomDepth" : 0.88237,
+      "bottomExit" : {
+        "x" : 0.49688,
+        "y" : 0.91425
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49688,
+        "y" : 0.03188
+      },
+      "topDepth" : 0.88237
+    },
+    "captainAmericaShield" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.88438,
+        "x" : 0.05625,
+        "y" : 0.00625
+      },
+      "bottomDepth" : 0.93247,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99834
+      },
+      "connectorAnchor" : {
+        "x" : 0.50466,
+        "y" : 0.03455
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.00829,
+        "centreX" : 0.50466,
+        "eyeBottom" : 0.06495,
+        "eyeTop" : 0.03455,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00791
+      },
+      "topDepth" : 0.0265
+    },
+    "championsLeagueTrophy" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.69375,
+        "x" : 0.15313,
+        "y" : 0
+      },
+      "bottomDepth" : 0.83073,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99688
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.16615
+      },
+      "topDepth" : 0.83073
+    },
+    "chandlerBing" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.34063,
+        "x" : 0.32813,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.98713,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99522
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00809
+      },
+      "topDepth" : 0.98713
+    },
+    "charizard" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99063,
+        "width" : 1,
+        "x" : 0,
+        "y" : 0.00625
+      },
+      "bottomDepth" : 0.76773,
+      "bottomExit" : {
+        "x" : 0.3725,
+        "y" : 0.99357
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.34636
+      },
+      "topDepth" : 0.51182
+    },
+    "charmander" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.85938,
+        "x" : 0.06875,
+        "y" : 0
+      },
+      "bottomDepth" : 0.56,
+      "bottomExit" : {
+        "x" : 0.55107,
+        "y" : 0.99667
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.07167
+      },
+      "topDepth" : 0.825
+    },
+    "chopper" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.97188,
+        "width" : 0.91563,
+        "x" : 0.04063,
+        "y" : 0.025
+      },
+      "bottomDepth" : 0.97026,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99526
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.025
+      },
+      "topDepth" : 0.97026
+    },
+    "circle" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 1,
+        "width" : 0.75313,
+        "x" : 0.12188,
+        "y" : 0
+      },
+      "bottomDepth" : 0.85333,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99833
+      },
+      "connectorAnchor" : {
+        "x" : 0.49785,
+        "y" : 0.03766
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0,
+        "centreX" : 0.49785,
+        "eyeBottom" : 0.14356,
+        "eyeTop" : 0.03766,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0
+      },
+      "topDepth" : 0.03667
+    },
+    "colossalTitan" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.6125,
+        "x" : 0.19375,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.97388,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99688
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.023
+      },
+      "topDepth" : 0.97388
+    },
+    "crescentAndStar" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.99688,
+        "x" : 0,
+        "y" : 0
+      },
+      "bottomDepth" : 0.32,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99667
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00167
+      },
+      "topDepth" : 0.13833
+    },
+    "cross" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.72188,
+        "x" : 0.1375,
+        "y" : 0
+      },
+      "bottomDepth" : 0.99667,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99833
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00167
+      },
+      "topDepth" : 0.99667
+    },
+    "daenerysTargaryen" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.95313,
+        "width" : 0.7,
+        "x" : 0.15,
+        "y" : 0.04375
+      },
+      "bottomDepth" : 0.93724,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99688
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.05964
+      },
+      "topDepth" : 0.93724
+    },
+    "daruma" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.99063,
+        "width" : 0.51875,
+        "x" : 0.24063,
+        "y" : 0.00938
+      },
+      "bottomDepth" : 0.58117,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99835
+      },
+      "connectorAnchor" : {
+        "x" : 0.50365,
+        "y" : 0.03161
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.01297,
+        "centreX" : 0.50365,
+        "eyeBottom" : 0.09564,
+        "eyeTop" : 0.03161,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.01268
+      },
+      "topDepth" : 0.01486
+    },
+    "deadpoolWolverine" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.77813,
+        "x" : 0.09688,
+        "y" : 0
+      },
+      "bottomDepth" : 0.285,
+      "bottomExit" : {
+        "x" : 0.48594,
+        "y" : 0.99833
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.48594,
+        "y" : 0.16333
+      },
+      "topDepth" : 0.54333
+    },
+    "deathlyHallows" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.90625,
+        "width" : 0.92813,
+        "x" : 0.03438,
+        "y" : 0.09063
+      },
+      "bottomDepth" : 0.8987,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99536
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.09667
+      },
+      "topDepth" : 0.8987
+    },
+    "demogorgon" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.6125,
+        "x" : 0.19375,
+        "y" : 0.00625
+      },
+      "bottomDepth" : 0.25341,
+      "bottomExit" : {
+        "x" : 0.38056,
+        "y" : 0.98013
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.02116
+      },
+      "topDepth" : 0.58797
+    },
+    "diamond" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 1,
+        "width" : 0.95938,
+        "x" : 0.01875,
+        "y" : 0
+      },
+      "bottomDepth" : 0.86667,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.995
+      },
+      "connectorAnchor" : {
+        "x" : 0.53217,
+        "y" : 0.04947
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0,
+        "centreX" : 0.53217,
+        "eyeBottom" : 0.1514,
+        "eyeTop" : 0.04947,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00333
+      },
+      "topDepth" : 0.06333
+    },
+    "diamondhead" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.71875,
+        "x" : 0.14063,
+        "y" : 0
+      },
+      "bottomDepth" : 0.5732,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.59646
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "reviewNote" : "Auto exit is the crotch\/hip, in ink. Below it the centre line is the gap between the legs: an exit there would start the cord in mid-air, and one foot would hang the charm below off to the side. Checked in the audit (6 Oct 2026).",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.02326
+      },
+      "topDepth" : 0.5732
+    },
+    "doctorDoom" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.96875,
+        "width" : 0.63125,
+        "x" : 0.18438,
+        "y" : 0.03125
+      },
+      "bottomDepth" : 0.82667,
+      "bottomExit" : {
+        "x" : 0.65781,
+        "y" : 0.99839
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.03286
+      },
+      "topDepth" : 0.87995
+    },
+    "dove" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.76875,
+        "x" : 0.11563,
+        "y" : 0
+      },
+      "bottomDepth" : 0.54994,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.93872
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.38878
+      },
+      "topDepth" : 0.54994
+    },
+    "dragonair" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.78125,
+        "x" : 0.10938,
+        "y" : 0
+      },
+      "bottomDepth" : 0.20667,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.985
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.16333
+      },
+      "topDepth" : 0.43167
+    },
+    "dreamCatcher" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 1,
+        "width" : 0.55,
+        "x" : 0.225,
+        "y" : 0
+      },
+      "bottomDepth" : 0.44167,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99333
+      },
+      "connectorAnchor" : {
+        "x" : 0.50559,
+        "y" : 0.01633
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0,
+        "centreX" : 0.50559,
+        "eyeBottom" : 0.04727,
+        "eyeTop" : 0.01633,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0
+      },
+      "topDepth" : 0.01833
+    },
+    "drishtiBommai" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.62813,
+        "width" : 0.47188,
+        "x" : 0.2625,
+        "y" : 0.35625
+      },
+      "bottomDepth" : 0.58625,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.98438
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.39813
+      },
+      "topDepth" : 0.58625
+    },
+    "dustinHenderson" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.45,
+        "x" : 0.275,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.18774,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.98006
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00645
+      },
+      "topDepth" : 0.68452
+    },
+    "eleven" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99063,
+        "width" : 0.34375,
+        "x" : 0.32813,
+        "y" : 0.00625
+      },
+      "bottomDepth" : 0.90972,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.92588
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.01616
+      },
+      "topDepth" : 0.90972
+    },
+    "erenYeager" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.74063,
+        "x" : 0.12812,
+        "y" : 0
+      },
+      "bottomDepth" : 0.13167,
+      "bottomExit" : {
+        "x" : 0.31513,
+        "y" : 0.99333
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.025
+      },
+      "topDepth" : 0.81167
+    },
+    "eyeOfAgamotto" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.87813,
+        "width" : 1,
+        "x" : 0,
+        "y" : 0.0625
+      },
+      "bottomDepth" : 0.87666,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.93916
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.0625
+      },
+      "topDepth" : 0.87666
+    },
+    "fcBarcelonaCrest" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.97188,
+        "width" : 0.90938,
+        "x" : 0.04375,
+        "y" : 0.02813
+      },
+      "bottomDepth" : 0.86335,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 1
+      },
+      "connectorAnchor" : {
+        "x" : 0.50341,
+        "y" : 0.07673
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.07531,
+        "centreX" : 0.50341,
+        "eyeBottom" : 0.13356,
+        "eyeTop" : 0.07673,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.02974
+      },
+      "topDepth" : 0.04697
+    },
+    "fourArms" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.9875,
+        "width" : 0.7375,
+        "x" : 0.125,
+        "y" : 0.00625
+      },
+      "bottomDepth" : 0.21231,
+      "bottomExit" : {
+        "x" : 0.49375,
+        "y" : 0.98552
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49375,
+        "y" : 0.184
+      },
+      "topDepth" : 0.49869
+    },
+    "ghanta" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.72188,
+        "width" : 0.51875,
+        "x" : 0.24063,
+        "y" : 0.27813
+      },
+      "bottomDepth" : 0.6148,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 1
+      },
+      "connectorAnchor" : {
+        "x" : 0.52229,
+        "y" : 0.31673
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.27782,
+        "centreX" : 0.52229,
+        "eyeBottom" : 0.39211,
+        "eyeTop" : 0.31673,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.28173
+      },
+      "topDepth" : 0.0397
+    },
+    "goldenSnitch" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.675,
+        "x" : 0.1625,
+        "y" : 0
+      },
+      "bottomDepth" : 0.35057,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99355
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.64298
+      },
+      "topDepth" : 0.35057
+    },
+    "greenDome" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.74688,
+        "x" : 0.125,
+        "y" : 0
+      },
+      "bottomDepth" : 0.7028,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99521
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.24756
+      },
+      "topDepth" : 0.01828
+    },
+    "greenLanternRing" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.7875,
+        "x" : 0.10625,
+        "y" : 0
+      },
+      "bottomDepth" : 0.99688,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99688
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0
+      },
+      "topDepth" : 0.99688
+    },
+    "gusFring" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.35,
+        "x" : 0.325,
+        "y" : 0
+      },
+      "bottomDepth" : 0.98192,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.98358
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00166
+      },
+      "topDepth" : 0.98192
+    },
+    "hamsa" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.64375,
+        "width" : 0.52812,
+        "x" : 0.23438,
+        "y" : 0.35625
+      },
+      "bottomDepth" : 0.6416,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99785
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.35625
+      },
+      "topDepth" : 0.6416
+    },
+    "hanuman" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.64063,
+        "width" : 1,
+        "x" : 0,
+        "y" : 0.18125
+      },
+      "bottomDepth" : 0.21995,
+      "bottomExit" : {
+        "x" : 0.32125,
+        "y" : 0.81974
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.26453
+      },
+      "topDepth" : 0.01708
+    },
+    "harryPotter" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.46563,
+        "x" : 0.26563,
+        "y" : 0
+      },
+      "bottomDepth" : 0.79916,
+      "bottomExit" : {
+        "x" : 0.40939,
+        "y" : 0.99688
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00665
+      },
+      "topDepth" : 0.80581
+    },
+    "heart" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 1,
+        "width" : 0.92813,
+        "x" : 0.03438,
+        "y" : 0
+      },
+      "bottomDepth" : 0.865,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99833
+      },
+      "connectorAnchor" : {
+        "x" : 0.49771,
+        "y" : 0.04351
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.0029,
+        "centreX" : 0.49771,
+        "eyeBottom" : 0.13342,
+        "eyeTop" : 0.04351,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00167
+      },
+      "topDepth" : 0.04
+    },
+    "heatblast" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.98438,
+        "width" : 0.60625,
+        "x" : 0.2,
+        "y" : 0.01563
+      },
+      "bottomDepth" : 0.17555,
+      "bottomExit" : {
+        "x" : 0.42431,
+        "y" : 0.99836
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.50313,
+        "y" : 0.06648
+      },
+      "topDepth" : 0.78586
+    },
+    "hedwig" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.5875,
+        "x" : 0.2,
+        "y" : 0
+      },
+      "bottomDepth" : 0.92543,
+      "bottomExit" : {
+        "x" : 0.49375,
+        "y" : 0.95368
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49375,
+        "y" : 0.02824
+      },
+      "topDepth" : 0.92543
+    },
+    "heisenberg" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.48438,
+        "x" : 0.25625,
+        "y" : 0
+      },
+      "bottomDepth" : 0.98524,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.98691
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00166
+      },
+      "topDepth" : 0.98524
+    },
+    "hermioneGranger" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.45313,
+        "x" : 0.27187,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.98192,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.98505
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00313
+      },
+      "topDepth" : 0.98192
+    },
+    "himmeli" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 1,
+        "width" : 0.50938,
+        "x" : 0.24375,
+        "y" : 0
+      },
+      "bottomDepth" : 0.24333,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99333
+      },
+      "connectorAnchor" : {
+        "x" : 0.49645,
+        "y" : 0.01592
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0,
+        "centreX" : 0.49645,
+        "eyeBottom" : 0.08675,
+        "eyeTop" : 0.01592,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0
+      },
+      "topDepth" : 0.015
+    },
+    "horseshoe" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 1,
+        "width" : 0.77188,
+        "x" : 0.1125,
+        "y" : 0
+      },
+      "bottomDepth" : 0.175,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99833
+      },
+      "connectorAnchor" : {
+        "x" : 0.49904,
+        "y" : 0.03136
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.00121,
+        "centreX" : 0.49904,
+        "eyeBottom" : 0.09045,
+        "eyeTop" : 0.03136,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0
+      },
+      "topDepth" : 0.03
+    },
+    "houseLannister" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.7625,
+        "x" : 0.11875,
+        "y" : 0
+      },
+      "bottomDepth" : 0.82242,
+      "bottomExit" : {
+        "x" : 0.60389,
+        "y" : 0.99521
+      },
+      "connectorAnchor" : {
+        "x" : 0.4994,
+        "y" : 0.04408
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.00238,
+        "centreX" : 0.4994,
+        "eyeBottom" : 0.0965,
+        "eyeTop" : 0.04408,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00166
+      },
+      "topDepth" : 0.03988
+    },
+    "houseStark" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.94063,
+        "width" : 0.99688,
+        "x" : 0.00313,
+        "y" : 0.03125
+      },
+      "bottomDepth" : 0.77445,
+      "bottomExit" : {
+        "x" : 0.50156,
+        "y" : 0.89663
+      },
+      "connectorAnchor" : {
+        "x" : 0.5039,
+        "y" : 0.07477
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.03271,
+        "centreX" : 0.5039,
+        "eyeBottom" : 0.12928,
+        "eyeTop" : 0.07477,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.50156,
+        "y" : 0.03125
+      },
+      "topDepth" : 0.04233
+    },
+    "houseTargaryen" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 1,
+        "width" : 0.8125,
+        "x" : 0.09375,
+        "y" : 0
+      },
+      "bottomDepth" : 0.87167,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.97
+      },
+      "connectorAnchor" : {
+        "x" : 0.49937,
+        "y" : 0.04697
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0,
+        "centreX" : 0.49937,
+        "eyeBottom" : 0.10156,
+        "eyeTop" : 0.04697,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0
+      },
+      "topDepth" : 0.045
+    },
+    "hulkFist" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 1,
+        "width" : 0.86563,
+        "x" : 0.06563,
+        "y" : 0
+      },
+      "bottomDepth" : 0.91333,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99833
+      },
+      "connectorAnchor" : {
+        "x" : 0.50858,
+        "y" : 0.04328
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0,
+        "centreX" : 0.50858,
+        "eyeBottom" : 0.08521,
+        "eyeTop" : 0.04328,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0
+      },
+      "topDepth" : 0.04333
+    },
+    "ironManHelmet" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.625,
+        "x" : 0.1875,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.92709,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99834
+      },
+      "connectorAnchor" : {
+        "x" : 0.48682,
+        "y" : 0.03418
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.00391,
+        "centreX" : 0.48682,
+        "eyeBottom" : 0.07031,
+        "eyeTop" : 0.03418,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00479
+      },
+      "topDepth" : 0.03323
+    },
+    "ironThrone" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.83125,
+        "x" : 0.08438,
+        "y" : 0
+      },
+      "bottomDepth" : 0.98524,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99023
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00498
+      },
+      "topDepth" : 0.98524
+    },
+    "itachiUchiha" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.92813,
+        "width" : 0.54375,
+        "x" : 0.22813,
+        "y" : 0.06875
+      },
+      "bottomDepth" : 0.92348,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99223
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.06875
+      },
+      "topDepth" : 0.92348
+    },
+    "jessePinkman" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.35938,
+        "x" : 0.31875,
+        "y" : 0
+      },
+      "bottomDepth" : 0.6812,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.69117
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "reviewNote" : "Auto exit is the crotch\/hip, in ink. Below it the centre line is the gap between the legs: an exit there would start the cord in mid-air, and one foot would hang the charm below off to the side. Checked in the audit (6 Oct 2026).",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00997
+      },
+      "topDepth" : 0.6812
+    },
+    "joeyTribbiani" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.34688,
+        "x" : 0.325,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.98713,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99522
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00809
+      },
+      "topDepth" : 0.98713
+    },
+    "jonSnow" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.85625,
+        "x" : 0.07187,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.88113,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.93559
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.05447
+      },
+      "topDepth" : 0.88113
+    },
+    "juiceWrld" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.98438,
+        "width" : 0.52812,
+        "x" : 0.23438,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.93844,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.96289
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.02445
+      },
+      "topDepth" : 0.93844
+    },
+    "kaaba" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.91563,
+        "width" : 1,
+        "x" : 0,
+        "y" : 0.04375
+      },
+      "bottomDepth" : 0.90189,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.95632
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.05443
+      },
+      "topDepth" : 0.90189
+    },
+    "kakashiHatake" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.43125,
+        "x" : 0.28438,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.91756,
+      "bottomExit" : {
+        "x" : 0.42022,
+        "y" : 0.99688
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00975
+      },
+      "topDepth" : 0.01656
+    },
+    "karuppuStatue" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.70938,
+        "width" : 0.41563,
+        "x" : 0.29063,
+        "y" : 0.29063
+      },
+      "bottomDepth" : 0.05084,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99882
+      },
+      "connectorAnchor" : {
+        "x" : 0.52084,
+        "y" : 0.29518
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.29063,
+        "centreX" : 0.52084,
+        "eyeBottom" : 0.3322,
+        "eyeTop" : 0.29518,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.29417
+      },
+      "topDepth" : 0.06503
+    },
+    "kurama" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.63125,
+        "x" : 0.19688,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.8191,
+      "bottomExit" : {
+        "x" : 0.65374,
+        "y" : 1
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5125,
+        "y" : 0.05795
+      },
+      "topDepth" : 0.84901
+    },
+    "leviAckerman" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.97188,
+        "width" : 0.75938,
+        "x" : 0.11875,
+        "y" : 0.025
+      },
+      "bottomDepth" : 0.14578,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.9904
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.04768
+      },
+      "topDepth" : 0.68841
+    },
+    "lordVoldemort" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.52188,
+        "x" : 0.2375,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.96891,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99688
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.02797
+      },
+      "topDepth" : 0.96891
+    },
+    "lucasSinclair" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.39063,
+        "x" : 0.30312,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.9786,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.98837
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00977
+      },
+      "topDepth" : 0.9786
+    },
+    "luffy" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.71875,
+        "x" : 0.14063,
+        "y" : 0
+      },
+      "bottomDepth" : 0.925,
+      "bottomExit" : {
+        "x" : 0.36434,
+        "y" : 0.99833
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.005
+      },
+      "topDepth" : 0.885
+    },
+    "manekiNeko" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.6375,
+        "width" : 0.48438,
+        "x" : 0.25625,
+        "y" : 0.3625
+      },
+      "bottomDepth" : 0.58331,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99788
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.41456
+      },
+      "topDepth" : 0.58331
+    },
+    "maxMayfield" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.80938,
+        "x" : 0.09375,
+        "y" : 0
+      },
+      "bottomDepth" : 0.48681,
+      "bottomExit" : {
+        "x" : 0.61883,
+        "y" : 0.99688
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.07809
+      },
+      "topDepth" : 0.77756
+    },
+    "messi" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.95,
+        "width" : 0.6,
+        "x" : 0.13438,
+        "y" : 0
+      },
+      "bottomDepth" : 0.19475,
+      "bottomExit" : {
+        "x" : 0.43437,
+        "y" : 0.93417
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.43437,
+        "y" : 0.019
+      },
+      "topDepth" : 0.59217
+    },
+    "messiJersey" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.9875,
+        "width" : 0.75938,
+        "x" : 0.12188,
+        "y" : 0.00938
+      },
+      "bottomDepth" : 0.8871,
+      "bottomExit" : {
+        "x" : 0.50156,
+        "y" : 0.99194
+      },
+      "connectorAnchor" : {
+        "x" : 0.50572,
+        "y" : 0.04865
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.01305,
+        "centreX" : 0.50572,
+        "eyeBottom" : 0.10441,
+        "eyeTop" : 0.04865,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.50156,
+        "y" : 0.01267
+      },
+      "topDepth" : 0.03292
+    },
+    "mewtwo" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.7625,
+        "x" : 0.11563,
+        "y" : 0
+      },
+      "bottomDepth" : 0.43167,
+      "bottomExit" : {
+        "x" : 0.4273,
+        "y" : 0.99833
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49687,
+        "y" : 0.005
+      },
+      "topDepth" : 0.00667
+    },
+    "michaelJackson" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.51563,
+        "x" : 0.24063,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.19047,
+      "bottomExit" : {
+        "x" : 0.41594,
+        "y" : 0.99688
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00644
+      },
+      "topDepth" : 0.62772
+    },
+    "mikasaAckerman" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.61875,
+        "x" : 0.19063,
+        "y" : 0
+      },
+      "bottomDepth" : 0.84167,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.87167
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "reviewNote" : "Auto exit is the crotch\/hip, in ink. Below it the centre line is the gap between the legs: an exit there would start the cord in mid-air, and one foot would hang the charm below off to the side. Checked in the audit (6 Oct 2026).",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.03
+      },
+      "topDepth" : 0.84167
+    },
+    "mikeEhrmantraut" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.34688,
+        "x" : 0.325,
+        "y" : 0
+      },
+      "bottomDepth" : 0.99167,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99667
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.005
+      },
+      "topDepth" : 0.99167
+    },
+    "mikeWheeler" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.34063,
+        "x" : 0.32813,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.2974,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.98671
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00811
+      },
+      "topDepth" : 0.60311
+    },
+    "minatoNamikaze" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.61563,
+        "x" : 0.19063,
+        "y" : 0
+      },
+      "bottomDepth" : 0.99,
+      "bottomExit" : {
+        "x" : 0.59386,
+        "y" : 0.99833
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.06667
+      },
+      "topDepth" : 0.7
+    },
+    "monicaGeller" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99063,
+        "width" : 0.26563,
+        "x" : 0.36563,
+        "y" : 0.00625
+      },
+      "bottomDepth" : 0.98237,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99522
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.01285
+      },
+      "topDepth" : 0.98237
+    },
+    "nami" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.62813,
+        "x" : 0.18438,
+        "y" : 0
+      },
+      "bottomDepth" : 0.82333,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.935
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.11167
+      },
+      "topDepth" : 0.82333
+    },
+    "narutoUzumaki" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.62187,
+        "x" : 0.1875,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.17556,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99688
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.03128
+      },
+      "topDepth" : 0.77016
+    },
+    "nazar" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.64063,
+        "width" : 0.62187,
+        "x" : 0.1875,
+        "y" : 0.35938
+      },
+      "bottomDepth" : 0.63956,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99893
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.35938
+      },
+      "topDepth" : 0.63956
+    },
+    "neymarJersey" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.77813,
+        "x" : 0.10938,
+        "y" : 0.00625
+      },
+      "bottomDepth" : 0.901,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 1
+      },
+      "connectorAnchor" : {
+        "x" : 0.50391,
+        "y" : 0.0462
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.00851,
+        "centreX" : 0.50391,
+        "eyeBottom" : 0.09727,
+        "eyeTop" : 0.0462,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00791
+      },
+      "topDepth" : 0.03809
+    },
+    "nightKing" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.70938,
+        "x" : 0.14375,
+        "y" : 0
+      },
+      "bottomDepth" : 0.90667,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.97167
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.065
+      },
+      "topDepth" : 0.90667
+    },
+    "nimbuMirchi" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.71563,
+        "x" : 0.14063,
+        "y" : 0
+      },
+      "bottomDepth" : 0.9786,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99688
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.01828
+      },
+      "topDepth" : 0.9786
+    },
+    "offWhiteJordan1" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.99063,
+        "width" : 0.96875,
+        "x" : 0.01563,
+        "y" : 0.00625
+      },
+      "bottomDepth" : 0.66867,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.86479
+      },
+      "connectorAnchor" : {
+        "x" : 0.47502,
+        "y" : 0.04844
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.00908,
+        "centreX" : 0.47502,
+        "eyeBottom" : 0.11807,
+        "eyeTop" : 0.04844,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "reviewNote" : "Auto exit is the sole under the shoe's centre; the heel and toe reach lower, which is all the 'high exit' flag saw. Cord drops cleanly from the sole in the audit (6 Oct 2026).",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00955
+      },
+      "topDepth" : 0.04953
+    },
+    "omSymbol" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.5875,
+        "width" : 0.56563,
+        "x" : 0.21563,
+        "y" : 0.4125
+      },
+      "bottomDepth" : 0.24283,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.97454
+      },
+      "connectorAnchor" : {
+        "x" : 0.49446,
+        "y" : 0.4327
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.41237,
+        "centreX" : 0.49446,
+        "eyeBottom" : 0.46716,
+        "eyeTop" : 0.4327,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.4125
+      },
+      "topDepth" : 0.02056
+    },
+    "omnitrix" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.94063,
+        "x" : 0.05938,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.98216,
+      "bottomExit" : {
+        "x" : 0.52969,
+        "y" : 0.98528
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.52969,
+        "y" : 0.00313
+      },
+      "topDepth" : 0.98216
+    },
+    "panchangJie" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.99063,
+        "width" : 0.45,
+        "x" : 0.275,
+        "y" : 0.00938
+      },
+      "bottomDepth" : 0.56631,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.9967
+      },
+      "connectorAnchor" : {
+        "x" : 0.50035,
+        "y" : 0.03234
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.01195,
+        "centreX" : 0.50035,
+        "eyeBottom" : 0.11531,
+        "eyeTop" : 0.03234,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.01103
+      },
+      "topDepth" : 0.01981
+    },
+    "phoebeBuffay" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.5125,
+        "x" : 0.24375,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.98878,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99522
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00644
+      },
+      "topDepth" : 0.98878
+    },
+    "pikachu" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.89375,
+        "x" : 0.05313,
+        "y" : 0
+      },
+      "bottomDepth" : 0.80333,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99667
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.19333
+      },
+      "topDepth" : 0.80333
+    },
+    "pokeBall" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.975,
+        "x" : 0.0125,
+        "y" : 0
+      },
+      "bottomDepth" : 0.99833,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 1
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00167
+      },
+      "topDepth" : 0.99833
+    },
+    "prayingAngel" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.64375,
+        "x" : 0.175,
+        "y" : 0
+      },
+      "bottomDepth" : 0.90051,
+      "bottomExit" : {
+        "x" : 0.49688,
+        "y" : 0.99521
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49688,
+        "y" : 0.01329
+      },
+      "topDepth" : 0.02991
+    },
+    "rachelGreen" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.35313,
+        "x" : 0.32188,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.99044,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99688
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00644
+      },
+      "topDepth" : 0.99044
+    },
+    "realMadridCrest" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.99063,
+        "width" : 0.6625,
+        "x" : 0.16563,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.92954,
+      "bottomExit" : {
+        "x" : 0.49687,
+        "y" : 0.9921
+      },
+      "connectorAnchor" : {
+        "x" : 0.49739,
+        "y" : 0.0352
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.00621,
+        "centreX" : 0.49739,
+        "eyeBottom" : 0.06832,
+        "eyeTop" : 0.0352,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49687,
+        "y" : 0.00478
+      },
+      "topDepth" : 0.02972
+    },
+    "robin" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.95,
+        "width" : 0.8375,
+        "x" : 0.08125,
+        "y" : 0.04688
+      },
+      "bottomDepth" : 0.89142,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.93829
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.04688
+      },
+      "topDepth" : 0.89142
+    },
+    "ronWeasley" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.98438,
+        "width" : 0.45313,
+        "x" : 0.27187,
+        "y" : 0.01563
+      },
+      "bottomDepth" : 0.79734,
+      "bottomExit" : {
+        "x" : 0.39932,
+        "y" : 0.99836
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.01727
+      },
+      "topDepth" : 0.81375
+    },
+    "ronaldoBicycleKick" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99063,
+        "width" : 0.80625,
+        "x" : 0.09688,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.21629,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.62227
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "reviewNote" : "Auto exit is the crotch\/hip, in ink. Below it the centre line is the gap between the legs: an exit there would start the cord in mid-air, and one foot would hang the charm below off to the side. Checked in the audit (6 Oct 2026).",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.40598
+      },
+      "topDepth" : 0.21629
+    },
+    "ronaldoJersey" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.775,
+        "x" : 0.1125,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.89553,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99668
+      },
+      "connectorAnchor" : {
+        "x" : 0.50303,
+        "y" : 0.03996
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.00727,
+        "centreX" : 0.50303,
+        "eyeBottom" : 0.10051,
+        "eyeTop" : 0.03996,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00645
+      },
+      "topDepth" : 0.03157
+    },
+    "ronaldoPortugal" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.725,
+        "x" : 0.14063,
+        "y" : 0
+      },
+      "bottomDepth" : 0.61308,
+      "bottomExit" : {
+        "x" : 0.50313,
+        "y" : 0.61474
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "reviewNote" : "Auto exit is the crotch\/hip, in ink. Below it the centre line is the gap between the legs: an exit there would start the cord in mid-air, and one foot would hang the charm below off to the side. Checked in the audit (6 Oct 2026).",
+      "topAnchor" : {
+        "x" : 0.50313,
+        "y" : 0.00166
+      },
+      "topDepth" : 0.61308
+    },
+    "rossGeller" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.39375,
+        "x" : 0.30312,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.92916,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.93725
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00809
+      },
+      "topDepth" : 0.92916
+    },
+    "rudraksha" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.99063,
+        "width" : 0.74063,
+        "x" : 0.13125,
+        "y" : 0.00625
+      },
+      "bottomDepth" : 0.85689,
+      "bottomExit" : {
+        "x" : 0.50156,
+        "y" : 0.99688
+      },
+      "connectorAnchor" : {
+        "x" : 0.50214,
+        "y" : 0.09836
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.0486,
+        "centreX" : 0.50214,
+        "eyeBottom" : 0.14002,
+        "eyeTop" : 0.09836,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.50156,
+        "y" : 0.00625
+      },
+      "topDepth" : 0.09576
+    },
+    "rv" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.6375,
+        "width" : 1,
+        "x" : 0,
+        "y" : 0.18125
+      },
+      "bottomDepth" : 0.59181,
+      "bottomExit" : {
+        "x" : 0.57625,
+        "y" : 0.81875
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.18656
+      },
+      "topDepth" : 0.53763
+    },
+    "sacredHeart" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.7125,
+        "x" : 0.14375,
+        "y" : 0
+      },
+      "bottomDepth" : 0.98667,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.98833
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00167
+      },
+      "topDepth" : 0.98667
+    },
+    "sanji" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.6625,
+        "x" : 0.16875,
+        "y" : 0
+      },
+      "bottomDepth" : 0.97,
+      "bottomExit" : {
+        "x" : 0.6383,
+        "y" : 0.99833
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.12667
+      },
+      "topDepth" : 0.45167
+    },
+    "sasukeUchiha" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.59062,
+        "x" : 0.20625,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.16563,
+      "bottomExit" : {
+        "x" : 0.61157,
+        "y" : 0.99688
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.50156,
+        "y" : 0.00644
+      },
+      "topDepth" : 0.80991
+    },
+    "saulGoodman" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.3625,
+        "x" : 0.31875,
+        "y" : 0.00625
+      },
+      "bottomDepth" : 0.98713,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99503
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00791
+      },
+      "topDepth" : 0.98713
+    },
+    "scarab" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.64375,
+        "width" : 0.45625,
+        "x" : 0.27187,
+        "y" : 0.35625
+      },
+      "bottomDepth" : 0.56435,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99893
+      },
+      "connectorAnchor" : {
+        "x" : 0.50321,
+        "y" : 0.38172
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.35605,
+        "centreX" : 0.50321,
+        "eyeBottom" : 0.43305,
+        "eyeTop" : 0.38172,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.35625
+      },
+      "topDepth" : 0.02468
+    },
+    "sharingan" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 1,
+        "width" : 0.77188,
+        "x" : 0.11875,
+        "y" : 0
+      },
+      "bottomDepth" : 0.84,
+      "bottomExit" : {
+        "x" : 0.50469,
+        "y" : 0.99833
+      },
+      "connectorAnchor" : {
+        "x" : 0.52821,
+        "y" : 0.06151
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.01206,
+        "centreX" : 0.52821,
+        "eyeBottom" : 0.16041,
+        "eyeTop" : 0.06151,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.50469,
+        "y" : 0.00167
+      },
+      "topDepth" : 0.06333
+    },
+    "shazamLightning" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.4,
+        "x" : 0.3,
+        "y" : 0
+      },
+      "bottomDepth" : 0.5433,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.7759
+      },
+      "connectorAnchor" : {
+        "x" : 0.50094,
+        "y" : 0.20813
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.15812,
+        "centreX" : 0.50094,
+        "eyeBottom" : 0.23188,
+        "eyeTop" : 0.20813,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "reviewNote" : "Auto exit is in the bolt's lower body on its centre line; the tip is far off to the side. Checked in the audit (6 Oct 2026).",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.11298
+      },
+      "topDepth" : 0.09969
+    },
+    "shivaLingam" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.7,
+        "x" : 0.15,
+        "y" : 0
+      },
+      "bottomDepth" : 0.78089,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99521
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.02658
+      },
+      "topDepth" : 0.06978
+    },
+    "spiderMan" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.64063,
+        "x" : 0.17813,
+        "y" : 0
+      },
+      "bottomDepth" : 0.64,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99833
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0
+      },
+      "topDepth" : 0.35667
+    },
+    "spiderManGwen" : {
+      "attachment" : "ownRope",
+      "hasHook" : false,
+      "measurementMode" : "auto"
+    },
+    "spiderManSwinging" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.7875,
+        "width" : 0.49688,
+        "x" : 0.25313,
+        "y" : 0.2125
+      },
+      "bottomDepth" : 0.08925,
+      "bottomExit" : {
+        "x" : 0.39101,
+        "y" : 0.94619
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.50156,
+        "y" : 0.2125
+      },
+      "topDepth" : 0.20606
+    },
+    "squirtle" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.95,
+        "x" : 0.02188,
+        "y" : 0
+      },
+      "bottomDepth" : 0.70612,
+      "bottomExit" : {
+        "x" : 0.62394,
+        "y" : 0.99688
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49687,
+        "y" : 0.02658
+      },
+      "topDepth" : 0.84236
+    },
+    "star" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 1,
+        "width" : 0.925,
+        "x" : 0.0375,
+        "y" : 0
+      },
+      "bottomDepth" : 0.58167,
+      "bottomExit" : {
+        "x" : 0.73125,
+        "y" : 0.98
+      },
+      "connectorAnchor" : {
+        "x" : 0.49928,
+        "y" : 0.03469
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0,
+        "centreX" : 0.49928,
+        "eyeBottom" : 0.0925,
+        "eyeTop" : 0.03469,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0
+      },
+      "topDepth" : 0.03333
+    },
+    "steveHarrington" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.76875,
+        "x" : 0.11563,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.88888,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.98837
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.09949
+      },
+      "topDepth" : 0.88888
+    },
+    "stormbreaker" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.50313,
+        "x" : 0.24688,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.4505,
+      "bottomExit" : {
+        "x" : 0.38083,
+        "y" : 0.99688
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.05281
+      },
+      "topDepth" : 0.22194
+    },
+    "supermanShield" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.97188,
+        "width" : 1,
+        "x" : 0,
+        "y" : 0.0125
+      },
+      "bottomDepth" : 0.79532,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.98438
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.01412
+      },
+      "topDepth" : 0.15712
+    },
+    "surveyCorpsEmblem" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.99063,
+        "width" : 0.65625,
+        "x" : 0.17188,
+        "y" : 0.00625
+      },
+      "bottomDepth" : 0.83708,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.95725
+      },
+      "connectorAnchor" : {
+        "x" : 0.50359,
+        "y" : 0.05435
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.0082,
+        "centreX" : 0.50359,
+        "eyeBottom" : 0.121,
+        "eyeTop" : 0.05435,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00625
+      },
+      "topDepth" : 0.04623
+    },
+    "taylorSwift" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.6375,
+        "x" : 0.18125,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.97719,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.98363
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00644
+      },
+      "topDepth" : 0.97719
+    },
+    "templeBell" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.63438,
+        "width" : 0.44063,
+        "x" : 0.27813,
+        "y" : 0.36563
+      },
+      "bottomDepth" : 0.55191,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99894
+      },
+      "connectorAnchor" : {
+        "x" : 0.50016,
+        "y" : 0.3923
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.36545,
+        "centreX" : 0.50016,
+        "eyeBottom" : 0.46735,
+        "eyeTop" : 0.3923,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.36563
+      },
+      "topDepth" : 0.02537
+    },
+    "theWeeknd" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.71563,
+        "x" : 0.14063,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.91713,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.93354
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.01642
+      },
+      "topDepth" : 0.91713
+    },
+    "thorHammer" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.55313,
+        "x" : 0.22188,
+        "y" : 0
+      },
+      "bottomDepth" : 0.99833,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99833
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0
+      },
+      "topDepth" : 0.99833
+    },
+    "tyrionLannister" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.56563,
+        "x" : 0.21563,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.94738,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.9505
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00313
+      },
+      "topDepth" : 0.94738
+    },
+    "umbreon" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.78125,
+        "x" : 0.10938,
+        "y" : 0
+      },
+      "bottomDepth" : 0.04833,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.94
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.07833
+      },
+      "topDepth" : 0.12333
+    },
+    "upgrade" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.54688,
+        "x" : 0.225,
+        "y" : 0
+      },
+      "bottomDepth" : 0.97029,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.9786
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00831
+      },
+      "topDepth" : 0.97029
+    },
+    "usopp" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.75938,
+        "x" : 0.11875,
+        "y" : 0
+      },
+      "bottomDepth" : 0.67667,
+      "bottomExit" : {
+        "x" : 0.64557,
+        "y" : 0.99833
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.03667
+      },
+      "topDepth" : 0.69
+    },
+    "vel" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.79688,
+        "width" : 0.20313,
+        "x" : 0.39688,
+        "y" : 0.20313
+      },
+      "bottomDepth" : 0.76234,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99867
+      },
+      "connectorAnchor" : {
+        "x" : 0.49906,
+        "y" : 0.215
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.20375,
+        "centreX" : 0.49906,
+        "eyeBottom" : 0.23563,
+        "eyeTop" : 0.215,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.20445
+      },
+      "topDepth" : 0.01062
+    },
+    "vinayagarCoin" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.63438,
+        "width" : 0.56875,
+        "x" : 0.21563,
+        "y" : 0.36563
+      },
+      "bottomDepth" : 0.58151,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99894
+      },
+      "connectorAnchor" : {
+        "x" : 0.49956,
+        "y" : 0.38115
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.36604,
+        "centreX" : 0.49956,
+        "eyeBottom" : 0.4167,
+        "eyeTop" : 0.38115,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.36563
+      },
+      "topDepth" : 0.0148
+    },
+    "walterWhite" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.41563,
+        "x" : 0.29063,
+        "y" : 0
+      },
+      "bottomDepth" : 0.07,
+      "bottomExit" : {
+        "x" : 0.60079,
+        "y" : 0.99833
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00333
+      },
+      "topDepth" : 0.83333
+    },
+    "wildmutt" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.98438,
+        "width" : 0.84688,
+        "x" : 0.075,
+        "y" : 0.01563
+      },
+      "bottomDepth" : 0.90727,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.9393
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.03203
+      },
+      "topDepth" : 0.90727
+    },
+    "willByers" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.32813,
+        "x" : 0.33438,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.32463,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.99688
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.00809
+      },
+      "topDepth" : 0.59294
+    },
+    "wonderWomanEmblem" : {
+      "attachment" : "ring",
+      "body" : {
+        "height" : 0.91563,
+        "width" : 0.99375,
+        "x" : 0.00313,
+        "y" : 0.04375
+      },
+      "bottomDepth" : 0.83169,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.95938
+      },
+      "connectorAnchor" : {
+        "x" : 0.49767,
+        "y" : 0.06832
+      },
+      "hasHook" : true,
+      "hook" : {
+        "barTop" : 0.04503,
+        "centreX" : 0.49767,
+        "eyeBottom" : 0.12732,
+        "eyeTop" : 0.06832,
+        "slotWidth" : 0
+      },
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.04375
+      },
+      "topDepth" : 0.02289
+    },
+    "xlr8" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99375,
+        "width" : 0.52188,
+        "x" : 0.2375,
+        "y" : 0.00313
+      },
+      "bottomDepth" : 0.25009,
+      "bottomExit" : {
+        "x" : 0.49844,
+        "y" : 0.96209
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.49844,
+        "y" : 0.01969
+      },
+      "topDepth" : 0.09606
+    },
+    "xxxtentacion" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 1,
+        "width" : 0.475,
+        "x" : 0.2625,
+        "y" : 0
+      },
+      "bottomDepth" : 0.96167,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99167
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.03
+      },
+      "topDepth" : 0.96167
+    },
+    "zoro" : {
+      "attachment" : "top",
+      "body" : {
+        "height" : 0.99688,
+        "width" : 0.99375,
+        "x" : 0.00313,
+        "y" : 0
+      },
+      "bottomDepth" : 0.99521,
+      "bottomExit" : {
+        "x" : 0.5,
+        "y" : 0.99688
+      },
+      "hasHook" : false,
+      "measurementMode" : "auto",
+      "topAnchor" : {
+        "x" : 0.5,
+        "y" : 0.00166
+      },
+      "topDepth" : 0.99521
+    }
+  },
+  "tolerance" : 0.005,
+  "version" : 1
+}

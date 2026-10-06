@@ -157,6 +157,18 @@ public static class Diagnostics
             {
                 Log($"  NO HOOK   {charm}");
             }
+
+            // Parity: this platform's measurement against the shared anchor table, which macOS measured.
+            if (report.Anchors is { Count: > 0 } anchors)
+            {
+                (string Id, double Drift, string Detail) worst = anchors.MaxBy(pair => pair.Drift);
+                int over = anchors.Count(pair => pair.Drift > 0.005);
+                Log($"anchor parity: {anchors.Count} compared, worst {worst.Drift:0.00000} ({worst.Id}), {over} over 0.005");
+                foreach ((string id, double drift, string detail) in anchors.Where(pair => pair.Drift > 0.005).OrderByDescending(pair => pair.Drift))
+                {
+                    Log($"  ANCHOR DRIFT {id} {drift:0.00000}: {detail}");
+                }
+            }
         }
         catch (Exception exception)
         {

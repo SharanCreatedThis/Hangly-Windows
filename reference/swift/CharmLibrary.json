@@ -2348,6 +2348,20 @@
         "football"
       ],
       "previewImage": "charm-preview-championsLeagueTrophy"
+    },
+    {
+      "id": "messi",
+      "name": "Messi",
+      "region": "Argentina",
+      "category": "footballLegends",
+      "description": "Holding the number ten up to the crowd with both hands: the Barcelona shirt shown off after the winner.",
+      "tags": [
+        "Messi",
+        "Barcelona",
+        "ten",
+        "celebration"
+      ],
+      "previewImage": "charm-preview-messi"
     }
   ]
 }

@@ -92,6 +92,7 @@ extension CharmKind {
         case .ronaldoBicycleKick: "figure.soccer"
         case .ballonDor: "soccerball"
         case .championsLeagueTrophy: "trophy.fill"
+        case .messi: "figure.soccer"
         case .rudraksha: "circle.dotted"
         case .shivaLingam: "drop.fill"
         case .buddha: "leaf.fill"

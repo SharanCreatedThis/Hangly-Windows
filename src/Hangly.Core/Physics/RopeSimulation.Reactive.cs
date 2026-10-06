@@ -30,8 +30,11 @@ public sealed partial class RopeSimulation
 
         bool nudged = false;
         double timeStep = Configuration.FixedTimeStep;
-        foreach (CharmStackLayout.Slot charm in CharmLayout.Slots)
+        // Indexed, not foreach: Slots is an IReadOnlyList, and foreach over it boxed an enumerator on every pass
+        // — the solver's per-frame garbage (PhysicsAllocationTests).
+        for (int slotIndex = 0; slotIndex < CharmLayout.Slots.Count; slotIndex++)
         {
+            CharmStackLayout.Slot charm = CharmLayout.Slots[slotIndex];
             if (charm.Node < 0 || charm.Node >= Points.Length)
             {
                 continue;
