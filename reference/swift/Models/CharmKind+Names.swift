@@ -94,6 +94,7 @@ extension CharmKind {
         case .ronaldoBicycleKick: "Ronaldo Bicycle Kick"
         case .ballonDor: "Ballon d'Or"
         case .championsLeagueTrophy: "Champions League Trophy"
+        case .messi: "Messi"
         case .rudraksha: "Rudraksha"
         case .shivaLingam: "Shiva Lingam"
         case .buddha: "Buddha"

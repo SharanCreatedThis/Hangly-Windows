@@ -143,6 +143,10 @@ public static partial class CharmCatalog
         // Above the connector on a charm with a hook: the cap and jump ring take the cord just above it.
         double rise = split.Hook is CharmArtworkHook hook ? new HookConnector(hook, split.Body, HookConnector.WeightOf(entry.Mass)).Rise * scale : 0;
 
+        // Beads are measured from the body's top but hung from the knot: the stretch between is added, so a bead hangs
+        // where it is drawn — not that much low, as the nazar's sat on its glass (Sharan, 5 Oct).
+        double aboveKnot = Math.Max(0, split.TopInset - split.KnotInset);
+
         var beads = new List<CharmBead>(split.Beads.Count);
         foreach (Rect rect in split.Beads)
         {
@@ -154,11 +158,12 @@ public static partial class CharmCatalog
 
             beads.Add(new CharmBead(
                 size,
-                Offset: ((split.Body.Top - rect.MidY) * scale) + rise,
+                Offset: ((split.Body.Top - rect.MidY) * scale) + rise + aboveKnot,
 
                 // Weight for a solid bead of this size beside the charm's own, floored
                 // so the lightest still registers on the rope.
-                Mass: Math.Max(MinimumBeadMass, entry.Mass * Math.Pow(radius, 3) * BeadDensity)));
+                Mass: Math.Max(MinimumBeadMass, entry.Mass * Math.Pow(radius, 3) * BeadDensity),
+                TopAboveKnot: aboveKnot));
         }
 
         return beads;

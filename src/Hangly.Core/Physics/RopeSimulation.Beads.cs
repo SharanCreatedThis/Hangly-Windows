@@ -182,9 +182,27 @@ public sealed partial class RopeSimulation
         return Math.Max(0, available / reach);
     }
 
-    /// <summary>The furthest down the cord a bead may sit: against its own charm's knot.</summary>
+    /// <summary>The furthest down the cord a bead may sit: clear of its own charm's knot by <see cref="RopeBead.Clearance"/>.</summary>
     private double BeadCeiling(int index) =>
-        KnotArc(Beads[index].Owner) - Beads[index].SpacingRadius;
+        KnotArc(Beads[index].Owner) - Beads[index].SpacingRadius - Beads[index].Clearance;
+
+    /// <summary>
+    /// How far above a charm its lowest bead always stays, in points: 8 above a small charm, 12 above a medium one, 16
+    /// above a large one, and a point more for a bead's soft edge. Allowed to rest against the knot, a bead was drawn into
+    /// the top of the charm — the nazar's beads sat on its glass and over its thread (Sharan, 5 Oct). macOS's
+    /// <c>RopeSimulation.beadClearance</c>.
+    /// </summary>
+    public static double BeadClearance(double radius) =>
+        (radius < MediumCharmRadius ? 8 : (radius < LargeCharmRadius ? 12 : 16)) + BeadClearanceMargin;
+
+    /// <summary>The radius, in points, from which a charm counts as medium.</summary>
+    public const double MediumCharmRadius = 40;
+
+    /// <summary>The radius, in points, from which a charm counts as large.</summary>
+    public const double LargeCharmRadius = 60;
+
+    /// <summary>A point more than the least, for the soft edge a bead is drawn with.</summary>
+    public const double BeadClearanceMargin = 1;
 
     /// <summary>
     /// The furthest up the cord a bead may sit: the stretch of cord its own charm was
@@ -214,6 +232,9 @@ public sealed partial class RopeSimulation
         return Math.Max(radius, KnotArc(owner) - CharmLayout.Slots[owner].BeadSpan);
     }
 
+    /// <summary>The cord's node positions, kept from step to step for <see cref="RefreshCord"/>.</summary>
+    private Vec2[] cordPositions = [];
+
     /// <summary>
     /// Re-measures the cord: the curve through the chain, where the charm covers it, and
     /// which way the charm therefore hangs.
@@ -230,7 +251,13 @@ public sealed partial class RopeSimulation
             return;
         }
 
-        var positions = new Vec2[Points.Length];
+        // Kept from step to step: a new array here, every step, was garbage sixty times a second and more.
+        if (cordPositions.Length != Points.Length)
+        {
+            cordPositions = new Vec2[Points.Length];
+        }
+
+        Vec2[] positions = cordPositions;
         for (int index = 0; index < Points.Length; index++)
         {
             positions[index] = Points[index].Position;
@@ -244,8 +271,11 @@ public sealed partial class RopeSimulation
         CharmSpans.Clear();
         CharmOrientations.Clear();
 
-        foreach (CharmStackLayout.Slot slot in CharmLayout.Slots)
+        // Indexed, not foreach: Slots is an IReadOnlyList, and foreach over it boxed an enumerator on every pass
+        // — the solver's per-frame garbage (PhysicsAllocationTests).
+        for (int slotIndex = 0; slotIndex < CharmLayout.Slots.Count; slotIndex++)
         {
+            CharmStackLayout.Slot slot = CharmLayout.Slots[slotIndex];
             Vec2 center = DrawnCenter(slot);
             ArcSpan span = Curve.Span(center, slot.KnotRadius, slot.Node);
 
@@ -343,9 +373,21 @@ public sealed partial class RopeSimulation
             // pass, for ever.
             double squeeze = BeadSqueeze(owner, radius, slot);
 
+            // The whole group raised, if need be, so its lowest bead rests clear of the charm (BeadClearance) rather than
+            // held off it by the ceiling against its tether.
+            double lowest = double.MaxValue, aboveKnot = 0;
             foreach (CharmBead description in BeadDescriptions[owner])
             {
-                double restOffset = description.Offset * radius * squeeze;
+                lowest = Math.Min(lowest, ((description.Offset * squeeze) - description.SpacingRatio) * radius);
+                aboveKnot = description.TopAboveKnot * radius;
+            }
+
+            double clearance = BeadClearance(radius) + aboveKnot;
+            double lift = BeadDescriptions[owner].Count > 0 ? Math.Max(0, clearance - lowest) : 0;
+
+            foreach (CharmBead description in BeadDescriptions[owner])
+            {
+                double restOffset = (description.Offset * radius * squeeze) + lift;
                 double arc = Math.Clamp(knot - restOffset, 0, Math.Max(Curve.Length, 0));
 
                 // Matched to the bead that held this place on the same charm, so a charm
@@ -376,6 +418,7 @@ public sealed partial class RopeSimulation
                     Mass = description.Mass,
                     Owner = owner,
                     Angle = existing?.Angle ?? Curve.AngleAtArc(arc),
+                    Clearance = clearance,
                 });
             }
         }
@@ -433,8 +476,11 @@ public sealed partial class RopeSimulation
         }
 
         var charmLoad = new double[Points.Length];
-        foreach (CharmStackLayout.Slot charm in CharmLayout.Slots)
+        // Indexed, not foreach: Slots is an IReadOnlyList, and foreach over it boxed an enumerator on every pass
+        // — the solver's per-frame garbage (PhysicsAllocationTests).
+        for (int slotIndex = 0; slotIndex < CharmLayout.Slots.Count; slotIndex++)
         {
+            CharmStackLayout.Slot charm = CharmLayout.Slots[slotIndex];
             if (charm.Node > 0 && charm.Node < Points.Length)
             {
                 charmLoad[charm.Node] += EffectiveMassOf(charm);
@@ -501,9 +547,12 @@ public sealed partial class RopeSimulation
         // How tight the cord above the charm is: straight-line distance over the length of cord.
         int above = index == 0 ? 0 : CharmLayout.Slots[index - 1].Node;
         double path = 0;
+        // Measured as the cord's whole length, wound in or not (RopeSimulation.Lift): a charm held up hangs as it did when
+        // the slack hung below it, upright, though the cord it is drawn on is taut.
+        double unit = Configuration.SegmentLength * ReelFraction;
         for (int node = above; node < slot.Node; node++)
         {
-            path += (PositionOfNode(node + 1) - PositionOfNode(node)).Magnitude;
+            path += (PositionOfNode(node + 1) - PositionOfNode(node)).Magnitude * unit / RestLength(node);
         }
 
         double chord = (PositionOfNode(slot.Node) - PositionOfNode(above)).Magnitude;

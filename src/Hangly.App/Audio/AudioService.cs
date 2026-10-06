@@ -46,8 +46,73 @@ public sealed class AudioService : IDisposable
     internal AudioService(SettingsStore store) => this.store = store;
 
     /// <summary>Plays <paramref name="sound"/> at <paramref name="intensity"/> of the user's volume, if it should.</summary>
-    /// <remarks>Safe from any thread; returns at once.</remarks>
+    /// <remarks>
+    /// Safe from any thread, and returns at once: the sound is handed to <see cref="player"/> and played there. It was
+    /// played right here, and "here" is mostly the overlay's frame loop — two charms knocking together mid-swing. Asking
+    /// the shell whether the system is quiet and opening a <c>waveOut</c> handle are both blocking calls, and one took
+    /// 187 ms: the rope froze mid-swing, in multi-charm mode, every time the charms met (Sharan, 6 Oct; measured with
+    /// HANGLY_AUDIT_FRAMES). A request that finds the player still busy is dropped, as a sound inside the cooldown is.
+    /// </remarks>
     public void Play(CharmSound sound, double intensity)
+    {
+        if (!isAvailable || (Environment.TickCount64 - Interlocked.Read(ref lastPlayTicks)) / 1000.0 < SoundPolicy.Cooldown)
+        {
+            return;
+        }
+
+        if (requests.IsAddingCompleted)
+        {
+            return;
+        }
+
+        EnsurePlayer();
+        try
+        {
+            requests.TryAdd((sound, intensity));
+        }
+        catch (InvalidOperationException)
+        {
+            // Closed between the check and the add: the app is shutting down, and the sound is not needed.
+        }
+    }
+
+    /// <summary>Waiting sounds, played in turn on <see cref="player"/>. A couple at most: a burst of knocks is one knock.</summary>
+    private readonly System.Collections.Concurrent.BlockingCollection<(CharmSound Sound, double Intensity)> requests = new(boundedCapacity: 2);
+
+    /// <summary>The one thread sounds are played on, started with the first: parked on <see cref="requests"/> between
+    /// sounds, so it costs nothing while nothing plays.</summary>
+    private Thread? player;
+
+    private void EnsurePlayer()
+    {
+        if (player is not null)
+        {
+            return;
+        }
+
+        lock (gate)
+        {
+            if (player is not null)
+            {
+                return;
+            }
+
+            player = new Thread(() =>
+            {
+                foreach ((CharmSound sound, double intensity) in requests.GetConsumingEnumerable())
+                {
+                    PlayNow(sound, intensity);
+                }
+            })
+            {
+                IsBackground = true,
+                Name = "Hangly sounds",
+            };
+            player.Start();
+        }
+    }
+
+    private void PlayNow(CharmSound sound, double intensity)
     {
         AppSettings settings = store.Settings;
         double sinceLast = (Environment.TickCount64 - Interlocked.Read(ref lastPlayTicks)) / 1000.0;
@@ -242,6 +307,7 @@ public sealed class AudioService : IDisposable
 
     public void Dispose()
     {
+        requests.CompleteAdding();
         lock (gate)
         {
             foreach (Playing entry in playing)

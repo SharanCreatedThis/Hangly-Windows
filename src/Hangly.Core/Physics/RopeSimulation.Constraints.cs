@@ -23,21 +23,24 @@ public sealed partial class RopeSimulation
     /// <returns>The largest correction applied, so the caller can stop early.</returns>
     internal double SolveDistanceConstraints()
     {
-        double restLength = Configuration.SegmentLength * ReelFraction;
+        double unit = Configuration.SegmentLength * ReelFraction;
         double largestCorrection = 0;
         bool elastic = Physics == RopePhysics.Elastic;
 
         // A figure's body does not stretch: the links between its hands stay rigid on an elastic rope too.
-        HashSet<int> held = elastic ? HeldLinks() : [];
+        // The same set every pass, and no set at all off Elastic: a fresh one here, made on every relaxation pass, was most
+        // of the 12–65 KB the solver allocated a frame (PhysicsAllocationTests).
+        HashSet<int> held = elastic ? HeldLinks() : NoHeldLinks;
         for (int index = 0; index < Points.Length - 1; index++)
         {
+            double restLength = RestLength(index);
             double correction = elastic && !held.Contains(index)
                 ? SolveElasticLink(index, restLength, Configuration.FixedTimeStep)
                 : SolveLink(index, index + 1, restLength);
             largestCorrection = Math.Max(largestCorrection, correction);
         }
 
-        return Math.Max(largestCorrection, SolveHeldSpans(restLength));
+        return Math.Max(largestCorrection, SolveHeldSpans(unit));
     }
 
     /// <summary>
@@ -52,8 +55,11 @@ public sealed partial class RopeSimulation
     internal double SolveHeldSpans(double restLength)
     {
         double largestCorrection = 0;
-        foreach (CharmStackLayout.Slot slot in CharmLayout.Slots)
+        // Indexed, not foreach: Slots is an IReadOnlyList, and foreach over it boxed an enumerator on every pass
+        // — the solver's per-frame garbage (PhysicsAllocationTests).
+        for (int slotIndex = 0; slotIndex < CharmLayout.Slots.Count; slotIndex++)
         {
+            CharmStackLayout.Slot slot = CharmLayout.Slots[slotIndex];
             if (slot.HoldsRope && HeldSpan(slot) is (int first, int last))
             {
                 largestCorrection = Math.Max(largestCorrection, SolveLink(first, last, (last - first) * restLength));
@@ -69,11 +75,19 @@ public sealed partial class RopeSimulation
     /// swinging — and could only fit it by buckling sideways: the node Spider-Man is drawn at bowed off the line
     /// between his hands, carrying him off the rope, and the rope stepped sideways to reach each hand.
     /// </remarks>
+    /// <remarks>The one set, refilled on each call: read it before calling again.</remarks>
+    private readonly HashSet<int> heldLinks = [];
+    private static readonly HashSet<int> NoHeldLinks = [];
+
     internal HashSet<int> HeldLinks()
     {
-        var links = new HashSet<int>();
-        foreach (CharmStackLayout.Slot slot in CharmLayout.Slots)
+        HashSet<int> links = heldLinks;
+        links.Clear();
+        // Indexed, not foreach: Slots is an IReadOnlyList, and foreach over it boxed an enumerator on every pass
+        // — the solver's per-frame garbage (PhysicsAllocationTests).
+        for (int slotIndex = 0; slotIndex < CharmLayout.Slots.Count; slotIndex++)
         {
+            CharmStackLayout.Slot slot = CharmLayout.Slots[slotIndex];
             if (slot.HoldsRope && HeldSpan(slot) is (int first, int last))
             {
                 for (int link = first; link < last; link++)
@@ -242,14 +256,12 @@ public sealed partial class RopeSimulation
     /// </remarks>
     internal void EnforceMaximumStretch()
     {
-        double limit = Configuration.SegmentLength * ReelFraction * StretchCeiling;
-
         for (int pass = 0; pass < Configuration.StretchPasses; pass++)
         {
             bool corrected = false;
             for (int index = 0; index < Points.Length - 1; index++)
             {
-                if (ClampLink(index, limit))
+                if (ClampLink(index, RestLength(index) * StretchCeiling))
                 {
                     corrected = true;
                 }

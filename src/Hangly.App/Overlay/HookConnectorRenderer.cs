@@ -50,16 +50,45 @@ internal sealed class HookConnectorRenderer
         /// </summary>
         public Vec2 RopeDirection => Centre - RopeEnd;
 
-        public Vec2 RopeEnd
+        // On a chain, the eye, where the chain's last link rests; on a cord, the jump ring's top wire or the cap.
+        public Vec2 RopeEnd => Apply(Connector.EndFor(Chained), Hardware);
+
+        /// <summary>Where the charm bears on its hardware (<see cref="HookConnector.ContactFor"/>).</summary>
+        public Vec2 Contact => Apply(Connector.ContactFor(Chained), Transform);
+
+        /// <summary>
+        /// From the unit square to the canvas for the hardware: turned about <see cref="Contact"/>, so the jump ring and cap
+        /// hang straight along the line from there through the charm's centre, as a ring hangs on its cord whichever way
+        /// the charm is turned. Turned with the charm instead, a charm hung from an off-centre ring — the camera's corner
+        /// lug — left its ring leaning, and the cord met it off the line the charm hangs on (Sharan, 5 Oct). A chain's link
+        /// is the charm's own eye's, and turns with it. macOS's <c>Layout.hardware</c>.
+        /// </summary>
+        public System.Numerics.Matrix3x2 Hardware
         {
             get
             {
-                // On a chain, the eye, where the chain's last link rests; on a cord, the jump ring's top wire or the cap.
-                Vec2 local = Connector.EndFor(Chained);
-                System.Numerics.Vector2 end = System.Numerics.Vector2.Transform(
-                    new System.Numerics.Vector2((float)local.X, (float)local.Y), Transform);
-                return new Vec2(end.X, end.Y);
+                if (Chained)
+                {
+                    return Transform;
+                }
+
+                Vec2 pivot = Contact;
+                double hanging = Math.Atan2(Centre.Y - pivot.Y, Centre.X - pivot.X);
+                // The unit square's down, as the charm is drawn.
+                double down = Math.Atan2(Transform.M22, Transform.M21);
+                var at = new System.Numerics.Vector2((float)pivot.X, (float)pivot.Y);
+                return Transform
+                    * System.Numerics.Matrix3x2.CreateTranslation(-at)
+                    * System.Numerics.Matrix3x2.CreateRotation((float)(hanging - down))
+                    * System.Numerics.Matrix3x2.CreateTranslation(at);
             }
+        }
+
+        private static Vec2 Apply(Vec2 local, System.Numerics.Matrix3x2 transform)
+        {
+            System.Numerics.Vector2 point = System.Numerics.Vector2.Transform(
+                new System.Numerics.Vector2((float)local.X, (float)local.Y), transform);
+            return new Vec2(point.X, point.Y);
         }
     }
 
@@ -129,7 +158,7 @@ internal sealed class HookConnectorRenderer
     private static void Draw(CanvasDrawingSession session, Placed placed, CanvasBitmap bitmap, Rect destination, Rect? clip)
     {
         System.Numerics.Matrix3x2 previous = session.Transform;
-        session.Transform = placed.Transform * previous;
+        session.Transform = placed.Hardware * previous;
         var target = new Windows.Foundation.Rect(destination.Left, destination.Top, destination.Width, destination.Height);
         var source = new Windows.Foundation.Rect(0, 0, bitmap.SizeInPixels.Width, bitmap.SizeInPixels.Height);
         if (clip is Rect area)
@@ -166,6 +195,8 @@ internal sealed class HookConnectorRenderer
             return cached;
         }
 
+        RenderTimes.FrameUploads++;
+
         CanvasBitmap? bitmap = null;
         try
         {
@@ -189,6 +220,10 @@ internal sealed class HookConnectorRenderer
         }
 
         bitmaps[name] = bitmap;
+        if (bitmap is not null)
+        {
+            LiveObjects.Track("connector bitmap (GPU)", bitmap);
+        }
         return bitmap;
     }
 }

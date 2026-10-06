@@ -97,7 +97,8 @@ public sealed partial class RopeSimulation
                 Beads[index].Position,
                 Beads[index].Angle,
                 Beads[index].Size,
-                Beads[index].Owner);
+                Beads[index].Owner,
+                Beads[index].Arc);
         }
 
         return new RopeSnapshot(points, CharmPlacements, beads, MeasuredMaximumStretch, IsDragging, Bloom);

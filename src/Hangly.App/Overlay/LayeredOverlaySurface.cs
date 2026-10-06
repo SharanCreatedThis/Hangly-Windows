@@ -86,7 +86,11 @@ internal sealed class LayeredOverlaySurface : IDisposable
     private int pixelHeight;
     private double pixelScale;
 
-    public LayeredOverlaySurface(CanvasDevice device) => this.device = device;
+    public LayeredOverlaySurface(CanvasDevice device)
+    {
+        this.device = device;
+        LiveObjects.Track("overlay surface", this);
+    }
 
     public IntPtr Handle => handle;
 
@@ -714,6 +718,9 @@ internal static class PresentTimes
 {
     private static readonly double[] Worst = new double[4];
 
+    /// <summary>This frame's: session open, renderer, session close, present.</summary>
+    public static readonly double[] Frame = new double[4];
+
     /// <summary>On only with HANGLY_AUDIT_FRAMES=1; otherwise nothing is recorded.</summary>
     public static readonly bool On = Environment.GetEnvironmentVariable("HANGLY_AUDIT_FRAMES") == "1";
 
@@ -727,7 +734,8 @@ internal static class PresentTimes
         Span<long> marks = [t0, t1, t2, t3, t4];
         for (int index = 0; index < 4; index++)
         {
-            Worst[index] = Math.Max(Worst[index], System.Diagnostics.Stopwatch.GetElapsedTime(marks[index], marks[index + 1]).TotalMilliseconds);
+            Frame[index] = System.Diagnostics.Stopwatch.GetElapsedTime(marks[index], marks[index + 1]).TotalMilliseconds;
+            Worst[index] = Math.Max(Worst[index], Frame[index]);
         }
     }
 

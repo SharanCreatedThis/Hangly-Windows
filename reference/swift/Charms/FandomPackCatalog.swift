@@ -197,6 +197,20 @@ extension CollectionCharmCatalog {
             sound: .metal,
             beadCount: 0
         ),
+        Entry(
+            kind: .messi,
+            sourceFileName: "Football/Messi.svg",
+            mass: 4.14,
+            radiusRatio: 0.1727,
+            palette: CharmPalette(
+                primary: CharmColor(0.67, 0.21, 0.27),
+                secondary: CharmColor(0.42, 0.13, 0.17),
+                deep: CharmColor(0.03, 0.03, 0.07),
+                light: CharmColor(0.88, 0.86, 0.84)
+            ),
+            sound: .soft,
+            beadCount: 0
+        ),
         // Spirituality.
         Entry(
             kind: .rudraksha,

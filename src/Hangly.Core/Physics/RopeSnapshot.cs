@@ -24,8 +24,9 @@ public readonly record struct CharmPlacement(
     double CordEntry,
     double CordExit);
 
-/// <summary>Where one bead is, and how it sits on the cord.</summary>
-public readonly record struct BeadPlacement(Vec2 Position, double Angle, Size Size, int Owner);
+/// <summary>Where one bead is, and how it sits on the cord: and how far along the cord from the anchor it is threaded, so
+/// the renderer can lay it on the cord as drawn (<c>null</c> for one written by hand, drawn where it says).</summary>
+public readonly record struct BeadPlacement(Vec2 Position, double Angle, Size Size, int Owner, double? Arc = null);
 
 /// <summary>One frame of the rope, as the renderer sees it.</summary>
 /// <remarks>

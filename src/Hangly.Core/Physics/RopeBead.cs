@@ -55,6 +55,10 @@ public struct RopeBead
     /// <summary>Orientation of the cord where the bead sits, in radians.</summary>
     public double Angle;
 
+    /// <summary>How far above its charm's knot, in points, the bead's lower end always stays: past the top of the charm,
+    /// and <see cref="RopeSimulation.BeadClearance"/> beyond.</summary>
+    public double Clearance;
+
     /// <summary>Displacement over the last step, which is the bead's implied velocity.</summary>
     public readonly Vec2 Displacement => Position - PreviousPosition;
 

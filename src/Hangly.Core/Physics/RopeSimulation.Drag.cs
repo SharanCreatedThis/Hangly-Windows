@@ -140,15 +140,8 @@ public sealed partial class RopeSimulation
 
         // Never above the anchor, which is at the very top of the screen: lifted past it, the cord ran up out of the
         // overlay's top edge and only a sliver of it showed along the top of the screen. The charm comes up to just
-        // under its hook and its slack drapes below it, as it would from a real one.
-        double heldReach = 0;
-        foreach (CharmStackLayout.Slot slot in CharmLayout.Slots)
-        {
-            if (slot.Node == DragIndex)
-            {
-                heldReach = slot.KnotRadius;
-            }
-        }
+        // under its hook, with room for its beads, and its cord is wound in above it (RopeSimulation.Lift).
+        double heldReach = DragIndex is int node ? LiftClearance(node) : 0;
 
         // After the reach, so it only ever brings the charm nearer the anchor, never pulls the cord past its length.
         Vec2 offset = location - Anchor;
@@ -161,7 +154,7 @@ public sealed partial class RopeSimulation
         }
 
         // Out sideways along the anchor's line at the same distance, so a cord pulled over the top stays taut rather
-        // than folding back on itself — or, lifted close in, just under the anchor with its slack draped below.
+        // than folding back on itself — or, lifted close in, just under the anchor on its wound-in cord.
         // A little short of the reach: a cord held out level sags, and pulled level to its full reach it stretched.
         double away = Math.Min(distance, reach * LevelReach);
         double drop = lowest - Anchor.Y;

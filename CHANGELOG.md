@@ -6,6 +6,26 @@ pulls the section out and the release workflow hands it to both.
 
 Headings are `## <version> — <date>`. Nothing else is a version heading.
 
+## 2.3.1 — 2026-10-06
+
+**Added**
+
+- **Messi** joins Football Legends (161 charms).
+
+**Fixed**
+
+- **Several charms on one rope.** The second charm could hang with no rope, or a rope could run past
+  one charm to the next as well as into its ring. Each charm now has exactly one rope, and the rope
+  runs unbroken from charm to charm however hard they swing. Only the top charm wears beads.
+- **No more freezes mid-swing.** When charms knocked together the sound was started on the drawing
+  thread and could stop the swing for a moment; the rope's drawing no longer waits for the graphics
+  card mid-frame; and the swing no longer makes garbage for the system to clear up.
+- **Charms hang like pendants.** The rope meets each charm at its top or its ring, straight above it,
+  beads stay on the rope and clear of the charm, and lifting a charm reels the rope in instead of
+  folding it.
+- The rope met charms a little off their top on Windows: the artwork was measured squeezed. Fixed.
+- A crash when the Library's rope pictures and the swinging rope were drawn at the same moment.
+
 ## 2.3.0 — 2026-10-04
 
 **Added**

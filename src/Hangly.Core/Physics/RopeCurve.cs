@@ -187,6 +187,40 @@ public sealed class RopeCurve
     public double ArcEnteringCircle(Vec2 center, double radius) => ArcEnteringCircleBackward(center, radius);
 
     /// <summary>
+    /// Where the curve is first clear of <paramref name="radius"/> around <paramref name="center"/>, searching on from
+    /// <paramref name="start"/>: where the cord below a charm has come out from it. Null if it never is. macOS's
+    /// <c>arc(firstLeavingCircleAround:radius:from:)</c>.
+    /// </summary>
+    public double? ArcFirstLeavingCircle(Vec2 center, double radius, double start = 0)
+    {
+        if (IsEmpty || radius <= 0)
+        {
+            return null;
+        }
+
+        for (int index = 1; index < samples.Count; index++)
+        {
+            if (cumulative[index] < start)
+            {
+                continue;
+            }
+
+            double outer = samples[index].DistanceTo(center);
+            if (outer < radius)
+            {
+                continue;
+            }
+
+            double inner = samples[index - 1].DistanceTo(center);
+            double reach = outer - inner;
+            double fraction = reach > Precision.UlpOfOne ? Math.Clamp((radius - inner) / reach, 0, 1) : 0;
+            return Math.Max(start, cumulative[index - 1] + ((cumulative[index] - cumulative[index - 1]) * fraction));
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Where the curve first comes within <paramref name="radius"/> of <paramref name="center"/>, searching from
     /// <paramref name="start"/> toward the charm: where the cord is first seen to reach a charm. Null if it never does.
     /// macOS's <c>arc(firstEnteringCircleAround:radius:from:)</c>.

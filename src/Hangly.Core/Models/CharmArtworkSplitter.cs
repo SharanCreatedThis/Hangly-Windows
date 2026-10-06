@@ -36,9 +36,51 @@ public readonly record struct CharmArtworkHook(double BarTop, double EyeTop, dou
 /// Where a cord hanging straight down the body's centre line first meets the artwork, measured on that line alone; null
 /// when not measured or it never does. macOS's <c>VectorImage.axisInk</c>.
 /// </param>
+/// <param name="AxisBottom">Where that first ink on the centre line ends.</param>
 public readonly record struct CharmArtworkRegions(
-    Rect Body, IReadOnlyList<Rect> Beads, double? KnotY = null, CharmArtworkHook? Hook = null, double? AxisY = null)
+    Rect Body,
+    IReadOnlyList<Rect> Beads,
+    double? KnotY = null,
+    CharmArtworkHook? Hook = null,
+    double? AxisY = null,
+    double? AxisBottom = null,
+    double? AxisLastTop = null,
+    double? AxisLastBottom = null,
+    double? ExitX = null)
 {
+    /// <summary>
+    /// Where the cord comes out from behind the charm to the charm below on a rope of two or three — tucked a little
+    /// into the ink there, never past it — as a fraction of the radius from the centre: X across, Y down. On the centre
+    /// line unless <see cref="ExitX"/> moves it (the anchor table's exit, off the line where the line ends in a gap).
+    /// Null where nothing was measured. macOS's <c>SVGCharm.ropeLeavesOffset</c>.
+    /// </summary>
+    public Geometry.Vec2? RopeLeavesOffset
+    {
+        get
+        {
+            double longest = Math.Max(Body.Width, Body.Height);
+            if (AxisLastTop is not double top || AxisLastBottom is not double bottom || longest <= 0)
+            {
+                return null;
+            }
+
+            double tuck = Math.Min((bottom - top) * 0.5, longest * 0.06);
+            double midX = Body.Left + (Body.Width / 2), midY = Body.Top + (Body.Height / 2);
+            return new Geometry.Vec2(2 * ((ExitX ?? midX) - midX) / longest, 2 * (bottom - tuck - midY) / longest);
+        }
+    }
+
+    /// <summary>How deep the first ink on the centre line is, as a fraction of the radius: no further than this can the
+    /// cord's end be tucked in behind it and stay hidden. macOS's <c>SVGCharm.ropeMeetsDepth</c>.</summary>
+    public double? RopeMeetsDepth
+    {
+        get
+        {
+            double longest = Math.Max(Body.Width, Body.Height);
+            return AxisY is double top && AxisBottom is double bottom && longest > 0 ? 2 * (bottom - top) / longest : null;
+        }
+    }
+
     /// <summary><see cref="AxisY"/> as a fraction of the radius back from the centre, as <see cref="CordInset"/> is.</summary>
     public double? RopeMeetsInset
     {

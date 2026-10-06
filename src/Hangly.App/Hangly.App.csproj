@@ -156,6 +156,10 @@
     <Content Include="Assets/Charms/**" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets/Connectors/*.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets/Ropes/*.png" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Every built-in charm's rope anchors, generated on macOS (Scripts/generate-charm-anchors.sh) and copied here
+         byte for byte; read by CharmLibrary. -->
+    <Content Remove="Assets/Anchors/CharmAnchors.json" />
+    <Content Include="Assets/Anchors/CharmAnchors.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The Spider-Man entrance's sound slot: whatever is there is copied; empty is silent. -->
     <Content Include="Assets/Sounds/*.wav" CopyToOutputDirectory="PreserveNewest" />
 

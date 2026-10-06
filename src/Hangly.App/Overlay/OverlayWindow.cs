@@ -97,6 +97,7 @@ public sealed class OverlayWindow : IDisposable
         IReadOnlyList<CharmDescriptor> charms,
         Audio.AudioService? audio = null)
     {
+        LiveObjects.Track("OverlayWindow", this);
         this.audio = audio;
         this.settings = settings;
         this.rope = rope;
@@ -767,9 +768,12 @@ public sealed class OverlayWindow : IDisposable
     private void OnTick(double deltaTime)
     {
         long tickStarted = AuditFrames ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;
+        frameAudit?.BeginFrame();
         PollPointer();
         Sub(0);
+        long physicsAllocated = AuditFrames ? GC.GetAllocatedBytesForCurrentThread() : 0;
         rope.Step(deltaTime);
+        frameAudit?.NotePhysicsBytes(AuditFrames ? GC.GetAllocatedBytesForCurrentThread() - physicsAllocated : 0);
         Sub(1);
         SoundCollisions();
         Sub(2);
@@ -796,7 +800,8 @@ public sealed class OverlayWindow : IDisposable
                 CharmMoved?.Invoke();
             }
         }
-        if ((!rope.IsSleeping || rope.IsDragging) && !isHiddenForFullscreen)
+        bool drew = (!rope.IsSleeping || rope.IsDragging) && !isHiddenForFullscreen;
+        if (drew)
         {
             Sub(4);
             long allocated = AuditFrames ? GC.GetAllocatedBytesForCurrentThread() : 0;
@@ -819,6 +824,8 @@ public sealed class OverlayWindow : IDisposable
         {
             NoteFrame(deltaTime, rope.LastStepCount, System.Diagnostics.Stopwatch.GetElapsedTime(tickStarted).TotalMilliseconds);
         }
+
+        frameAudit?.EndFrame(drew, !isIdle, deltaTime);
     }
 
     // Where each loop's time goes, for the smoothness checks only: pump, wait, checks, topmost, tick.
@@ -850,6 +857,7 @@ public sealed class OverlayWindow : IDisposable
                 + $"; GC paused {(GC.GetTotalPauseDuration() - gcPausedBefore).TotalMilliseconds:0.0} ms, last gen2 {LastFullGc()}");
             gcPausedBefore = GC.GetTotalPauseDuration();
             Diagnostics.Log("present worst ms: " + PresentTimes.Take() + "; renderer: " + RenderTimes.Take());
+            Diagnostics.Log("frame work: " + frameAudit?.Take());
             drawBytesWorst = 0;
             drawBytesTotal = 0;
             Array.Clear(segmentWorst);
@@ -884,7 +892,12 @@ public sealed class OverlayWindow : IDisposable
         long now = System.Diagnostics.Stopwatch.GetTimestamp();
         if (index > 0)
         {
-            subWorst[index] = Math.Max(subWorst[index], System.Diagnostics.Stopwatch.GetElapsedTime(subAt, now).TotalMilliseconds);
+            double elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(subAt, now).TotalMilliseconds;
+            subWorst[index] = Math.Max(subWorst[index], elapsed);
+            if (frameAudit is not null)
+            {
+                frameAudit.Sub[index] = elapsed;
+            }
         }
 
         subAt = now;
@@ -892,6 +905,9 @@ public sealed class OverlayWindow : IDisposable
 
     // Frame timing, for the smoothness checks only (HANGLY_AUDIT_FRAMES=1): how even the frames are while the rope moves.
     private static readonly bool AuditFrames = Environment.GetEnvironmentVariable("HANGLY_AUDIT_FRAMES") == "1";
+
+    /// <summary>Each frame's own breakdown, for the same checks; null — nothing recorded — outside them.</summary>
+    private readonly FrameAudit? frameAudit = AuditFrames ? new FrameAudit() : null;
     private readonly List<double> auditDeltas = [];
     private readonly Dictionary<int, int> auditSteps = [];
     private double auditWorst;

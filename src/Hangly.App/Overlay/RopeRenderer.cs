@@ -34,7 +34,11 @@ public sealed class RopeRenderer
 {
     private readonly CharmArtworkCache artwork;
 
-    public RopeRenderer(CharmArtworkCache artwork) => this.artwork = artwork;
+    public RopeRenderer(CharmArtworkCache artwork)
+    {
+        this.artwork = artwork;
+        LiveObjects.Track("RopeRenderer", this);
+    }
 
     /// <summary>The end caps and jump rings joining the rope to charms with a hook.</summary>
     private readonly HookConnectorRenderer connectors = new();
@@ -96,6 +100,7 @@ public sealed class RopeRenderer
 
         session.Antialiasing = CanvasAntialiasing.Antialiased;
         chained = style.IsChain();
+        RenderTimes.Mark(-1);
 
         // The Spider-Man entrance's web, behind the rope it hangs from.
         if (snapshot.Bloom is WebBloom bloom)
@@ -115,32 +120,29 @@ public sealed class RopeRenderer
         double charmRadius = snapshot.Charms.Count > 0 ? snapshot.Charms[^1].Radius : 10;
         double width = RopeStyleAppearanceTable.WidthFor(style, charmRadius);
 
-        // One piece of cord per gap the charms leave, so a charm's own loop is where the
-        // cord ends rather than something the cord is drawn through.
-        // On a charm with a hook the cord ends inside the connector's cap, above the charm's ring.
+        // One stretch of cord per charm, from where it leaves the charm above (or the anchor) to where it reaches this one,
+        // along the cord the solver swings, eased into the charm's ring or top (CordStretches).
         var placed = new HookConnectorRenderer.Placed?[snapshot.Charms.Count];
-        var covered = new double[snapshot.Charms.Count];
         for (int index = 0; index < snapshot.Charms.Count; index++)
         {
-            CharmPlacement charm = snapshot.Charms[index];
             placed[index] = HookConnectorRenderer.Place(index < Charms.Count ? Charms[index] : null, HangFor(snapshot, index), chained);
-            if (placed[index] is HookConnectorRenderer.Placed connector)
+        }
+
+        List<CordStretch> stretches = CordStretches(snapshot, placed, width);
+        var runs = new List<List<Vec2>>(stretches.Count);
+        var runStarts = new List<double>(stretches.Count);
+        foreach (CordStretch stretch in stretches)
+        {
+            runs.Add(stretch.Points);
+            runStarts.Add(stretch.Start);
+
+            // Audit only: how far the cord below a charm starts from that charm's exit. Zero, always, by construction.
+            if (PresentTimes.On && stretch.Slot > 0 && stretch.Slot - 1 < Charms.Count && Charms[stretch.Slot - 1] is { Figure: null, HangsByOwnCord: false } upper)
             {
-                // How far the hardware sits off the charm's own line — a ring is not always on it. The cord stops that
-                // far back again, times four, and leans in to the cap: never a step sideways into it.
-                // The cord is left a blend's length above the ring and eased into it (AddConnectorEnds).
-                covered[index] = (connector.RopeEnd - charm.Center).Magnitude + HookConnectorRenderer.BlendLength(charm.Radius, width);
-            }
-            else
-            {
-                covered[index] = charm.Radius * charm.KnotInset * KnotCoverage;
+                RenderTimes.NoteJunction((stretch.Points[0] - ExitOf(snapshot, stretch.Slot - 1, upper).Point).Magnitude);
             }
         }
 
-        List<List<Vec2>> runs = VisibleRuns(snapshot.Points, snapshot.Charms, covered);
-        DropOwnCordRuns(runs);
-        AddCordReaches(runs, snapshot.Charms);
-        AddConnectorEnds(runs, snapshot.Points, snapshot.Charms, placed, covered);
         string finish = HookConnectorRenderer.FinishOf(style);
         RenderTimes.Mark(0);
         // Where a chain ends hooked through a charm's ring, so its last link is laid to rest there.
@@ -156,10 +158,10 @@ public sealed class RopeRenderer
             }
         }
 
-        DrawRopeLayer(session, snapshot, runs, hookEnds, style, appearance, width, charmRadius);
+        DrawRopeLayer(session, snapshot, runs, runStarts, hookEnds, style, appearance, width, charmRadius);
         DrawPictureRopes(session, snapshot);
         RenderTimes.Mark(1);
-        DrawBeads(session, snapshot, appearance);
+        DrawBeads(session, BeadsOnCord(snapshot, stretches), appearance);
         RenderTimes.Mark(2);
         DrawCharms(session, snapshot, placed, finish, style, width);
         RenderTimes.Mark(3);
@@ -194,7 +196,8 @@ public sealed class RopeRenderer
         double charmRadius,
         bool head,
         bool shadow = true,
-        bool hooked = false)
+        bool hooked = false,
+        double alongCord = 0)
     {
         using CanvasPathBuilder builder = BuildSpline(session, run, head);
         using var path = CanvasGeometry.CreatePath(builder);
@@ -223,7 +226,7 @@ public sealed class RopeRenderer
         // The rope's own picture laid along it (RopeSurface); a style without one is drawn as a lit rod.
         if (RopeSurface.Has(session, style))
         {
-            RopeSurface.Draw(session, path, style, width, hooked);
+            RopeSurface.Draw(session, path, style, width, hooked, alongCord);
             return;
         }
 
@@ -508,94 +511,283 @@ public sealed class RopeRenderer
         return builder;
     }
 
+    /// <summary>One charm's stretch of drawn cord: from <see cref="Start"/> along the cord, above the charm in place
+    /// <see cref="Slot"/>; beads are threaded on its first <see cref="Threaded"/> points, never on along the cord behind
+    /// the charm.</summary>
+    private readonly record struct CordStretch(int Slot, double Start, List<Vec2> Points, int Threaded);
+
+    private readonly RopeCurve cordCurve = new();
+
     /// <summary>
-    /// The cord broken into the pieces that are actually visible.
+    /// Each charm's stretch of cord as drawn, one per charm, built along the cord the solver swings: from where the cord
+    /// comes out of the charm above (or the anchor) to where it reaches this one, then eased into its ring — or into its
+    /// top on its centre line and on behind it. macOS's <c>RopeCanvasView.cordStretches</c>.
     /// </summary>
     /// <remarks>
-    /// <b>A charm's knot is where the cord ends, not something it passes through.</b>
-    /// Each charm hides the cord within its knot circle — <c>radius × knotInset</c>, which
-    /// `CharmStackLayout` names as "the circle the cord disappears behind" and measures
-    /// from the artwork's own loop. Drawing one continuous line and painting the charms
-    /// over it looks the same only while the artwork is solid: a loop is a ring, and the
-    /// cord was visible through the hole in it, running down past the clamp to the
-    /// charm's centre. macOS ends the cord at the top of the loop, and so does this.
-    ///
-    /// <para>Cut in point space rather than by the arc lengths the snapshot already
-    /// carries, because what has to be hidden is a circle on the canvas, and the arc
-    /// where the cord crosses that circle is exactly what this solves for. Each segment
-    /// is clipped against every charm's circle and what is left over is kept.</para>
-    ///
-    /// <para>Twenty segments against three circles, once a frame. The lists are the only
-    /// allocation and they are small; the alternative — one path and a clipping layer per
-    /// charm — is an off-screen pass per charm per frame.</para>
+    /// <b>Why per charm, and not cut out of one line.</b> The cord used to be the solver's polyline, cut wherever it
+    /// passed through any charm's covered circle, and the pieces were then matched back to charms by position: a figure's
+    /// piece dropped by its index, a ring's piece found as "the run ending nearest it". With two or three charms those
+    /// circles — a ring's reaches a blend's length, 1.4 radii, above it — swallowed the whole cord between two charms, so
+    /// the lower one hung with no cord at all; and the matching then picked the wrong pieces, so a cord could run past a
+    /// charm to the one below while another was eased into its ring: two cords (Sharan, 6 Oct). Built per charm from the
+    /// solver's own spans (<see cref="CharmPlacement.CordEntry"/>, <see cref="CharmPlacement.CordExit"/>), every charm has
+    /// exactly one stretch, and nothing has to be matched.
     /// </remarks>
-    /// <param name="covered">How far round each charm's centre the cord is out of sight.</param>
-    private static List<List<Vec2>> VisibleRuns(
-        IReadOnlyList<Vec2> points,
-        IReadOnlyList<CharmPlacement> charms,
-        IReadOnlyList<double> covered)
+    private List<CordStretch> CordStretches(RopeSnapshot snapshot, IReadOnlyList<HookConnectorRenderer.Placed?> placed, double width)
     {
-        var runs = new List<List<Vec2>>();
-        var current = new List<Vec2>();
-        var hidden = new List<(double Start, double End)>();
-
-        for (int index = 0; index < points.Count - 1; index++)
+        var stretches = new List<CordStretch>(snapshot.Charms.Count + 1);
+        if (snapshot.Points.Count < 2)
         {
-            Vec2 from = points[index];
-            Vec2 to = points[index + 1];
-
-            hidden.Clear();
-            for (int slot = 0; slot < charms.Count; slot++)
-            {
-                if (Crossing(from, to, charms[slot].Center, covered[slot]) is { } span)
-                {
-                    hidden.Add(span);
-                }
-            }
-
-            hidden.Sort((left, right) => left.Start.CompareTo(right.Start));
-
-            // Walk the segment, emitting what is not covered and breaking the run
-            // wherever something is.
-            double at = 0;
-            foreach ((double start, double end) in hidden)
-            {
-                if (end <= at)
-                {
-                    continue;
-                }
-
-                if (start > at)
-                {
-                    current.Add(Lerp(from, to, at));
-                    current.Add(Lerp(from, to, start));
-                    Finish(runs, ref current);
-                }
-                else if (current.Count > 0)
-                {
-                    Finish(runs, ref current);
-                }
-
-                at = end;
-            }
-
-            if (at < 1)
-            {
-                current.Add(Lerp(from, to, at));
-            }
-            else
-            {
-                Finish(runs, ref current);
-            }
+            return stretches;
         }
 
-        if (points.Count > 0 && current.Count > 0)
+        if (snapshot.Charms.Count == 0)
         {
-            current.Add(points[^1]);
+            // Nothing hangs: the whole cord.
+            cordCurve.Rebuild(snapshot.Points, snapshot.Points[^1]);
+            List<Vec2> whole = cordCurve.Polyline(0, cordCurve.Length);
+            stretches.Add(new CordStretch(-1, 0, whole, whole.Count));
+            return stretches;
         }
 
-        Finish(runs, ref current);
-        return runs;
+        cordCurve.Rebuild(snapshot.Points, snapshot.Charms[^1].Center);
+        double start = 0;
+        Exit? above = null;
+        for (int slot = 0; slot < snapshot.Charms.Count; slot++)
+        {
+            CharmPlacement charm = snapshot.Charms[slot];
+            CharmDescriptor? descriptor = slot < Charms.Count ? Charms[slot] : null;
+            double entry = Math.Clamp(charm.CordEntry, 0, cordCurve.Length);
+
+            // A charm that hangs by the rope in its own artwork has no cord of ours, and neither does a figure from such
+            // a picture: its own rope is drawn along this stretch instead (DrawPictureRopes).
+            bool ownCord = descriptor is { HangsByOwnCord: true } || descriptor?.Figure is not null;
+            if ((entry > start || above is not null) && !ownCord)
+            {
+                entry = Math.Max(start, entry);
+                List<Vec2> points;
+                int threaded;
+                if (placed[slot] is HookConnectorRenderer.Placed connector)
+                {
+                    // On a charm with a hook the rope ends inside the connector's cap, above the ring.
+                    points = Eased(start, above, entry, charm, connector.RopeEnd, connector.RopeDirection, width);
+                    threaded = points.Count;
+                }
+                else if (descriptor is not null)
+                {
+                    // On one without, it ends at the top of the charm on its own centre line, and goes on behind it from
+                    // there. Stopped where it first touched the charm's outline, it ended at the charm's side whenever the
+                    // charm did not hang along it — the nazar's, held up beside the anchor (Sharan, 5 Oct).
+                    var axis = new Vec2(Math.Cos(charm.Angle), Math.Sin(charm.Angle));
+                    Vec2 top = charm.Center - (axis * (charm.Radius * AttachmentInset(descriptor, charm)));
+                    points = Eased(start, above, entry, charm, top, axis, width);
+                    threaded = points.Count;
+                    if (CordReach(charm, slot) is Vec2 reach)
+                    {
+                        points.Add(reach);
+                    }
+                }
+                else
+                {
+                    points = cordCurve.Polyline(start, entry);
+                    threaded = points.Count;
+                }
+
+                if (points.Count >= 2)
+                {
+                    stretches.Add(new CordStretch(slot, start, points, threaded));
+                }
+            }
+
+            start = Math.Max(start, charm.CordExit);
+            above = ownCord || descriptor is null ? null : ExitOf(snapshot, slot, descriptor);
+        }
+
+        CheckOwnership(snapshot, stretches);
+        return stretches;
+    }
+
+    /// <summary>
+    /// Every charm our cord hangs has exactly one stretch, and no stretch belongs to two charms or to none. Asserted in
+    /// debug builds, and counted for the frame audit (HANGLY_AUDIT_FRAMES) in any build.
+    /// </summary>
+    private void CheckOwnership(RopeSnapshot snapshot, List<CordStretch> stretches)
+    {
+        if (!PresentTimes.On && !System.Diagnostics.Debugger.IsAttached)
+        {
+            return;
+        }
+
+        int expected = 0, missing = 0, duplicates = 0, orphans = 0;
+        for (int slot = 0; slot < snapshot.Charms.Count; slot++)
+        {
+            bool ownCord = slot < Charms.Count && (Charms[slot].HangsByOwnCord || Charms[slot].Figure is not null);
+            int owned = 0;
+            foreach (CordStretch stretch in stretches)
+            {
+                owned += stretch.Slot == slot ? 1 : 0;
+            }
+
+            if (ownCord)
+            {
+                orphans += owned;
+                continue;
+            }
+
+            expected++;
+            missing += owned == 0 ? 1 : 0;
+            duplicates += owned > 1 ? owned - 1 : 0;
+        }
+
+        foreach (CordStretch stretch in stretches)
+        {
+            orphans += stretch.Slot < 0 || stretch.Slot >= snapshot.Charms.Count ? 1 : 0;
+        }
+
+        System.Diagnostics.Debug.Assert(missing == 0 && duplicates == 0 && orphans == 0,
+            $"rope ownership: {expected} charms, {stretches.Count} ropes, {missing} without one, {duplicates} duplicated, {orphans} orphaned");
+        RenderTimes.NoteOwnership(expected, stretches.Count, missing, duplicates, orphans);
+    }
+
+    /// <summary>Where the cord comes out from behind a charm to the charm below it: on the charm's own centre line as it is
+    /// drawn, tucked just inside its ink there (<see cref="CharmArtworkRegions.RopeLeavesOffset"/>), leaving down that
+    /// line. macOS's <c>RopeCanvasView.Exit</c>.</summary>
+    private readonly record struct Exit(Vec2 Point, Vec2 Leaving, Vec2 Center, double Radius);
+
+    /// <remarks>
+    /// Worked out from the very placement the charm is drawn with (<see cref="HangFor"/>). The cord below a charm used to
+    /// start where the solver's cord crossed the charm's bounding circle — round, where the artwork is not, and swinging
+    /// with the solver's cord while the charm is drawn turned to hang from its ring — so on a swinging rope of two or
+    /// three it began in mid-air beside the charm: the bell's cord left of the bell, the nimbu-mirchi's below nothing
+    /// (Sharan, 6 Oct).
+    /// </remarks>
+    private Exit ExitOf(RopeSnapshot snapshot, int slot, CharmDescriptor descriptor)
+    {
+        CharmHang hang = HangFor(snapshot, slot);
+        double down = hang.Rotation + (Math.PI / 2);
+        var direction = new Vec2(Math.Cos(down), Math.Sin(down));
+        // Turned with the charm as it is drawn: across along its width, down along its axis.
+        var across = new Vec2(Math.Cos(hang.Rotation), Math.Sin(hang.Rotation));
+        Vec2 offset = descriptor.RopeLeavesOffset ?? new Vec2(0, 0);
+        Vec2 point = hang.Center + (across * (hang.Radius * offset.X)) + (direction * (hang.Radius * offset.Y));
+        return new Exit(point, direction, hang.Center, hang.Radius);
+    }
+
+    /// <summary>
+    /// The cord from <paramref name="start"/> to where it leaves for the charm — a blend's length above
+    /// <paramref name="end"/>, where it is first seen to reach that far (not a curl of it hidden behind the charm) — and
+    /// eased from there into <paramref name="end"/>, arriving along <paramref name="arriving"/>. macOS's <c>eased</c>.
+    /// </summary>
+    /// <remarks>Below another charm it starts instead at that charm's <see cref="Exit"/>: out along the charm's own line
+    /// and onto the cord a blend's length from it, or — two charms too close for that — straight on into this one.</remarks>
+    private List<Vec2> Eased(double start, Exit? above, double entry, CharmPlacement charm, Vec2 end, Vec2 arriving, double width)
+    {
+        double reach = (end - charm.Center).Magnitude + HookConnectorRenderer.BlendLength(charm.Radius, width);
+        double leave = cordCurve.ArcFirstEnteringCircle(charm.Center, reach, start) ?? cordCurve.ArcEnteringCircle(charm.Center, reach);
+
+        // Always from the cord's own point: held up at the anchor, the cord above the charm is all hidden behind it, and
+        // there is no stretch left to draw before it.
+        double leaveArc = Math.Max(start, Math.Min(entry, leave));
+        List<Vec2> points;
+        if (above is Exit exit)
+        {
+            // Onto the cord where it is first clear of the charm above by a blend's length.
+            double clear = (exit.Point - exit.Center).Magnitude + HookConnectorRenderer.BlendLength(exit.Radius, width);
+            if (cordCurve.ArcFirstLeavingCircle(exit.Center, clear, start) is not double join || join >= leaveArc)
+            {
+                points = [exit.Point];
+                HookConnectorRenderer.AddBlend(points, exit.Leaving, end, arriving);
+                return points;
+            }
+
+            double joinAngle = cordCurve.AngleAtArc(join);
+            points = [exit.Point];
+            HookConnectorRenderer.AddBlend(points, exit.Leaving, cordCurve.PointAtArc(join), new Vec2(Math.Cos(joinAngle), Math.Sin(joinAngle)));
+            List<Vec2> along = cordCurve.Polyline(join, leaveArc);
+            for (int index = 1; index < along.Count; index++)
+            {
+                points.Add(along[index]);
+            }
+        }
+        else
+        {
+            points = cordCurve.Polyline(start, leaveArc);
+        }
+
+        Vec2 from = cordCurve.PointAtArc(leaveArc);
+        if (points.Count == 0 || (points[^1] - from).Magnitude > 0.01)
+        {
+            points.Add(from);
+        }
+
+        double angle = cordCurve.AngleAtArc(Math.Max(start, leaveArc - 0.5));
+        HookConnectorRenderer.AddBlend(points, new Vec2(Math.Cos(angle), Math.Sin(angle)), end, arriving);
+        return points;
+    }
+
+    /// <summary>
+    /// The beads, each laid on its charm's stretch of cord as drawn, at its own distance along the cord. The solver
+    /// threads them on the cord it swings, which runs to the charm's centre; the cord drawn leaves that line a blend's
+    /// length above the charm to ease into its ring or top, so a bead near the charm was left on a stretch nobody could
+    /// see — in mid-air beside the bell, the Vel, Karuppu (Sharan, 5 Oct). macOS's <c>RopeCanvasView.beadPlacements</c>.
+    /// </summary>
+    private static List<BeadPlacement> BeadsOnCord(RopeSnapshot snapshot, List<CordStretch> stretches)
+    {
+        var beads = new List<BeadPlacement>(snapshot.Beads.Count);
+        foreach (BeadPlacement bead in snapshot.Beads)
+        {
+            CordStretch? owned = null;
+            foreach (CordStretch stretch in stretches)
+            {
+                if (stretch.Slot == bead.Owner)
+                {
+                    owned = stretch;
+                    break;
+                }
+            }
+
+            if (bead.Arc is not double arc || owned is not CordStretch on || on.Threaded < 2)
+            {
+                beads.Add(bead);
+                continue;
+            }
+
+            (Vec2 position, double angle) = Along(on.Points, 0, on.Threaded - 1, Math.Max(0, arc - on.Start), bead.Size.Height / 2);
+            beads.Add(bead with { Position = position, Angle = angle });
+        }
+
+        return beads;
+    }
+
+    /// <summary>The point <paramref name="distance"/> along a run from its point <paramref name="from"/>, never closer than
+    /// <paramref name="margin"/> to its point <paramref name="to"/>, and the run's direction there.</summary>
+    private static (Vec2 Position, double Angle) Along(List<Vec2> run, int from, int to, double distance, double margin)
+    {
+        double total = 0;
+        for (int index = from + 1; index <= to; index++)
+        {
+            total += (run[index] - run[index - 1]).Magnitude;
+        }
+
+        double left = Math.Max(0, Math.Min(distance, total - margin));
+        for (int index = from + 1; index <= to; index++)
+        {
+            Vec2 delta = run[index] - run[index - 1];
+            double span = delta.Magnitude;
+            if (span <= Precision.UlpOfOne)
+            {
+                continue;
+            }
+
+            if (left <= span || index == to)
+            {
+                return (run[index - 1] + (delta * Math.Min(1, left / span)), Math.Atan2(delta.Y, delta.X));
+            }
+
+            left -= span;
+        }
+
+        return (run[to], Math.PI / 2);
     }
 
     /// <summary>
@@ -604,51 +796,6 @@ public sealed class RopeRenderer
     /// through what the artwork leaves open: between a Snitch's wings, to the ball. macOS's
     /// <c>RopeCanvasView.cordReach</c>.
     /// </summary>
-    /// <summary>The cord on into the connector's cap, on a charm with a hook: the run that stops at the cap's edge is
-    /// carried on to where the rope ends inside it, under the cap.</summary>
-    private static void AddConnectorEnds(
-        List<List<Vec2>> runs,
-        IReadOnlyList<Vec2> points,
-        IReadOnlyList<CharmPlacement> placements,
-        IReadOnlyList<HookConnectorRenderer.Placed?> placed,
-        IReadOnlyList<double> covered)
-    {
-        for (int slot = 0; slot < placements.Count; slot++)
-        {
-            if (placed[slot] is not HookConnectorRenderer.Placed connector)
-            {
-                continue;
-            }
-
-            // The run ending on this charm's covered circle, nearest the cap.
-            Vec2 end = connector.RopeEnd;
-            List<Vec2>? best = null;
-            double nearest = double.MaxValue;
-            foreach (List<Vec2> run in runs)
-            {
-                double edge = Math.Abs((run[^1] - placements[slot].Center).Magnitude - covered[slot]);
-                double distance = (run[^1] - end).Magnitude;
-                if (edge < 1 && distance < nearest)
-                {
-                    best = run;
-                    nearest = distance;
-                }
-            }
-
-            if (best is not null)
-            {
-                Vec2 leaving = best.Count >= 2 ? best[^1] - best[^2] : end - best[^1];
-                HookConnectorRenderer.AddBlend(best, leaving, end, connector.RopeDirection);
-            }
-            else if (slot == 0 && points.Count > 0)
-            {
-                // Held up at the anchor, the cord above the charm is all hidden behind it and no run is left to carry on:
-                // straight from the anchor to the cap, rather than no rope at all.
-                runs.Add([points[0], end]);
-            }
-        }
-    }
-
     /// <remarks>
     /// On every charm without a hook, down its centre line to where that line first meets the artwork and a little past,
     /// out of sight (<see cref="RopeMeetsTuck"/>) — or further, where the cord meets the artwork past that, between a
@@ -656,32 +803,37 @@ public sealed class RopeRenderer
     /// off its centre line — over Ronaldo's back, the lingam's cobra (Sharan, 4 Oct); carried on to the centre, it showed
     /// down the gap between Stormbreaker's blades. macOS's <c>cordReach</c>.
     /// </remarks>
-    private void AddCordReaches(List<List<Vec2>> runs, IReadOnlyList<CharmPlacement> placements)
+    /// <summary>
+    /// Where the cord meets a charm with no hook, as a fraction of the radius back from its centre: at its knot — unless
+    /// the first ink on its centre line is a sliver that ends above the knot, the tip of an ear the line just clips, when
+    /// it is in that ink. Carried on to the knot, the cord's end hung in the clear beside Mewtwo's ear (Sharan, 5 Oct).
+    /// macOS's <c>RopeCanvasView.attachmentInset</c>.
+    /// </summary>
+    private static double AttachmentInset(CharmDescriptor charm, CharmPlacement placement) =>
+        charm.RopeMeetsInset is double meets && charm.RopeMeetsDepth is double depth && meets - depth > placement.KnotInset
+            ? meets - (depth / 2)
+            : placement.KnotInset;
+
+    private Vec2? CordReach(CharmPlacement placement, int slot)
     {
-        for (int slot = 0; slot < placements.Count && slot < charms.Count; slot++)
+        // A charm with a hook is tied to it; one hung by its own drawn rope, or a figure of a picture, has none of ours.
+        if (slot >= charms.Count || charms[slot] is not { Connector: null, HangsByOwnCord: false, Figure: null } charm)
         {
-            CharmPlacement placement = placements[slot];
-            CharmDescriptor charm = charms[slot];
-            // A charm with a hook is tied to it; one hung by its own drawn rope, or a figure of a picture, has none of ours.
-            if (charm.Connector is not null || charm.HangsByOwnCord || charm.Figure is not null)
-            {
-                continue;
-            }
-
-            double own = charm.CordInset ?? placement.KnotInset;
-            double inset = charm.RopeMeetsInset is double meets ? Math.Min(own, meets - RopeMeetsTuck) : own;
-            if (inset >= placement.KnotInset)
-            {
-                continue;
-            }
-
-            var direction = new Vec2(Math.Cos(placement.Angle), Math.Sin(placement.Angle));
-            runs.Add(
-            [
-                placement.Center - (direction * (placement.Radius * placement.KnotInset)),
-                placement.Center - (direction * (placement.Radius * inset)),
-            ]);
+            return null;
         }
+
+        double own = charm.CordInset ?? placement.KnotInset;
+        // Tucked no deeper than the ink there goes: through a thin ear or a halo's ring, the full tuck left the cord's end
+        // in the clear past it (Mewtwo, the praying angel; Sharan, 5 Oct).
+        double tuck = Math.Min(RopeMeetsTuck, (charm.RopeMeetsDepth ?? RopeMeetsTuck) * 0.5);
+        double inset = charm.RopeMeetsInset is double meets ? Math.Min(own, meets - tuck) : own;
+        if (inset >= placement.KnotInset)
+        {
+            return null;
+        }
+
+        var direction = new Vec2(Math.Cos(placement.Angle), Math.Sin(placement.Angle));
+        return placement.Center - (direction * (placement.Radius * inset));
     }
 
     /// <summary>
@@ -691,12 +843,13 @@ public sealed class RopeRenderer
     /// </summary>
     /// <remarks>
     /// The layer covers the cord and nothing more, so it costs what the cord does rather
-    /// than a full-canvas pass, and it is kept from frame to frame while it is big enough.
+    /// than a full-canvas pass.
     /// </remarks>
     private void DrawRopeLayer(
         CanvasDrawingSession session,
         RopeSnapshot snapshot,
         List<List<Vec2>> runs,
+        List<double> runStarts,
         List<Vec2> hookEnds,
         RopeStyle style,
         RopeAppearance appearance,
@@ -726,42 +879,36 @@ public sealed class RopeRenderer
         float layerWidth = (float)Math.Ceiling(maxX + margin - origin.X);
         float layerHeight = (float)Math.Ceiling(maxY + margin - origin.Y);
 
-        if (ropeLayer is null
-            || ropeLayer.Device != session.Device
-            || ropeLayer.Size.Width < layerWidth
-            || ropeLayer.Size.Height < layerHeight
-            || !ropeLayer.Dpi.Equals(session.Dpi))
+        // A Direct2D layer of the frame's own session, not a render target of its own. The cord was drawn into a separate
+        // GPU surface and that surface's session closed mid-frame, which made the CPU wait for the GPU to finish it before
+        // the frame could go on: on the VM those waits were the frame audit's spikes, up to 138 ms in "close" (Sharan,
+        // 6 Oct). A layer is composited by Direct2D within the one session, and its content stays its own, so the charms'
+        // silhouettes taken out of it with DestinationOut still take out only the cord.
+        var bounds = new Windows.Foundation.Rect(origin.X, origin.Y, layerWidth, layerHeight);
+        RenderTimes.Part(0);
+        using (session.CreateLayer(1f, bounds))
         {
-            // Grown, never shrunk, so a swinging rope settles on one layer size.
-            float keepWidth = ropeLayer is not null && ropeLayer.Device == session.Device ? (float)ropeLayer.Size.Width : 0;
-            float keepHeight = ropeLayer is not null && ropeLayer.Device == session.Device ? (float)ropeLayer.Size.Height : 0;
-            ropeLayer?.Dispose();
-            ropeLayer = new CanvasRenderTarget(session, Math.Max(layerWidth, keepWidth), Math.Max(layerHeight, keepHeight));
-        }
-
-        using (CanvasDrawingSession layer = ropeLayer.CreateDrawingSession())
-        {
-            layer.Clear(Microsoft.UI.Colors.Transparent);
-            layer.Antialiasing = CanvasAntialiasing.Antialiased;
-            layer.Transform = System.Numerics.Matrix3x2.CreateTranslation(-(float)origin.X, -(float)origin.Y);
             for (int index = 0; index < runs.Count; index++)
             {
                 Vec2 last = runs[index][^1];
                 bool hooked = hookEnds.Exists(end => (end - last).Magnitude < 0.5);
-                DrawCord(layer, runs[index], style, appearance, width, charmRadius, head: index == 0, hooked: hooked);
+                DrawCord(session, runs[index], style, appearance, width, charmRadius, head: index == 0, hooked: hooked, alongCord: runStarts[index]);
             }
+
+            RenderTimes.Part(1);
 
             for (int index = 0; index < snapshot.Charms.Count && index < Charms.Count; index++)
             {
-                artwork.EraseBehind(layer, Charms[index], HangFor(snapshot, index));
+                artwork.EraseBehind(session, Charms[index], HangFor(snapshot, index));
             }
+
+            RenderTimes.Part(2);
         }
 
-        session.DrawImage(
-            ropeLayer,
-            new Windows.Foundation.Rect(origin.X, origin.Y, ropeLayer.Size.Width, ropeLayer.Size.Height),
-            new Windows.Foundation.Rect(0, 0, ropeLayer.Size.Width, ropeLayer.Size.Height));
+        RenderTimes.Part(3);
+        RenderTimes.Part(4);
     }
+
 
     // A picture's own rope
 
@@ -1029,8 +1176,6 @@ public sealed class RopeRenderer
         return strip;
     }
 
-    /// <summary>The offscreen layer the cord is drawn in; see <see cref="DrawRopeLayer"/>.</summary>
-    private CanvasRenderTarget? ropeLayer;
 
     /// <summary>
     /// Where a charm is drawn: at its place on the rope, turned with the cord that meets it
@@ -1043,8 +1188,10 @@ public sealed class RopeRenderer
     /// turned the charm to face wherever the cord was, and a cord looping back in a fast drag swung it upside down.</remarks>
     private double Pivoted(RopeSnapshot snapshot, CharmPlacement placement, CharmHang hang, HookConnector connector, Rect body)
     {
-        // A chain hangs the charm by its eye; a cord, by the jump ring through it.
-        Vec2 end = connector.EndFor(chained);
+        // Turned about where the charm bears on what holds it: a chain's last link on the eye, or the jump ring's lower
+        // wire in it. Turned about the ring's top instead, a ring off the eye's line left the charm 2–3 points off the
+        // cord (the camera; Sharan, 5 Oct).
+        Vec2 end = connector.ContactFor(chained);
         double x = end.X - body.MidX, y = end.Y - body.MidY;
         // Turned back against the ring's offset: added, the turn doubled it, and at rest the rope veered to reach it.
         return y < 0 ? hang.Rotation - Math.Atan2(x, -y) : hang.Rotation;
@@ -1088,72 +1235,6 @@ public sealed class RopeRenderer
             Math.Atan2(direction.Y, direction.X) - (Math.PI / 2));
     }
 
-    /// <summary>
-    /// No cord of ours into a charm that hangs by the rope in its own artwork: the run that
-    /// leads to it — the first for the first charm, the next for the next — is dropped.
-    /// </summary>
-    private void DropOwnCordRuns(List<List<Vec2>> runs)
-    {
-        for (int slot = Math.Min(Charms.Count, runs.Count) - 1; slot >= 0; slot--)
-        {
-            // A figure of a picture draws the picture's own rope there instead (DrawPictureRopes).
-            if (Charms[slot].HangsByOwnCord || Charms[slot].Figure is not null)
-            {
-                runs.RemoveAt(slot);
-            }
-        }
-    }
-
-    /// <summary>Closes off the run being built, keeping it only if it is worth stroking.</summary>
-    private static void Finish(List<List<Vec2>> runs, ref List<Vec2> current)
-    {
-        if (current.Count >= 2)
-        {
-            runs.Add(current);
-            current = [];
-            return;
-        }
-
-        current.Clear();
-    }
-
-    /// <summary>
-    /// Where a segment is inside a circle, as a pair of fractions along it, or null.
-    /// </summary>
-    private static (double Start, double End)? Crossing(Vec2 from, Vec2 to, Vec2 center, double radius)
-    {
-        if (radius <= 0)
-        {
-            return null;
-        }
-
-        Vec2 along = to - from;
-        Vec2 offset = from - center;
-
-        double a = (along.X * along.X) + (along.Y * along.Y);
-        if (a <= Precision.UlpOfOne)
-        {
-            return null;
-        }
-
-        double b = 2 * ((offset.X * along.X) + (offset.Y * along.Y));
-        double c = (offset.X * offset.X) + (offset.Y * offset.Y) - (radius * radius);
-
-        double discriminant = (b * b) - (4 * a * c);
-        if (discriminant <= 0)
-        {
-            return null;
-        }
-
-        double root = Math.Sqrt(discriminant);
-        double first = Math.Max(0, (-b - root) / (2 * a));
-        double second = Math.Min(1, (-b + root) / (2 * a));
-
-        return second <= first ? null : (first, second);
-    }
-
-    private static Vec2 Lerp(Vec2 from, Vec2 to, double at) => from + ((to - from) * at);
-
     /// <summary>The cord's nodes with the point it leaves the screen by in front.</summary>
     /// <remarks>
     /// <b>Directly above the anchor, and fixed there.</b> The anchor sits a hundredth of
@@ -1182,23 +1263,6 @@ public sealed class RopeRenderer
         return path;
     }
 
-    /// <summary>
-    /// How much of the knot circle the cord is cut back by, as a fraction of it.
-    /// </summary>
-    /// <remarks>
-    /// <b>The measured circle, and no less.</b> This was 0.82 for a while, on the
-    /// reasoning that the charm is drawn after the cord so cord running <em>under</em> the
-    /// artwork is invisible while cord stopping short of it is a gap — err into the charm,
-    /// and only the gap can ever be seen.
-    ///
-    /// <para>That reasoning holds only where the artwork is opaque, and at the clamp it is
-    /// not: the loop a charm hangs by is a ring with a hole in it, so cord pushed past the
-    /// clamp shows straight through and runs on down across the charm's face. macOS ends
-    /// the cord at the clamp's edge and the difference was plain with the two side by
-    /// side.</para>
-    /// </remarks>
-    private const double KnotCoverage = 1.0;
-
     /// <summary>The beads on the cord, drawn from the artwork they were measured in.</summary>
     /// <remarks>
     /// Each bead is a region of its charm's own SVG. The splitter already measured those
@@ -1212,14 +1276,14 @@ public sealed class RopeRenderer
     /// catalogue claims. Those have no bead artwork to draw, and a drawn bead is better
     /// than a gap in the cord.</para>
     /// </remarks>
-    private void DrawBeads(CanvasDrawingSession session, RopeSnapshot snapshot, RopeAppearance appearance)
+    private void DrawBeads(CanvasDrawingSession session, IReadOnlyList<BeadPlacement> beads, RopeAppearance appearance)
     {
         // Beads arrive grouped by the charm that threads them, in the order that charm's
         // regions were measured, so the run of each owner counts its own way through.
         int ordinal = 0;
         int owner = -1;
 
-        foreach (BeadPlacement bead in snapshot.Beads)
+        foreach (BeadPlacement bead in beads)
         {
             if (bead.Owner != owner)
             {
@@ -1396,6 +1460,65 @@ internal static class RenderTimes
     private static long last;
     public static int Rasters;
 
+    /// <summary>How many times the rope's offscreen layer was made, and the worst of each part of drawing into it: making
+    /// it, the cords, the charms cut out of it, closing it, and putting it on screen.</summary>
+    public static int LayersMade;
+
+    /// <summary>The worst gap between a charm's exit and the start of the cord below it, in points.</summary>
+    private static double junctionWorst;
+    private static int junctions;
+
+    private static int ownershipFrames, ownershipMissing, ownershipDuplicates, ownershipOrphans, ownershipMismatch;
+
+    /// <summary>One frame's rope ownership: charms our cord hangs, ropes drawn, and any that broke the rule.</summary>
+    public static void NoteOwnership(int charms, int ropes, int missing, int duplicates, int orphans)
+    {
+        ownershipFrames++;
+        ownershipMissing += missing;
+        ownershipDuplicates += duplicates;
+        ownershipOrphans += orphans;
+        ownershipMismatch += charms != ropes ? 1 : 0;
+    }
+
+    public static void NoteJunction(double gap)
+    {
+        junctionWorst = Math.Max(junctionWorst, gap);
+        junctions++;
+    }
+    private static readonly double[] Parts = new double[5];
+    private static long partAt;
+
+    public static void Part(int index)
+    {
+        if (!PresentTimes.On)
+        {
+            return;
+        }
+
+        long now = System.Diagnostics.Stopwatch.GetTimestamp();
+        double elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(index > 0 ? partAt : last, now).TotalMilliseconds;
+        Parts[index] = Math.Max(Parts[index], elapsed);
+        FrameParts[index] = elapsed;
+        partAt = now;
+    }
+
+    /// <summary>This frame's own times, overwritten every frame, for the spike report (FrameAudit): layout (placing the
+    /// charms and building the cord), rope, beads, charms; and the rope's parts as <see cref="Part"/> names them.</summary>
+    public static readonly double[] Frame = new double[4];
+    public static readonly double[] FrameParts = new double[5];
+
+    /// <summary>Bitmaps made this frame — artwork rasterised, a rope or connector picture decoded — each an upload to the
+    /// graphics card.</summary>
+    public static int FrameUploads;
+
+    public static void ResetFrame()
+    {
+        Array.Clear(Frame);
+        Array.Clear(FrameParts);
+        FrameUploads = 0;
+    }
+
+    /// <summary>Index -1 opens a frame's drawing; 0 closes its layout; 1–3 close the rope, beads and charms.</summary>
     public static void Mark(int index)
     {
         if (!PresentTimes.On)
@@ -1404,9 +1527,15 @@ internal static class RenderTimes
         }
 
         long now = System.Diagnostics.Stopwatch.GetTimestamp();
+        double elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(last, now).TotalMilliseconds;
         if (index > 0)
         {
-            Worst[index] = Math.Max(Worst[index], System.Diagnostics.Stopwatch.GetElapsedTime(last, now).TotalMilliseconds);
+            Worst[index] = Math.Max(Worst[index], elapsed);
+        }
+
+        if (index >= 0)
+        {
+            Frame[index] = elapsed;
         }
 
         last = now;
@@ -1414,9 +1543,17 @@ internal static class RenderTimes
 
     public static string Take()
     {
-        string text = $"rope {Worst[1]:0.0}, beads {Worst[2]:0.0}, charms {Worst[3]:0.0}, rasterised {Rasters}";
+        string text = $"rope {Worst[1]:0.0} (to layer {Parts[0]:0.0}, cords {Parts[1]:0.0}, cut-outs {Parts[2]:0.0}, close {Parts[3]:0.0}, " +
+            $"composite {Parts[4]:0.0}, layers made {LayersMade}), beads {Worst[2]:0.0}, charms {Worst[3]:0.0}, raster lookups {Rasters}; " +
+            $"junctions {junctions}, worst gap {junctionWorst:0.000} pt; " +
+            $"rope ownership: {ownershipFrames} frames, ropes != charms {ownershipMismatch}, missing {ownershipMissing}, duplicates {ownershipDuplicates}, orphans {ownershipOrphans}";
         Array.Clear(Worst);
+        Array.Clear(Parts);
         Rasters = 0;
+        LayersMade = 0;
+        junctionWorst = 0;
+        junctions = 0;
+        ownershipFrames = ownershipMissing = ownershipDuplicates = ownershipOrphans = ownershipMismatch = 0;
         return text;
     }
 }

@@ -66,7 +66,9 @@ public sealed record CharmDescriptor(
     PictureFigure? Figure = null,
     CharmArtworkHook? Hook = null,
     HookConnector? Connector = null,
-    double? RopeMeetsInset = null);
+    double? RopeMeetsInset = null,
+    double? RopeMeetsDepth = null,
+    Vec2? RopeLeavesOffset = null);
 
 /// <summary>Where one charm is drawn: its centre, its radius and how far it is turned.</summary>
 /// <param name="Rotation">From hanging straight down, in radians.</param>
@@ -115,6 +117,7 @@ public sealed class CharmArtworkCache : IDisposable
     {
         this.resourceCreator = resourceCreator;
         this.directory = directory;
+        LiveObjects.Track("CharmArtworkCache", this);
     }
 
     /// <summary>The bundled folder of charm artwork, copied in whole from Assets/Charms.</summary>
@@ -491,16 +494,141 @@ public sealed class CharmArtworkCache : IDisposable
         const int AxisRows = 600;
         if (axis.Width > 0 && axis.Height > 0 && AlphaRegion(document, bounds, axis, 3, AxisRows) is byte[] line)
         {
+            bool Inked(int row) => line[row * 3] > 40 || line[(row * 3) + 1] > 40 || line[(row * 3) + 2] > 40;
             for (int row = 0; row < AxisRows; row++)
             {
-                if (line[row * 3] > 40 || line[(row * 3) + 1] > 40 || line[(row * 3) + 2] > 40)
+                if (Inked(row))
                 {
-                    return refined with { AxisY = axis.Top + ((double)row / AxisRows * axis.Height) };
+                    // And where that first ink ends, so a cord tucked in behind it is never carried past it into the
+                    // clear (macOS's VectorImage.axisInkRun).
+                    int bottom = row + 1;
+                    while (bottom < AxisRows && Inked(bottom))
+                    {
+                        bottom++;
+                    }
+
+                    // And the last ink on the line, top and bottom: where the cord comes out from behind the charm to the
+                    // charm below it (macOS's VectorImage.axisInkLastRun).
+                    int lastRow = AxisRows - 1;
+                    while (lastRow > row && !Inked(lastRow))
+                    {
+                        lastRow--;
+                    }
+
+                    int lastTop = lastRow;
+                    while (lastTop > 0 && Inked(lastTop - 1))
+                    {
+                        lastTop--;
+                    }
+
+                    CharmArtworkRegions measured = refined with
+                    {
+                        AxisY = axis.Top + ((double)row / AxisRows * axis.Height),
+                        AxisBottom = axis.Top + ((double)bottom / AxisRows * axis.Height),
+                        AxisLastTop = axis.Top + ((double)lastTop / AxisRows * axis.Height),
+                        AxisLastBottom = axis.Top + ((double)(lastRow + 1) / AxisRows * axis.Height),
+                    };
+                    return WithLowestExit(document, bounds, measured);
                 }
             }
         }
 
         return refined;
+    }
+
+    /// <summary>How far above the body's bottom the centre line's last ink may stop and still be where the cord comes out,
+    /// against the body's height. macOS's <c>CharmAnchors.exitShortfall</c>.</summary>
+    private const double ExitShortfall = 0.08;
+
+    /// <summary>
+    /// The exit moved to the lowest ink near the middle when the centre line's last ink stops well short of the bottom —
+    /// the line ending in a gap, between legs or between Stormbreaker's blades, where the cord on to the charm below
+    /// showed through it. macOS's <c>CharmAnchors.measure</c> with <c>VectorImage.lowestInk</c>.
+    /// </summary>
+    private static CharmArtworkRegions WithLowestExit(SKPicture document, SKRect bounds, CharmArtworkRegions regions)
+    {
+        Rect body = regions.Body;
+        if (regions.AxisLastBottom is double lastBottom && body.Top + body.Height - lastBottom <= body.Height * ExitShortfall)
+        {
+            return regions;
+        }
+
+        // The bottom tenth of the body, searched from its lowest row up for ink within the middle half of its width.
+        double band = body.Height * 0.1;
+        const int Width = 400;
+        int height = Math.Max(8, (int)Math.Round(Width * band / body.Width));
+        var region = new Rect(body.Left, body.Top + body.Height - band, body.Width, band);
+        if (AlphaRegion(document, bounds, region, Width, height) is not byte[] alpha)
+        {
+            return regions;
+        }
+
+        double middle = Width / 2.0;
+        for (int row = height - 1; row >= 0; row--)
+        {
+            double? best = null;
+            int start = -1;
+            for (int column = 0; column <= Width; column++)
+            {
+                bool inked = column < Width && alpha[(row * Width) + column] > 40;
+                if (inked && start < 0)
+                {
+                    start = column;
+                }
+                else if (!inked && start >= 0)
+                {
+                    double centre = (start + column - 1) / 2.0;
+                    if (Math.Abs(centre - middle) <= Width * 0.25 && (best is null || Math.Abs(centre - middle) < Math.Abs(best.Value - middle)))
+                    {
+                        best = centre;
+                    }
+
+                    start = -1;
+                }
+            }
+
+            if (best is double across)
+            {
+                double x = region.Left + ((across + 0.5) / Width * region.Width);
+                return LastRunAt(document, bounds, regions, x) is (double top, double bottom)
+                    ? regions with { AxisLastTop = top, AxisLastBottom = bottom, ExitX = x }
+                    : regions;
+            }
+        }
+
+        return regions;
+    }
+
+    /// <summary>The last stretch of ink on the vertical line at <paramref name="x"/> across the body, top and bottom.</summary>
+    private static (double Top, double Bottom)? LastRunAt(SKPicture document, SKRect bounds, CharmArtworkRegions regions, double x)
+    {
+        Rect body = regions.Body;
+        var line = new Rect(x - (body.Width * 0.004), body.Top, body.Width * 0.008, body.Height);
+        const int Rows = 600;
+        if (AlphaRegion(document, bounds, line, 3, Rows) is not byte[] alpha)
+        {
+            return null;
+        }
+
+        bool Inked(int row) => alpha[row * 3] > 40 || alpha[(row * 3) + 1] > 40 || alpha[(row * 3) + 2] > 40;
+        int last = Rows - 1;
+        while (last >= 0 && !Inked(last))
+        {
+            last--;
+        }
+
+        if (last < 0)
+        {
+            return null;
+        }
+
+        int top = last;
+        while (top > 0 && Inked(top - 1))
+        {
+            top--;
+        }
+
+        return (line.Top + ((double)top / Rows * line.Height), line.Top + ((double)(last + 1) / Rows * line.Height));
     }
 
     /// <summary>The alpha of <paramref name="region"/> of the artwork's unit square, <paramref name="width"/> × <paramref name="height"/>.</summary>
@@ -512,15 +640,20 @@ public sealed class CharmArtworkCache : IDisposable
             return null;
         }
 
-        // The unit square at this many pixels, the artwork centred in it at its longest side, then the region's corner
-        // moved to the origin.
-        float unit = (float)(width / region.Width);
-        float scale = unit / Math.Max(bounds.Width, bounds.Height);
+        // The region stretched to exactly width × height pixels — across and down each at its own scale, as macOS's
+        // VectorImage.raster(region:) does — with the artwork centred in the unit square at its longest side. One scale
+        // for both, taken from the width, drew a tall thin region (the centre-line scan: 3 × 600) into the top two-fifths
+        // of its rows and left the rest empty, so on Windows every measurement down that line was squeezed toward the
+        // top: the cord's top anchor, and its exit to the charm below (found by the shared anchor table's parity check,
+        // 6 Oct).
+        float across = (float)(width / region.Width), down = (float)(height / region.Height);
+        float fit = 1f / Math.Max(bounds.Width, bounds.Height);
         SKCanvas canvas = surface.Canvas;
         canvas.Clear(SKColors.Transparent);
-        canvas.Translate((float)(-region.Left * unit), (float)(-region.Top * unit));
-        canvas.Translate((unit - (bounds.Width * scale)) / 2, (unit - (bounds.Height * scale)) / 2);
-        canvas.Scale(scale);
+        canvas.Scale(across, down);
+        canvas.Translate((float)-region.Left, (float)-region.Top);
+        canvas.Translate((1 - (bounds.Width * fit)) / 2, (1 - (bounds.Height * fit)) / 2);
+        canvas.Scale(fit);
         canvas.Translate(-bounds.Left, -bounds.Top);
         canvas.DrawPicture(document);
         canvas.Flush();
@@ -549,7 +682,8 @@ public sealed class CharmArtworkCache : IDisposable
         IReadOnlyList<string> Missing,
         IReadOnlyList<string> Unmeasured,
         int Measured,
-        IReadOnlyList<string> Unhooked);
+        IReadOnlyList<string> Unhooked,
+        IReadOnlyList<(string Id, double Drift, string Detail)> Anchors = null!);
 
     /// <summary>
     /// Opens and measures every charm in the catalogue, and says which ones failed.
@@ -568,6 +702,8 @@ public sealed class CharmArtworkCache : IDisposable
         var missing = new List<string>();
         var unmeasured = new List<string>();
         var unhooked = new List<string>();
+        var anchors = new List<(string Id, double Drift, string Detail)>();
+        CharmAnchors? table = CharmAnchors.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Anchors", "CharmAnchors.json"));
         int measured = 0;
 
         foreach (CharmCatalogEntry entry in CharmCatalog.All)
@@ -598,10 +734,48 @@ public sealed class CharmArtworkCache : IDisposable
                 {
                     unhooked.Add(entry.Id);
                 }
+
+                // Parity with the shared table, which macOS measured: this platform's own measurement against it.
+                if (!entry.HangsByOwnCord && table?.Charms.TryGetValue(entry.Id, out CharmAnchors.Entry? stored) == true
+                    && stored is not null)
+                {
+                    CharmAnchors.Entry own = AnchorsOf(regions.Value);
+                    anchors.Add((entry.Id, CharmAnchors.Drift(own, stored), Detail(own, stored)));
+                }
             }
         }
 
-        return new ArtworkReport(missing, unmeasured, measured, unhooked);
+        return new ArtworkReport(missing, unmeasured, measured, unhooked, anchors);
+    }
+
+    /// <summary>Which parts of two entries differ, and by how much, for the parity report.</summary>
+    private static string Detail(CharmAnchors.Entry own, CharmAnchors.Entry stored)
+    {
+        static string Gap(CharmAnchors.Point? a, CharmAnchors.Point? b) => a is null || b is null
+            ? (a is null && b is null ? "-" : "missing")
+            : $"dx {a.X - b.X:+0.0000;-0.0000} dy {a.Y - b.Y:+0.0000;-0.0000}";
+        string body = own.Body is { } a && stored.Body is { } b
+            ? $"body dx {a.X - b.X:+0.0000;-0.0000} dy {a.Y - b.Y:+0.0000;-0.0000} dw {a.Width - b.Width:+0.0000;-0.0000} dh {a.Height - b.Height:+0.0000;-0.0000}"
+            : "body -";
+        return $"{body}; top {Gap(own.TopAnchor, stored.TopAnchor)}; exit {Gap(own.BottomExit, stored.BottomExit)}; hook {Gap(own.ConnectorAnchor, stored.ConnectorAnchor)}";
+    }
+
+    /// <summary>This platform's own measurement as a table entry, for comparing with the shared table.</summary>
+    private static CharmAnchors.Entry AnchorsOf(CharmArtworkRegions regions)
+    {
+        Rect body = regions.Body;
+        double midX = body.Left + (body.Width / 2);
+        CharmArtworkHook? hook = regions.Hook;
+        return new CharmAnchors.Entry(
+            hook is null ? "top" : "ring",
+            hook is not null,
+            new CharmAnchors.Box(body.Left, body.Top, body.Width, body.Height),
+            regions.AxisY is double top ? new CharmAnchors.Point(midX, top) : null,
+            regions.AxisY is double topY && regions.AxisBottom is double topBottom ? topBottom - topY : null,
+            regions.AxisLastBottom is double exit ? new CharmAnchors.Point(regions.ExitX ?? midX, exit) : null,
+            regions.AxisLastBottom is double lastBottom && regions.AxisLastTop is double lastTop ? lastBottom - lastTop : null,
+            hook is CharmArtworkHook eye ? new CharmAnchors.Point(eye.CentreX, eye.EyeTop) : null,
+            hook is CharmArtworkHook h ? new CharmAnchors.Hook(h.BarTop, h.EyeTop, h.EyeBottom, h.CentreX, h.SlotWidth) : null);
     }
 
     /// <summary>One byte of alpha per pixel of the fitted square, top row first.</summary>
@@ -648,6 +822,8 @@ public sealed class CharmArtworkCache : IDisposable
             lastDrawn[(fileName, pixels, region)] = frame;
             return cached;
         }
+
+        RenderTimes.FrameUploads++;
 
         SKPicture? document = Document(fileName);
         if (document is null)
@@ -723,6 +899,7 @@ public sealed class CharmArtworkCache : IDisposable
             Windows.Graphics.DirectX.DirectXPixelFormat.B8G8R8A8UIntNormalized);
 
         rasters[(fileName, pixels, region)] = bitmap;
+        LiveObjects.Track("charm bitmap (GPU)", bitmap);
         lastDrawn[(fileName, pixels, region)] = frame;
         return bitmap;
     }
@@ -750,6 +927,7 @@ public sealed class CharmArtworkCache : IDisposable
         }
 
         RenderTimes.Rasters++;
+        RenderTimes.FrameUploads++;
         SKPicture? document = Document(fileName);
         if (document is null)
         {
@@ -804,6 +982,7 @@ public sealed class CharmArtworkCache : IDisposable
             Windows.Graphics.DirectX.DirectXPixelFormat.B8G8R8A8UIntNormalized);
 
         rasters[key] = bitmap;
+        LiveObjects.Track("charm bitmap (GPU)", bitmap);
         lastDrawn[key] = frame;
         return bitmap;
     }

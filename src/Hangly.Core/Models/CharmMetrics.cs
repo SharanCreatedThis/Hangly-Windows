@@ -71,7 +71,11 @@ public readonly record struct CharmMetrics(double Mass, double RadiusRatio, doub
 /// Distance from the knot up along the cord, relative to the charm's radius.
 /// </param>
 /// <param name="Mass">Mass relative to a plain rope node.</param>
-public readonly record struct CharmBead(Size Size, double Offset, double Mass)
+/// <param name="TopAboveKnot">
+/// How far the top of the charm stands above its knot, relative to its radius: the stretch of cord just above the knot
+/// the charm itself covers, which a bead has to keep clear of as well (<see cref="Physics.RopeSimulation.BeadClearance"/>).
+/// </param>
+public readonly record struct CharmBead(Size Size, double Offset, double Mass, double TopAboveKnot = 0)
 {
     /// <summary>
     /// Extent along the cord, which is what decides whether two beads collide.

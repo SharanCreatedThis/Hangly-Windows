@@ -101,9 +101,22 @@ public static class CharmLibrary
         return new Rect(left, top, right - left, bottom - top);
     }
 
+    /// <summary>The anchor table shipped with the app (Assets/Anchors/CharmAnchors.json), read once; null if missing.</summary>
+    private static readonly CharmAnchors? Anchors =
+        CharmAnchors.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Anchors", "CharmAnchors.json"));
+
     private static CharmDescriptor Describe(CharmArtworkCache artwork, CharmCatalogEntry entry, double size)
     {
         CharmArtworkRegions? regions = artwork.Measure(entry);
+
+        // A built-in charm's rope anchors come from the table both apps share (CharmAnchors.json), not from this
+        // platform's own measurement: one answer on Mac and Windows, held to the artwork in CI. An imported charm has
+        // no entry and keeps what was measured.
+        if (regions is CharmArtworkRegions measuredRegions && Anchors?.Charms.TryGetValue(entry.Id, out CharmAnchors.Entry? anchors) == true
+            && anchors is { Attachment: not "ownRope" })
+        {
+            regions = CharmAnchors.Apply(measuredRegions, anchors);
+        }
         if (regions is null)
         {
             // Reported rather than silently accepted: a charm that cannot be measured
@@ -146,6 +159,8 @@ public static class CharmLibrary
             Connector: !entry.HangsByOwnCord && regions is { Hook: CharmArtworkHook hook } measuredHook
                 ? new HookConnector(hook, measuredHook.Body, HookConnector.WeightOf(entry.Mass))
                 : null,
-            RopeMeetsInset: entry.HangsByOwnCord ? null : regions?.RopeMeetsInset);
+            RopeMeetsInset: entry.HangsByOwnCord ? null : regions?.RopeMeetsInset,
+            RopeMeetsDepth: entry.HangsByOwnCord ? null : regions?.RopeMeetsDepth,
+            RopeLeavesOffset: entry.HangsByOwnCord ? null : regions?.RopeLeavesOffset);
     }
 }

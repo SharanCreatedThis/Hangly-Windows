@@ -148,6 +148,11 @@ public readonly record struct HookConnector
     /// <summary>Where the rope ends: <see cref="Eye"/> on a chain, <see cref="RopeEnd"/> on a cord.</summary>
     public Vec2 EndFor(bool chained) => chained ? Eye : RopeEnd;
 
+    /// <summary>Where the charm bears on what holds it: a chain's last link on <see cref="Eye"/>, or the jump ring's
+    /// lower wire where it rests in the eye — on the arm beside a wide gap. The charm turns about this, as a pendant hangs
+    /// from its hole. macOS's <c>HookConnectorRenderer.Layout.contact</c>.</summary>
+    public Vec2 ContactFor(bool chained) => chained ? Eye : new Vec2(RingRect.MidX, Eye.Y);
+
     /// <summary>The end cap's picture, on a heavy charm.</summary>
     public Rect? CapRect { get; }
 
