@@ -30,14 +30,6 @@ namespace Hangly.App.Interop;
 /// <para>Only one file is taken from a drop of several. An import replaces one charm, and
 /// there is no sensible reading of four files landing on one place.</para>
 /// </remarks>
-[ComVisible(true)]
-[Guid("0000010E-0000-0000-C000-000000000046")]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-internal interface IDataObjectNative
-{
-    void GetData(ref FORMATETC format, out STGMEDIUM medium);
-}
-
 /// <summary>The COM drop target Windows talks to.</summary>
 [ComVisible(true)]
 [Guid("00000122-0000-0000-C000-000000000046")]

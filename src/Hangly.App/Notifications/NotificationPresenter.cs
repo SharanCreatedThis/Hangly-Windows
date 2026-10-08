@@ -54,7 +54,7 @@ public sealed record NotificationAction(AnnouncementAction Type, string Target)
     };
 }
 
-/// <summary>Decides the card under the charm and the bell beside it.</summary>
+/// <summary>Decides the card under the charm.</summary>
 /// <remarks>
 /// Event-driven, as on macOS: it re-decides when the feed answers, the updater changes, the charm appears or goes, a
 /// card leaves, or its one timer comes due — the soonest of a card's end, the reminder's return and a scheduled
@@ -119,7 +119,7 @@ public sealed class NotificationPresenter
     /// <summary>Told when the charm comes back on screen, so the feed can look for anything new.</summary>
     public Action CharmReturned { get; set; } = () => { };
 
-    /// <summary>Raised on the XAML thread whenever the card, the bell or the count may have changed.</summary>
+    /// <summary>Raised on the XAML thread whenever the card may have changed.</summary>
     public event Action? Changed;
 
     public CardPresentation? Card { get; private set; }

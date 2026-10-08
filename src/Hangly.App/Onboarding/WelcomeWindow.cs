@@ -238,7 +238,7 @@ public sealed class WelcomeWindow : Window
     /// asks; it is not a welcome.
     ///
     /// <para>Two buttons rather than one, because the person who wants to go and look at
-    /// seventy charms and the person who wants their desktop back are both in the room,
+    /// every charm and the person who wants their desktop back are both in the room,
     /// and making the second one dismiss an invitation is how you annoy them.</para>
     /// </remarks>
     private StackPanel BuildWelcome()

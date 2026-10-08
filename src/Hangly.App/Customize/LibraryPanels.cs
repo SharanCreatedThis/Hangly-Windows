@@ -22,7 +22,7 @@ namespace Hangly.App.Customize;
 /// panel reports what changed rather than offering a second way to do it.
 ///
 /// <para>Every field it shows was already in the catalogue: region, description and tags
-/// are populated for all seventy charms and were simply never displayed.</para>
+/// are populated for every charm and were simply never displayed.</para>
 /// </remarks>
 public sealed class CharmDetail : INotifyPropertyChanged
 {

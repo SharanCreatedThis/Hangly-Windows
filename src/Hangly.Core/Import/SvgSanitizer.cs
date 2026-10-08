@@ -201,7 +201,7 @@ public static class SvgSanitizer
     /// own bytes and fetches nothing. Refusing these was a real defect, found by putting
     /// an ordinary Illustrator export through the audit: most SVGs that contain a
     /// photograph carry it exactly this way, and every one of this collection's own
-    /// seventy charms is built like it. Stripping the reference left a blank charm, which
+    /// charms is built like it. Stripping the reference left a blank charm, which
     /// is a worse answer than refusing the file would have been because it looked like it
     /// had worked.</para>
     ///
