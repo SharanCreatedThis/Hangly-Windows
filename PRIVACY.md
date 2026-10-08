@@ -109,7 +109,7 @@ next time Hangly starts or quits — nothing asks and nothing is shown. The tray
 - **There is no Hangly update server.** Updates come from GitHub; nothing reports that you
   checked. (The installation registry above is a separate service, in Firebase.)
 
-See `Docs/DISTRIBUTION.md` for how releases are built and signed.
+See `Docs/Release/DISTRIBUTION.md` for how releases are built and signed.
 
 ## Weather
 

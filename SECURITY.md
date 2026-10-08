@@ -37,7 +37,7 @@ user. The places where something could still go wrong:
 ## What is not a vulnerability
 
 - **The SmartScreen warning on first run.** Builds before v1.0 are not code-signed, which
-  is stated on the download page and in [Docs/DISTRIBUTION.md](Docs/DISTRIBUTION.md).
+  is stated on the download page and in [Docs/Release/DISTRIBUTION.md](Docs/Release/DISTRIBUTION.md).
   Signing is in progress through SignPath Foundation.
 - Anything that needs administrator rights or physical access to the machine to set up.
 - The fact that Hangly reads the cursor position. It needs that to let you pick the charm

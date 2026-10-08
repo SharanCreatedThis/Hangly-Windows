@@ -106,7 +106,7 @@ public as a pre-release:
 **[MEASURED]**. With it true the source enumerates `/releases` and picks the highest
 version, so a stable v1.0 still wins over any 0.9.x beta. The cost arrives after v1.0:
 publishing a pre-release would then offer it to people running stable.
-`Docs/DISTRIBUTION.md` §2 carries the decision and the two ways out.
+`Docs/Release/DISTRIBUTION.md` §2 carries the decision and the two ways out.
 
 ---
 
@@ -176,7 +176,7 @@ that v0.9.0 shipped with, gone. **[MEASURED]**
 
 **`deltas to target: 0` is the finding.** The release workflow packs in a clean checkout,
 so `vpk` has no previous package to diff against and every release is a full download.
-`Docs/DISTRIBUTION.md` §2 has the detail and the fix.
+`Docs/Release/DISTRIBUTION.md` §2 has the detail and the fix.
 
 ### Uninstall
 

@@ -39,7 +39,7 @@ just message me — whichever is easier. There is no wrong way.
 - Your Windows version, your scaling, and how many monitors.
 - **The log**: `%APPDATA%\Hangly\hangly.log`. Paste the path into Explorer's address bar.
   It covers the last run only and has no personal information in it —
-  [PRIVACY.md](PRIVACY.md) lists exactly what it can contain.
+  [PRIVACY.md](../../PRIVACY.md) lists exactly what it can contain.
 - A screenshot, if it is something you can see.
 
 A report with none of that is still worth sending. "The charm went weird when I plugged in
@@ -47,7 +47,7 @@ my monitor" is a perfectly good bug report.
 
 ## What I already know is unfinished
 
-[KNOWN-ISSUES.md](KNOWN-ISSUES.md). Please skim it — it will save you writing up something
+[KNOWN-ISSUES.md](../../KNOWN-ISSUES.md). Please skim it — it will save you writing up something
 already on the list.
 
 ## What Hangly collects while you test
@@ -56,7 +56,7 @@ The same as always, and no more because you are testing: the name you type, that
 Windows, the processor, and the Windows and Hangly versions — sent when you first start
 it, if you change your name, and on a new major version, plus once a day that it is still
 running and once if you uninstall. Nothing about what you do in the app. Not your files, not your file names, not your Windows account. Switch it off in **Customize → About** and nothing is sent at all.
-[PRIVACY.md](PRIVACY.md) is the full account.
+[PRIVACY.md](../../PRIVACY.md) is the full account.
 
 ## What happens to your feedback
 

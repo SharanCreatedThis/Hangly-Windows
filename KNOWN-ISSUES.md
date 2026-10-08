@@ -111,4 +111,4 @@ This is the honest list, and it is the main reason for the beta.
 ## Something not on this list?
 
 [Open an issue](https://github.com/SharanCreatedThis/Hangly-Windows/issues/new/choose) —
-[FRIEND-TESTING.md](FRIEND-TESTING.md) says what makes a report easy to act on.
+[FRIEND-TESTING.md](Docs/Testing/FRIEND-TESTING.md) says what makes a report easy to act on.

@@ -42,9 +42,8 @@ Things that will be accepted quickly:
 
 Things that will take longer, or may be declined:
 
-- New features. The roadmap is deliberately short and is in
-  [STATUS.md](STATUS.md). Weather and seasonal charms are removed permanently; sound and
-  the Creator Studio are v1.1.
+- New features. Both editions ship the same features together, so a feature here needs
+  its Mac counterpart; the roadmap is in the [README](README.md#roadmap).
 - Refactors of working code. This is a port with a specific shape and the shape is
   load-bearing in places that are not obvious.
 - Changes to physics constants in `src/Hangly.Core`. Every number there was measured

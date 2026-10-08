@@ -1,7 +1,7 @@
 # Release checklist
 
 The steps for cutting **any** release of Hangly for Windows, in order. It is a procedure,
-not a discussion — the reasoning lives in `Docs/DISTRIBUTION.md`, and what must be true
+not a discussion — the reasoning lives in `Docs/Release/DISTRIBUTION.md`, and what must be true
 before the *first* public release lives in `SHIP-CHECKLIST.md`.
 
 Tick every box. A step that was skipped is written down as skipped, not left blank.

@@ -54,7 +54,7 @@ None of it is blocked; all of it is work.
 > item on it except the Studio and sound has since been built. The roadmap settled on
 > 21 September 2026 is: **weather and seasons are removed permanently**, **sound is
 > v1.1**, and **Creator Studio is v1.1** — the **Create** tab is v1.0's answer to making
-> your own charm. `STATUS.md` and `Docs/RELEASE-READINESS.md` are the current picture.
+> your own charm. `Docs/Audits/STATUS.md` and `Docs/Release/RELEASE-READINESS.md` are the current picture.
 
 ---
 

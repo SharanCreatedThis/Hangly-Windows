@@ -85,7 +85,7 @@ gaps. They are not gaps: they are not being built. Neither appears in this numbe
    a later one.
 2. **Nothing is signed, and SignPath will not sign a project that has not released.** The
    first release is unsigned by construction and SmartScreen will warn. The enquiry
-   drafted at `~/Documents/hangly-shots/signpath-enquiry.md` **has still not been sent**;
+   drafted (kept outside the repository) **has still not been sent**;
    it is the longest lead time in the project and the least technical thing on this list.
 3. **The manual QA matrix is unrun**: 100/125/150/175/200% scaling, dual monitor, mixed
    DPI, sleep/wake, hot-unplug, Windows 10 1809. The 1809 floor is the sharpest — the

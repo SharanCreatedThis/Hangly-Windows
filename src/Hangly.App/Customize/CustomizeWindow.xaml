@@ -1085,7 +1085,7 @@
                             macOS ships CreatorCard and SupportSheet, and a UPI QR in
                             its bundle, so the support flow there is a sheet rather than a
                             link. Every line of copy here is quoted from the macOS binary;
-                            see Docs/LIBRARY-AUDIT.md.
+                            see Docs/Audits/LIBRARY-AUDIT.md.
                         -->
                         <Border
                             x:Name="CreatorCard"

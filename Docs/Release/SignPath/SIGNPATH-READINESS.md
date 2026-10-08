@@ -107,7 +107,7 @@ Walked through in the order somebody actually looks.
 4. **The file tree** — `src`, `tests`, `tools`, `Docs`, and the community files where they
    are expected.
 5. **The documents, if they read further** — `PRIVACY.md` lists every analytics event and
-   what is never sent; `SECURITY.md` names the real attack surface; `Docs/DISTRIBUTION.md`
+   what is never sent; `SECURITY.md` names the real attack surface; `Docs/Release/DISTRIBUTION.md`
    explains the signing plan and states that SignPath Foundation is the intended route.
 
 There is nothing here that needs explaining away.
