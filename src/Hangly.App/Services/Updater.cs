@@ -118,7 +118,7 @@ public sealed class Updater
     /// still wins over any 0.9.x beta. <b>The cost is real and belongs to the future:</b>
     /// once people are running a stable release, publishing a pre-release will offer it to
     /// them. Either stop publishing pre-releases at that point, or set this back to false
-    /// — see <c>Docs/DISTRIBUTION.md</c> §2.</para>
+    /// — see <c>Docs/Release/DISTRIBUTION.md</c> §2.</para>
     /// </remarks>
     private UpdateManager Manager() => new(
         Directory.Exists(feedUrl)

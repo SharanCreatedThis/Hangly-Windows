@@ -43,3 +43,8 @@ firebase-config*.json
 
 # Wrangler (Cloudflare CLI) state: account ids, never committed.
 .wrangler/
+
+# Logs and test results from local runs.
+*.log
+TestResults/
+*.trx

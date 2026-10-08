@@ -66,5 +66,5 @@ reinstall. Delete that folder if you want them gone too.
 ## Something went wrong?
 
 See [FRIEND-TESTING.md](FRIEND-TESTING.md) for what is most useful to report and how.
-[KNOWN-ISSUES.md](KNOWN-ISSUES.md) lists what is already known, so you can check before
+[KNOWN-ISSUES.md](../../KNOWN-ISSUES.md) lists what is already known, so you can check before
 spending time writing it up.

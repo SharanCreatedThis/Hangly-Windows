@@ -53,9 +53,9 @@ public sealed class AnalyticsAndCrashTests : IDisposable
     public void TheProfilePathAndUserNameAreScrubbedAndTheStackIsCut()
     {
         CrashReport scrubbed = CrashStore.Scrub(
-            Report(message: @"C:\Users\sharan\Documents\charm.svg", stack: @"at X() in C:\Users\sharan\a.cs" + new string('x', CrashStore.StackLimit)),
-            profile: @"C:\Users\sharan",
-            userName: "sharan");
+            Report(message: @"C:\Users\alex\Documents\charm.svg", stack: @"at X() in C:\Users\alex\a.cs" + new string('x', CrashStore.StackLimit)),
+            profile: @"C:\Users\alex",
+            userName: "alex");
         Assert.Equal(@"%USERPROFILE%\Documents\charm.svg", scrubbed.Message);
         Assert.StartsWith(@"at X() in %USERPROFILE%\a.cs", scrubbed.StackTrace, StringComparison.Ordinal);
         Assert.Equal(CrashStore.StackLimit, scrubbed.StackTrace.Length);

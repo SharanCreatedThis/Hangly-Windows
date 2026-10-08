@@ -16,14 +16,3 @@ public enum OverlayAnchor
     TopCenter,
     TopTrailing,
 }
-
-public static class OverlayAnchorTable
-{
-    public static string DisplayNameOf(OverlayAnchor anchor) => anchor switch
-    {
-        OverlayAnchor.TopLeading => "Top Left",
-        OverlayAnchor.TopCenter => "Top Center",
-        OverlayAnchor.TopTrailing => "Top Right",
-        _ => "Top Center",
-    };
-}

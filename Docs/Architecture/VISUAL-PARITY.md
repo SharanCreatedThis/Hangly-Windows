@@ -33,7 +33,7 @@ Decoding the embedded rasters out of each SVG:
 Nazar's three beads are three separate images inside the file. The artwork is not merely
 *a* source of truth for the beads; it is the only one.
 
-**How does macOS render them?** **[DOC]** `Docs/SVG-Import.md`:
+**How does macOS render them?** **[DOC]** `reference/swift/Docs/SVG-Import.md`:
 
 > `VectorImage` then rasterises **any region of the asset on its own**, at the size it
 > will appear; because the source is vector, a region blown up to fill its target is as
@@ -76,7 +76,7 @@ The ellipse survives only as the fallback for a charm whose artwork could not be
 
 ### Verification **[MEAS]**
 
-Ten bead-carrying charms captured at charm size 1.6: `hangly-shots/beads-after.png`.
+Ten bead-carrying charms were captured at charm size 1.6 (screenshot not kept in the repository).
 Every bead is its own artwork —
 
 - **Nazar** three gold spheres, matching **[LIVE]** macOS exactly
@@ -103,9 +103,9 @@ Maneki-neko four). The other 55 are unaffected.
 
 ### Investigation
 
-**[DOC]** `Docs/SVG-Import.md`: "The renderer adds **only a drop shadow** to vector
+**[DOC]** `reference/swift/Docs/SVG-Import.md`: "The renderer adds **only a drop shadow** to vector
 artwork: it carries its own shading, and a specular bloom on top of it would read as a
-smudge." `Docs/Charm-System.md` on bitmaps: "the shadow is cast by drawing the image into
+smudge." `reference/swift/Docs/Charm-System.md` on bitmaps: "the shadow is cast by drawing the image into
 a shadow layer, so **a cut-out subject casts the shape of itself and not of its bounding
 box**." So: alpha-derived, shape-accurate.
 

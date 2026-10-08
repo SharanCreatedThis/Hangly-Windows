@@ -5,7 +5,7 @@ What must be true before Hangly for Windows is a thing a stranger can download.
 This is the **one** list. `RELEASE-CHECKLIST.md` is the procedure for cutting any release;
 `SIGNPATH-CHECKLIST.md` is the signing track, which runs on somebody else's calendar and
 should be started first. Readiness numbers and their weighting live in
-`Docs/RELEASE-READINESS.md`.
+`Docs/Release/RELEASE-READINESS.md`.
 
 Evidence tags, used throughout the repository: **[SWIFT] [DOC] [BINARY] [LIVE] [MEAS]
 [WIN] [INFER]**. A box is ticked when there is evidence, not when there is confidence.
@@ -53,7 +53,7 @@ are done**, and its reasoning is not repeated here.
       running with no way to reach its own menu. **Fixed** at `ae7b927`; same harness.
 - [ ] **B3** — the existing `v0.9.0` draft predates the rendering fixes and both blocker
       fixes; delete it and re-cut. **[MEASURED]**
-- [x] **B4** — `PRIVACY.md` and `Docs/DISTRIBUTION.md` described an update check that
+- [x] **B4** — `PRIVACY.md` and `Docs/Release/DISTRIBUTION.md` described an update check that
       fetches a static file; the code asks the GitHub Releases API. **Corrected.**
 
 

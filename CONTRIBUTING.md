@@ -11,7 +11,8 @@ of those is worth more to this project than a patch to something I can already s
 
 [Open an issue](https://github.com/SharanCreatedThis/Hangly-Windows/issues/new/choose) and
 say what happened. `%APPDATA%\Hangly\hangly.log` holds the last run and is usually the
-whole answer; it contains no personal information — see [PRIVACY.md](PRIVACY.md).
+whole answer. It can include folder paths that contain your Windows user name, so look it
+over before attaching it.
 
 ## Building it
 
@@ -42,9 +43,8 @@ Things that will be accepted quickly:
 
 Things that will take longer, or may be declined:
 
-- New features. The roadmap is deliberately short and is in
-  [STATUS.md](STATUS.md). Weather and seasonal charms are removed permanently; sound and
-  the Creator Studio are v1.1.
+- New features. Both editions ship the same features together, so a feature here needs
+  its Mac counterpart; the roadmap is in the [README](README.md#roadmap).
 - Refactors of working code. This is a port with a specific shape and the shape is
   load-bearing in places that are not obvious.
 - Changes to physics constants in `src/Hangly.Core`. Every number there was measured

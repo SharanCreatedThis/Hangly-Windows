@@ -4,7 +4,7 @@ Getting Hangly for Windows signed, for free, by **SignPath Foundation**.
 
 Two decisions are settled and are not re-opened here: **no paid certificate, and no Azure
 Trusted Signing, ever.** SignPath Foundation is the route. The reasoning, and what a user
-sees before and after signing, is in `Docs/DISTRIBUTION.md` §3.
+sees before and after signing, is in `Docs/Release/DISTRIBUTION.md` §3.
 
 **This is the longest lead time in the project and the least technical thing in it.** It
 is measured in weeks of somebody else's calendar, and none of that time starts until the
@@ -41,7 +41,7 @@ wrong.
 The draft has been written and **has still not been sent**. It has been outstanding for
 weeks, and everything downstream waits on it.
 
-- [ ] Read the draft at `~/Documents/hangly-shots/signpath-enquiry.md`.
+- [ ] Read the enquiry draft (kept outside the repository).
 - [ ] Send it, via https://signpath.org/apply (or the address the draft names).
 - [ ] Record the date sent, here: `sent: ____________`
 - [ ] Chase after two weeks with no reply.

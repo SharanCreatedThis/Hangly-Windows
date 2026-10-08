@@ -5,7 +5,7 @@
 # version is decided and it is the same place the release is named.
 #
 # Nothing here signs anything. SignPath will not sign a project that has not released yet,
-# so the first release is unsigned by construction; Docs/DISTRIBUTION.md §3 has the
+# so the first release is unsigned by construction; Docs/Release/DISTRIBUTION.md §3 has the
 # reasoning and what changes afterwards.
 name: Release
 
@@ -233,7 +233,7 @@ jobs:
           Add-Content notes.md ''
           Add-Content notes.md 'This build is **not signed yet** -- the application is in progress -- so Windows will show'
           Add-Content notes.md '"Windows protected your PC" the first time you run it. Click **More info**, then **Run anyway**.'
-          Add-Content notes.md 'Docs/DISTRIBUTION.md explains why, and what changes once the Foundation has signed a release.'
+          Add-Content notes.md 'Docs/Release/DISTRIBUTION.md explains why, and what changes once the Foundation has signed a release.'
 
       - uses: actions/download-artifact@v7
         with:

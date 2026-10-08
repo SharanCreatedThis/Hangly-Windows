@@ -22,7 +22,7 @@ public enum AnnouncementAction
     OpenNotifications,
 }
 
-/// <summary><c>Low</c> never gets a card — straight to the Notification Center. <c>High</c> goes before anything else waiting.</summary>
+/// <summary>The order cards wait in: <c>High</c> before anything else waiting, then <c>Normal</c>, then <c>Low</c>. Every priority gets its card.</summary>
 public enum AnnouncementPriority
 {
     Low,

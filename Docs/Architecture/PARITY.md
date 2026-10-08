@@ -51,7 +51,7 @@ highest-value thing that could be handed over.
 This is the largest visible difference and the cheapest to fix, because the Windows
 build already does all the hard parts.
 
-**What macOS does.** From `Docs/SVG-Import.md`:
+**What macOS does.** From `reference/swift/Docs/SVG-Import.md`:
 
 > `VectorImage` then rasterises **any region of the asset on its own**, at the size it
 > will appear; because the source is vector, a region blown up to fill its target is
@@ -99,9 +99,9 @@ day including tests.
 
 ### 1.2 Shadow and glow — Windows draws the wrong thing entirely
 
-**macOS.** From `Docs/SVG-Import.md`: "The renderer adds **only a drop shadow** to
+**macOS.** From `reference/swift/Docs/SVG-Import.md`: "The renderer adds **only a drop shadow** to
 vector artwork: it carries its own shading, and a specular bloom on top of it would
-read as a smudge." From `Docs/Charm-System.md`, `CharmRenderer` owns "shadow, body
+read as a smudge." From `reference/swift/Docs/Charm-System.md`, `CharmRenderer` owns "shadow, body
 gradient, details, specular bloom, rim", and for bitmaps "the shadow is cast by
 drawing the image into a shadow layer, so a cut-out subject casts the shape of itself
 and not of its bounding box."
@@ -145,8 +145,8 @@ not be implemented from guesswork.
 Fixed and verified this session. Artwork was rasterised in points while the surface
 is at the display's DPI, so at 200% each source pixel was drawn to four. Now sized in
 device pixels. Measured on Captain America at identical on-screen size: mean gradient
-24.3 → 36.6 per pixel, peak 121 → 397. Side-by-side at
-`hangly-shots/compare-artwork.png`.
+24.3 → 36.6 per pixel, peak 121 → 397. A side-by-side
+comparison was captured at the time (not kept in the repository).
 
 Remaining difference after that fix is attributable to §1.1 and §1.2, not to
 rasterisation.
@@ -167,7 +167,7 @@ Windows has the skeleton; macOS has roughly twice the surface.
 | Search | "Search charms" | "Search charms, places, materials" | Windows is arguably better |
 | Create page | Present in sidebar | Absent | See §6 |
 
-`Docs/Charm-System.md` confirms the detail pane is load-bearing: "Selecting a card
+`reference/swift/Docs/Charm-System.md` confirms the detail pane is load-bearing: "Selecting a card
 sets the charm manager's selection and nothing else: the rope changes on its next
 frame and **the detail pane, which always shows the selection**, follows."
 
@@ -236,7 +236,7 @@ nothing.** That is a correctness problem, not just a gap.
 
 ## 5. Photo import
 
-Fully documented in `Docs/Charm-System.md`, so no guessing is needed about behaviour:
+Fully documented in `reference/swift/Docs/Charm-System.md`, so no guessing is needed about behaviour:
 
 ```
 load → isolate subject → fit to square → analyse → encode PNG
@@ -272,7 +272,7 @@ Recommendation: ship (1) labelled honestly, and treat (2) as its own milestone.
 
 ## 6. Studio
 
-From `Docs/Charm-System.md`: `CharmStudioPipeline` is the importer "cut at its joints"
+From `reference/swift/Docs/Charm-System.md`: `CharmStudioPipeline` is the importer "cut at its joints"
 — `load` and `detectSubjects` run once per source, `isolate` when the background
 method changes, `buildDraft` when a slider moves. Subject detection keeps every cut-out
 Vision can produce, all instances then each alone, so switching subjects never re-runs
@@ -312,7 +312,7 @@ their arrangement is not.
 
 > **Settled 21 September 2026: neither will be built for Windows, at any version.** They
 > are not deferred, not backlogged and not counted as parity gaps in
-> `Docs/RELEASE-READINESS.md`. What follows is kept because it is the evidence of what
+> `Docs/Release/RELEASE-READINESS.md`. What follows is kept because it is the evidence of what
 > macOS has, which is worth recording; it is not a plan.
 
 The earlier note in this section argued for building them, on the evidence that both are
