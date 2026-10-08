@@ -37,8 +37,11 @@ internal static partial class NativeMethods
     [DllImport("ole32.dll")]
     internal static extern int OleInitialize(IntPtr reserved);
 
+    // Typed as IDropTarget, not object: RegisterDragDrop stores the pointer it is given as an
+    // IDropTarget without asking. Marshalled as an object it received the wrapper's IUnknown,
+    // so a drag from Explorer found the window registered but never reached DragEnter (W-DROP).
     [DllImport("ole32.dll")]
-    internal static extern int RegisterDragDrop(IntPtr hWnd, [MarshalAs(UnmanagedType.Interface)] object target);
+    internal static extern int RegisterDragDrop(IntPtr hWnd, IDropTarget target);
 
     [DllImport("ole32.dll")]
     internal static extern int RevokeDragDrop(IntPtr hWnd);
