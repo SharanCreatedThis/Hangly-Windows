@@ -135,27 +135,30 @@ public sealed class CharmArtworkCache : IDisposable
     /// </remarks>
     public void Draw(CanvasDrawingSession session, CharmDescriptor? charm, CharmHang hang)
     {
-        if (Place(session, charm, hang, mask: false) is not { Bitmap: { } bitmap } placed)
+        lock (gate)
         {
-            return;
+            if (Place(session, charm, hang, mask: false) is not { Bitmap: { } bitmap } placed)
+            {
+                return;
+            }
+
+            Windows.Foundation.Rect destination = placed.Destination;
+
+            System.Numerics.Matrix3x2 previous = session.Transform;
+            session.Transform = Turn(hang) * previous;
+            DrawShadow(session, bitmap, destination, hang.Radius);
+
+            // Cubic rather than the default linear, because the rotation resamples every
+            // charm that is not hanging dead straight and linear is where the rim of the
+            // shield picked up its stair-stepping.
+            session.DrawImage(
+                bitmap,
+                destination,
+                new Windows.Foundation.Rect(0, 0, bitmap.SizeInPixels.Width, bitmap.SizeInPixels.Height),
+                1f,
+                Microsoft.Graphics.Canvas.CanvasImageInterpolation.HighQualityCubic);
+            session.Transform = previous;
         }
-
-        Windows.Foundation.Rect destination = placed.Destination;
-
-        System.Numerics.Matrix3x2 previous = session.Transform;
-        session.Transform = Turn(hang) * previous;
-        DrawShadow(session, bitmap, destination, hang.Radius);
-
-        // Cubic rather than the default linear, because the rotation resamples every
-        // charm that is not hanging dead straight and linear is where the rim of the
-        // shield picked up its stair-stepping.
-        session.DrawImage(
-            bitmap,
-            destination,
-            new Windows.Foundation.Rect(0, 0, bitmap.SizeInPixels.Width, bitmap.SizeInPixels.Height),
-            1f,
-            Microsoft.Graphics.Canvas.CanvasImageInterpolation.HighQualityCubic);
-        session.Transform = previous;
     }
 
     /// <summary>The charm's glow, in its own shape and colours, where <paramref name="hang"/> puts it.</summary>
@@ -168,55 +171,58 @@ public sealed class CharmArtworkCache : IDisposable
     /// </remarks>
     public void DrawGlow(CanvasDrawingSession session, CharmDescriptor? charm, CharmHang hang, GlowStrength strength)
     {
-        if (charm is null || Place(session, charm, hang, mask: false) is not { Bitmap: { } bitmap } placed)
+        lock (gate)
         {
-            return;
-        }
-
-        Windows.Foundation.Rect destination = placed.Destination;
-        float scale = (float)(destination.Width / bitmap.SizeInPixels.Width);
-        if (scale <= 0)
-        {
-            return;
-        }
-
-        // In the bitmap's own pixels, like the shadow, and scaled into place afterwards.
-        double shorter = Math.Min(destination.Width, destination.Height);
-        using var blur = new Microsoft.Graphics.Canvas.Effects.GaussianBlurEffect
-        {
-            Source = bitmap,
-            BlurAmount = (float)(shorter * strength.Spread / scale),
-            BorderMode = Microsoft.Graphics.Canvas.Effects.EffectBorderMode.Soft,
-            Optimization = Microsoft.Graphics.Canvas.Effects.EffectOptimization.Speed,
-        };
-
-        CharmColor tint = GlowTable.TintOf(charm.Palette.Primary);
-        float own = (float)GlowTable.OwnColourShare;
-        float Offset(double channel) => (float)((channel * (1 - GlowTable.OwnColourShare)) + GlowTable.Lift);
-        using var colour = new Microsoft.Graphics.Canvas.Effects.ColorMatrixEffect
-        {
-            Source = blur,
-            ColorMatrix = new Microsoft.Graphics.Canvas.Effects.Matrix5x4
+            if (charm is null || Place(session, charm, hang, mask: false) is not { Bitmap: { } bitmap } placed)
             {
-                M11 = own, M22 = own, M33 = own,
-                M44 = (float)Math.Min(1, GlowTable.Opacity * strength.Intensity),
-                M51 = Offset(tint.Red), M52 = Offset(tint.Green), M53 = Offset(tint.Blue),
-            },
-            ClampOutput = true,
-        };
+                return;
+            }
 
-        using var placedGlow = new Microsoft.Graphics.Canvas.Effects.Transform2DEffect
-        {
-            Source = colour,
-            TransformMatrix =
-                System.Numerics.Matrix3x2.CreateScale(scale)
-                * System.Numerics.Matrix3x2.CreateTranslation((float)destination.X, (float)destination.Y),
-        };
+            Windows.Foundation.Rect destination = placed.Destination;
+            float scale = (float)(destination.Width / bitmap.SizeInPixels.Width);
+            if (scale <= 0)
+            {
+                return;
+            }
 
-        System.Numerics.Matrix3x2 previous = session.Transform;
-        session.Transform = Turn(hang) * previous;
-        session.DrawImage(placedGlow);
-        session.Transform = previous;
+            // In the bitmap's own pixels, like the shadow, and scaled into place afterwards.
+            double shorter = Math.Min(destination.Width, destination.Height);
+            using var blur = new Microsoft.Graphics.Canvas.Effects.GaussianBlurEffect
+            {
+                Source = bitmap,
+                BlurAmount = (float)(shorter * strength.Spread / scale),
+                BorderMode = Microsoft.Graphics.Canvas.Effects.EffectBorderMode.Soft,
+                Optimization = Microsoft.Graphics.Canvas.Effects.EffectOptimization.Speed,
+            };
+
+            CharmColor tint = GlowTable.TintOf(charm.Palette.Primary);
+            float own = (float)GlowTable.OwnColourShare;
+            float Offset(double channel) => (float)((channel * (1 - GlowTable.OwnColourShare)) + GlowTable.Lift);
+            using var colour = new Microsoft.Graphics.Canvas.Effects.ColorMatrixEffect
+            {
+                Source = blur,
+                ColorMatrix = new Microsoft.Graphics.Canvas.Effects.Matrix5x4
+                {
+                    M11 = own, M22 = own, M33 = own,
+                    M44 = (float)Math.Min(1, GlowTable.Opacity * strength.Intensity),
+                    M51 = Offset(tint.Red), M52 = Offset(tint.Green), M53 = Offset(tint.Blue),
+                },
+                ClampOutput = true,
+            };
+
+            using var placedGlow = new Microsoft.Graphics.Canvas.Effects.Transform2DEffect
+            {
+                Source = colour,
+                TransformMatrix =
+                    System.Numerics.Matrix3x2.CreateScale(scale)
+                    * System.Numerics.Matrix3x2.CreateTranslation((float)destination.X, (float)destination.Y),
+            };
+
+            System.Numerics.Matrix3x2 previous = session.Transform;
+            session.Transform = Turn(hang) * previous;
+            session.DrawImage(placedGlow);
+            session.Transform = previous;
+        }
     }
 
     /// <summary>Takes the rope out from behind a charm.</summary>
@@ -229,23 +235,26 @@ public sealed class CharmArtworkCache : IDisposable
     /// </remarks>
     public void EraseBehind(CanvasDrawingSession layer, CharmDescriptor? charm, CharmHang hang)
     {
-        if (Place(layer, charm, hang, mask: true) is not { Bitmap: { } mask } placed)
+        lock (gate)
         {
-            return;
+            if (Place(layer, charm, hang, mask: true) is not { Bitmap: { } mask } placed)
+            {
+                return;
+            }
+
+            Windows.Foundation.Rect destination = placed.Destination;
+
+            System.Numerics.Matrix3x2 previous = layer.Transform;
+            layer.Transform = Turn(hang) * previous;
+            layer.DrawImage(
+                mask,
+                destination,
+                new Windows.Foundation.Rect(0, 0, mask.SizeInPixels.Width, mask.SizeInPixels.Height),
+                1f,
+                Microsoft.Graphics.Canvas.CanvasImageInterpolation.HighQualityCubic,
+                Microsoft.Graphics.Canvas.CanvasComposite.DestinationOut);
+            layer.Transform = previous;
         }
-
-        Windows.Foundation.Rect destination = placed.Destination;
-
-        System.Numerics.Matrix3x2 previous = layer.Transform;
-        layer.Transform = Turn(hang) * previous;
-        layer.DrawImage(
-            mask,
-            destination,
-            new Windows.Foundation.Rect(0, 0, mask.SizeInPixels.Width, mask.SizeInPixels.Height),
-            1f,
-            Microsoft.Graphics.Canvas.CanvasImageInterpolation.HighQualityCubic,
-            Microsoft.Graphics.Canvas.CanvasComposite.DestinationOut);
-        layer.Transform = previous;
     }
 
     private static System.Numerics.Matrix3x2 Turn(CharmHang hang) =>
@@ -311,42 +320,45 @@ public sealed class CharmArtworkCache : IDisposable
         BeadPlacement placement,
         Rect region)
     {
-        double side = Math.Max(placement.Size.Width, placement.Size.Height);
-        if (side <= 0 || region.Width <= 0 || region.Height <= 0)
+        lock (gate)
         {
-            return;
+            double side = Math.Max(placement.Size.Width, placement.Size.Height);
+            if (side <= 0 || region.Width <= 0 || region.Height <= 0)
+            {
+                return;
+            }
+
+            int pixels = (int)Math.Round(side * (session.Dpi / 96.0));
+            if (pixels <= 0)
+            {
+                return;
+            }
+
+            CanvasBitmap? bitmap = Raster(charm.FileName, pixels, region);
+            if (bitmap is null)
+            {
+                return;
+            }
+
+            System.Numerics.Matrix3x2 previous = session.Transform;
+            var center = new System.Numerics.Vector2(
+                (float)placement.Position.X,
+                (float)placement.Position.Y);
+
+            session.Transform =
+                System.Numerics.Matrix3x2.CreateRotation((float)(placement.Angle - (Math.PI / 2)), center)
+                * previous;
+
+            session.DrawImage(
+                bitmap,
+                new Windows.Foundation.Rect(
+                    placement.Position.X - (side / 2),
+                    placement.Position.Y - (side / 2),
+                    side,
+                    side));
+
+            session.Transform = previous;
         }
-
-        int pixels = (int)Math.Round(side * (session.Dpi / 96.0));
-        if (pixels <= 0)
-        {
-            return;
-        }
-
-        CanvasBitmap? bitmap = Raster(charm.FileName, pixels, region);
-        if (bitmap is null)
-        {
-            return;
-        }
-
-        System.Numerics.Matrix3x2 previous = session.Transform;
-        var center = new System.Numerics.Vector2(
-            (float)placement.Position.X,
-            (float)placement.Position.Y);
-
-        session.Transform =
-            System.Numerics.Matrix3x2.CreateRotation((float)(placement.Angle - (Math.PI / 2)), center)
-            * previous;
-
-        session.DrawImage(
-            bitmap,
-            new Windows.Foundation.Rect(
-                placement.Position.X - (side / 2),
-                placement.Position.Y - (side / 2),
-                side,
-                side));
-
-        session.Transform = previous;
     }
 
     /// <summary>The charm's drop shadow, cast from the artwork's own alpha.</summary>
@@ -913,7 +925,13 @@ public sealed class CharmArtworkCache : IDisposable
     /// A column of the artwork rasterised at <paramref name="unit"/> pixels to the unit square, kept like any other raster:
     /// the picture's own rope, for <see cref="RopeRenderer"/> to lay along the cord.
     /// </summary>
-    public CanvasBitmap? RasterColumn(string fileName, double unit, Rect region) => RasterRegion(fileName, unit, region, mask: false);
+    public CanvasBitmap? RasterColumn(string fileName, double unit, Rect region)
+    {
+        lock (gate)
+        {
+            return RasterRegion(fileName, unit, region, mask: false);
+        }
+    }
 
     private CanvasBitmap? RasterRegion(string fileName, double unit, Rect region, bool mask)
     {
@@ -1006,34 +1024,37 @@ public sealed class CharmArtworkCache : IDisposable
     /// </remarks>
     public void EndFrame()
     {
-        frame++;
-        if (rasters.Count == 0)
+        lock (gate)
         {
-            return;
-        }
-
-        List<(string File, int Size, Rect Region)>? stale = null;
-        foreach (KeyValuePair<(string File, int Size, Rect Region), long> entry in lastDrawn)
-        {
-            if (frame - entry.Value > StaleAfterFrames)
+            frame++;
+            if (rasters.Count == 0)
             {
-                (stale ??= []).Add(entry.Key);
-            }
-        }
-
-        if (stale is null)
-        {
-            return;
-        }
-
-        foreach ((string File, int Size, Rect Region) key in stale)
-        {
-            if (rasters.Remove(key, out CanvasBitmap? bitmap))
-            {
-                bitmap.Dispose();
+                return;
             }
 
-            lastDrawn.Remove(key);
+            List<(string File, int Size, Rect Region)>? stale = null;
+            foreach (KeyValuePair<(string File, int Size, Rect Region), long> entry in lastDrawn)
+            {
+                if (frame - entry.Value > StaleAfterFrames)
+                {
+                    (stale ??= []).Add(entry.Key);
+                }
+            }
+
+            if (stale is null)
+            {
+                return;
+            }
+
+            foreach ((string File, int Size, Rect Region) key in stale)
+            {
+                if (rasters.Remove(key, out CanvasBitmap? bitmap))
+                {
+                    bitmap.Dispose();
+                }
+
+                lastDrawn.Remove(key);
+            }
         }
     }
 
