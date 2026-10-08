@@ -105,21 +105,11 @@ public sealed class CrashStore(string? directory = null)
     /// <summary>The report with the profile path and user name taken out, and cut to the registry's limits.</summary>
     public static CrashReport Scrub(CrashReport report, string? profile = null, string? userName = null)
     {
-        profile ??= Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        userName ??= Environment.UserName;
+        PersonalPaths personal = profile is null && userName is null ? PersonalPaths.Current : new PersonalPaths(profile, userName);
 
         string Clean(string text, int limit)
         {
-            if (profile.Length > 0)
-            {
-                text = text.Replace(profile, "%USERPROFILE%", StringComparison.OrdinalIgnoreCase);
-            }
-
-            if (userName.Length > 2)
-            {
-                text = text.Replace(userName, "%USERNAME%", StringComparison.OrdinalIgnoreCase);
-            }
-
+            text = personal.Redact(text);
             return text.Length > limit ? text[..limit] : text;
         }
 
