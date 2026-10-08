@@ -6,6 +6,22 @@ pulls the section out and the release workflow hands it to both.
 
 Headings are `## <version> — <date>`. Nothing else is a version heading.
 
+## 2.3.2 — Unreleased
+
+**Fixed**
+
+- **Drop a photo on your charm.** Dragging a picture from Explorer onto the charm never reached
+  it. It now opens the Studio, as it always should have.
+- **The charm stays.** If something went wrong while drawing — the graphics card reset, or the PC
+  ran short of memory — the charm could disappear until Hangly was restarted. Hangly now puts it
+  back by itself, and on a graphics card that keeps failing it switches to drawing without the
+  card rather than giving up.
+- **No more crash when the graphics card resets while a pop-up is showing.** The pop-up closes
+  instead.
+- **Your log stays yours.** Hangly's log no longer records your Windows user name or the names
+  and folders of pictures you import.
+- A rare crash when the charms changed while they were being drawn.
+
 ## 2.3.1 — 2026-10-06
 
 **Added**
