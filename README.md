@@ -161,8 +161,9 @@ repository's [architecture docs](https://github.com/sharancreatedthis/Hangly/tre
 ## Reporting a problem
 
 [Open an issue.](https://github.com/SharanCreatedThis/Hangly-Windows/issues/new/choose)
-`%APPDATA%\Hangly\hangly.log` holds the last run and is usually the whole answer; it
-contains no personal information. Reports from hardware the author does not have —
+`%APPDATA%\Hangly\hangly.log` holds the last run and is usually the whole answer. It can
+include folder paths that contain your Windows user name, so look it over before attaching
+it to a public issue. Reports from hardware the author does not have —
 scaling other than 200%, several monitors, x64 PCs, Windows 10 — are the most useful
 thing anybody can send. [CONTRIBUTING.md](CONTRIBUTING.md) has the rest; security
 issues go by email, per [SECURITY.md](SECURITY.md).

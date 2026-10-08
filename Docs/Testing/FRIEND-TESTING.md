@@ -38,8 +38,8 @@ just message me — whichever is easier. There is no wrong way.
 - What you did and what happened.
 - Your Windows version, your scaling, and how many monitors.
 - **The log**: `%APPDATA%\Hangly\hangly.log`. Paste the path into Explorer's address bar.
-  It covers the last run only and has no personal information in it —
-  [PRIVACY.md](../../PRIVACY.md) lists exactly what it can contain.
+  It covers the last run only. It can include folder paths that contain your Windows user
+  name, so look it over before sending it.
 - A screenshot, if it is something you can see.
 
 A report with none of that is still worth sending. "The charm went weird when I plugged in

@@ -11,7 +11,8 @@ of those is worth more to this project than a patch to something I can already s
 
 [Open an issue](https://github.com/SharanCreatedThis/Hangly-Windows/issues/new/choose) and
 say what happened. `%APPDATA%\Hangly\hangly.log` holds the last run and is usually the
-whole answer; it contains no personal information — see [PRIVACY.md](PRIVACY.md).
+whole answer. It can include folder paths that contain your Windows user name, so look it
+over before attaching it.
 
 ## Building it
 
