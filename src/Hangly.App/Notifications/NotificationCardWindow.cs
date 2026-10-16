@@ -440,7 +440,30 @@ internal sealed class NotificationCardWindow : IDisposable
 
         dirty = false;
         auditDraws++;
-        using (CanvasDrawingSession session = swapChain.CreateDrawingSession(Microsoft.UI.Colors.Transparent))
+        try
+        {
+            DrawFrame(now, reduced, indeterminate);
+        }
+        catch (Exception exception) when (Overlay.OverlayWindow.IsDeviceLoss(exception))
+        {
+            // The card draws on the shared device the overlay uses, inside its own window procedure, so a GPU reset
+            // reached it as an unhandled exception and ended the app (W-CARDDEVLOST: 8 installs in three days on 2.3.0
+            // and 2.3.1). The card goes; the next one is made on the new device (EnsureWindow). Torn down from the
+            // queue rather than here, inside this window's own message.
+            Diagnostics.Log($"notification card: graphics device lost (0x{exception.HResult:X8}); the card closes");
+            frames.Stop();
+            queue.TryEnqueue(DeviceLost);
+            return;
+        }
+
+        Run();
+    }
+
+    /// <summary>One frame of the cards leaving and the card showing, presented.</summary>
+    private void DrawFrame(double now, bool reduced, bool indeterminate)
+    {
+        Overlay.AuditFailure.MaybeFailCard();
+        using (CanvasDrawingSession session = swapChain!.CreateDrawingSession(Microsoft.UI.Colors.Transparent))
         {
             for (int index = leaving.Count - 1; index >= 0; index--)
             {
@@ -476,7 +499,6 @@ internal sealed class NotificationCardWindow : IDisposable
         }
 
         swapChain.Present(0);
-        Run();
     }
 
     /// <summary>Starts or ends the compositor's float of the whole window's content; ±1.5 points on a 4.2-second sine.</summary>

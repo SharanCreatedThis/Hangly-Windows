@@ -12,6 +12,7 @@ using Hangly.App.Import;
 using Hangly.Core.Import;
 using Hangly.App.Tray;
 using Hangly.Core.Analytics;
+using Hangly.Core.Lifecycle;
 using Hangly.Core.Models;
 using Hangly.Core.Physics;
 using Hangly.Core.Settings;
@@ -988,7 +989,7 @@ public sealed partial class AppEnvironment : IDisposable
             NotificationsAfterWake();
         });
         OverlayWindow built = overlay;
-        overlay.GraphicsDeviceLost += () => xamlQueue?.TryEnqueue(() => RecoverFromDeviceLoss(built));
+        overlay.Failed += (deviceLost, hresult) => xamlQueue?.TryEnqueue(() => RecoverOverlay(built, deviceLost, hresult));
         HookNotifications(overlay);
         Diagnostics.Log("overlay window constructed");
 
@@ -1009,8 +1010,13 @@ public sealed partial class AppEnvironment : IDisposable
     /// few hundred stroked segments, not a game. Falling back is strictly better than
     /// refusing to start, so the failure is logged and the app carries on.</para>
     /// </remarks>
-    private static CanvasDevice CreateDevice()
+    private CanvasDevice CreateDevice()
     {
+        if (overlayRecovery.OnSoftware)
+        {
+            return softwareDevice ??= new CanvasDevice(forceSoftwareRenderer: true);
+        }
+
         try
         {
             return CanvasDevice.GetSharedDevice();
@@ -1126,45 +1132,57 @@ public sealed partial class AppEnvironment : IDisposable
         CharmGone();
     }
 
-    /// <summary>The graphics device went away under the overlay: build a new one on a new device.</summary>
+    /// <summary>The overlay's frame loop ended on a failure: build it again (W-FRAMELOOP, W-DEVLOSTCAP).</summary>
     /// <remarks>
     /// After two seconds, because a driver that is being updated or reset is not ready the moment it fails.
     /// <c>CanvasDevice.GetSharedDevice</c> makes a new device once the old one is lost. Measured on the VM: one display
-    /// adapter disabled and re-enabled is four losses in fifteen seconds, each recovered. At most eight within ten
-    /// minutes, so a GPU that fails on every frame cannot turn this into a loop, while a laptop that sleeps for days
-    /// still recovers every time.
+    /// adapter disabled and re-enabled is four losses in fifteen seconds, each recovered. <see cref="OverlayRecovery"/>
+    /// decides how often, and when to move to the software renderer rather than leave the person without a charm.
     /// </remarks>
-    private void RecoverFromDeviceLoss(OverlayWindow lost)
+    private void RecoverOverlay(OverlayWindow failed, bool deviceLost, int hresult)
     {
-        if (overlay != lost)
+        if (overlay != failed)
         {
             return;
         }
 
         HideOverlay();
-        notificationCard?.DeviceLost();
-
-        // The Library, Create and About window stays white after a device loss, even after a restore (measured on
-        // the VM; the same launch without the loss draws normally). It is replaced rather than left blank: set aside
-        // now, and closed only once its replacement exists — WinUI ends the process when its last window closes, and
-        // Customize is often the only one.
-        bool customizeWasOpen = Interop.WindowPlacement.IsShown(customize);
-        if (customize is not null)
+        recentFailures.Enqueue($"0x{hresult:X8}");
+        while (recentFailures.Count > 5)
         {
-            staleCustomize ??= customize;
-            customize = null;
-        }
-        DateTimeOffset now = DateTimeOffset.Now;
-        if (now - recoveryWindowStart > TimeSpan.FromMinutes(10))
-        {
-            recoveryWindowStart = now;
-            deviceRecoveries = 0;
+            recentFailures.Dequeue();
         }
 
-        if (++deviceRecoveries > 8)
+        bool customizeWasOpen = false;
+        if (deviceLost)
         {
-            Diagnostics.Failure("overlay", new InvalidOperationException("graphics device lost more than eight times in ten minutes; not rebuilding again"));
-            return;
+            notificationCard?.DeviceLost();
+
+            // The Library, Create and About window stays white after a device loss, even after a restore (measured on
+            // the VM; the same launch without the loss draws normally). It is replaced rather than left blank: set
+            // aside now, and closed only once its replacement exists — WinUI ends the process when its last window
+            // closes, and Customize is often the only one.
+            customizeWasOpen = Interop.WindowPlacement.IsShown(customize);
+            if (customize is not null)
+            {
+                staleCustomize ??= customize;
+                customize = null;
+            }
+        }
+
+        bool wasOnSoftware = overlayRecovery.OnSoftware;
+        RecoveryStep step = overlayRecovery.Next(DateTimeOffset.Now);
+        if (step == RecoveryStep.GiveUp)
+        {
+            Diagnostics.Failure("overlay", new InvalidOperationException(
+                $"overlay failed more than {OverlayRecovery.Allowed} times in ten minutes on the graphics card and again on the " +
+                $"software renderer; not rebuilding again. Last failures: {string.Join(", ", recentFailures)}"));
+        }
+        else if (step == RecoveryStep.RebuildOnSoftware && !wasOnSoftware)
+        {
+            Diagnostics.Failure("overlay", new InvalidOperationException(
+                $"overlay failed more than {OverlayRecovery.Allowed} times in ten minutes on the graphics card; moving to the " +
+                $"software renderer. Last failures: {string.Join(", ", recentFailures)}"));
         }
 
         Microsoft.UI.Dispatching.DispatcherQueueTimer? wait = xamlQueue?.CreateTimer();
@@ -1177,12 +1195,14 @@ public sealed partial class AppEnvironment : IDisposable
         wait.IsRepeating = false;
         wait.Tick += (_, _) =>
         {
-            if (overlay is null && store.Settings.Overlay.IsEnabled)
+            if (step != RecoveryStep.GiveUp && overlay is null && store.Settings.Overlay.IsEnabled)
             {
                 ShowOverlay();
-                Diagnostics.Log($"overlay rebuilt after the graphics device was lost ({deviceRecoveries})");
+                Diagnostics.Log($"overlay rebuilt after a {(deviceLost ? "lost graphics device" : "failure")} " +
+                    $"({overlayRecovery.Failures}{(overlayRecovery.OnSoftware ? ", software renderer" : string.Empty)})");
             }
 
+            // Reopened even when the overlay is not: giving up on the rope is no reason to lose the Library too.
             if (customizeWasOpen && customize is null)
             {
                 OpenCustomize();
@@ -1192,7 +1212,12 @@ public sealed partial class AppEnvironment : IDisposable
         wait.Start();
     }
 
-    private int deviceRecoveries;
+    private readonly OverlayRecovery overlayRecovery = new();
+
+    /// <summary>The software renderer's device, made once when the overlay first moves there and kept for the session.</summary>
+    private CanvasDevice? softwareDevice;
+    private readonly Queue<string> recentFailures = new();
+
 
     /// <summary>A Customize window drawn on a lost device, kept only until its replacement is open.</summary>
     private Customize.CustomizeWindow? staleCustomize;
@@ -1214,7 +1239,6 @@ public sealed partial class AppEnvironment : IDisposable
             Diagnostics.Failure("closing a customize window drawn on a lost device", exception);
         }
     }
-    private DateTimeOffset recoveryWindowStart = DateTimeOffset.MinValue;
 
     private void OnSettingsChanged(AppSettings settings)
     {

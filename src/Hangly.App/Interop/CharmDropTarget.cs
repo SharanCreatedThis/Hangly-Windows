@@ -31,10 +31,12 @@ namespace Hangly.App.Interop;
 /// there is no sensible reading of four files landing on one place.</para>
 /// </remarks>
 /// <summary>The COM drop target Windows talks to.</summary>
+/// <remarks>Public because COM only sees public interfaces: internal, the wrapper answered
+/// E_NOINTERFACE when asked for IDropTarget (W-DROP).</remarks>
 [ComVisible(true)]
 [Guid("00000122-0000-0000-C000-000000000046")]
 [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-internal interface IDropTarget
+public interface IDropTarget
 {
     [PreserveSig]
     int DragEnter(IDataObject data, uint keyState, long point, ref uint effect);

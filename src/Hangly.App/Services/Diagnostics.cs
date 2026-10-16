@@ -306,7 +306,9 @@ public static class Diagnostics
         {
             lock (Gate)
             {
-                File.AppendAllText(LogPath, $"{DateTimeOffset.Now:HH:mm:ss.fff} {line}{Environment.NewLine}");
+                // Redacted here, once, so no line can carry the user name or profile path: people attach this file to
+                // public issues (W-LOGPII).
+                File.AppendAllText(LogPath, $"{DateTimeOffset.Now:HH:mm:ss.fff} {Hangly.Core.Crashes.PersonalPaths.Current.Redact(line)}{Environment.NewLine}");
             }
         }
         catch (Exception)

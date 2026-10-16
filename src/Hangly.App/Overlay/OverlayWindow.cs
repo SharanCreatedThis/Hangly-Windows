@@ -392,6 +392,8 @@ public sealed class OverlayWindow : IDisposable
         }
         catch (Exception exception)
         {
+            failed = true;
+            failureHResult = exception.HResult;
             deviceLost = IsDeviceLoss(exception);
             if (deviceLost)
             {
@@ -415,22 +417,26 @@ public sealed class OverlayWindow : IDisposable
             FullscreenWatcher.Unhook(foregroundHook);
             foregroundHook = IntPtr.Zero;
             surface.Dispose();
-            if (deviceLost)
+            if (failed)
             {
-                GraphicsDeviceLost?.Invoke();
+                Failed?.Invoke(deviceLost, failureHResult);
             }
         }
     }
 
+    private bool failed;
     private bool deviceLost;
+    private int failureHResult;
 
-    /// <summary>The frame loop ended because the graphics device went away. Raised on the overlay's thread, once.</summary>
+    /// <summary>The frame loop ended on a failure: whether the graphics device went away, and the HRESULT. Raised on the
+    /// overlay's thread, once.</summary>
     /// <remarks>
-    /// Before this, the loop ended, the window went with it, and the charm was gone until Hangly was restarted:
-    /// 191 reports from 151 installations (2.1.0–2.2.0), every one DXGI_ERROR_DEVICE_REMOVED from
-    /// <c>CreateDrawingSession</c>. Drawing cannot carry on with the old device; the app builds a new overlay.
+    /// Before 2.3.0 a lost device ended the loop, the window went with it, and the charm was gone until Hangly was
+    /// restarted: 191 reports from 151 installations, every one DXGI_ERROR_DEVICE_REMOVED from
+    /// <c>CreateDrawingSession</c>. Until 2.3.2 every other failure still did (W-FRAMELOOP). Now each one is raised,
+    /// and the app builds a new overlay (<c>AppEnvironment.RecoverOverlay</c>).
     /// </remarks>
-    public event Action? GraphicsDeviceLost;
+    public event Action<bool, int>? Failed;
 
     /// <summary>Whether an exception means the Direct3D device is gone (removed, reset, hung), not a bug.</summary>
     public static bool IsDeviceLoss(Exception exception) => (uint)exception.HResult is
@@ -767,6 +773,7 @@ public sealed class OverlayWindow : IDisposable
 
     private void OnTick(double deltaTime)
     {
+        AuditFailure.MaybeFailOverlay(started);
         long tickStarted = AuditFrames ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;
         frameAudit?.BeginFrame();
         PollPointer();
@@ -905,6 +912,9 @@ public sealed class OverlayWindow : IDisposable
 
     // Frame timing, for the smoothness checks only (HANGLY_AUDIT_FRAMES=1): how even the frames are while the rope moves.
     private static readonly bool AuditFrames = Environment.GetEnvironmentVariable("HANGLY_AUDIT_FRAMES") == "1";
+
+    /// <summary>When this overlay was built, for <see cref="AuditFailure"/>.</summary>
+    private readonly long started = System.Diagnostics.Stopwatch.GetTimestamp();
 
     /// <summary>Each frame's own breakdown, for the same checks; null — nothing recorded — outside them.</summary>
     private readonly FrameAudit? frameAudit = AuditFrames ? new FrameAudit() : null;

@@ -1601,7 +1601,8 @@ public sealed partial class CustomizeWindow : Window
             "Import a charm",
             ("Pictures", "*.png;*.jpg;*.jpeg;*.webp"));
 
-        Services.Diagnostics.Log($"import: chose {path ?? "nothing"}");
+        // The kind of file, not its name: a picture's name and folder are the person's own (W-LOGPII).
+        Services.Diagnostics.Log($"import: chose {(path is null ? "nothing" : $"a {Path.GetExtension(path)} file")}");
         if (path is null)
         {
             return;
